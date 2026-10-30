@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { cerrarSemana, useData } from "@/lib/store";
 import { saldosAl } from "@/lib/calc";
-import { clp, ddmmaa, fechaCorta, hora, hoy, lunesDe, semanaISO, sumarDias } from "@/lib/format";
+import { clp, ddmm, ddmmaa, fechaCorta, hora, hoy, lunesDe, semanaISO, sumarDias } from "@/lib/format";
 import { useAviso } from "../Shell";
 import { MontoGrande, Vacio } from "../ui";
 
@@ -51,7 +51,8 @@ export function CierreSemanal({ pestanas }: { pestanas?: ReactNode }) {
           <p className="min-w-0 px-1">
             <b>Semana N°{semana}</b>{" "}
             <span className="text-gris">
-              · {fechaCorta(lunes)} a {fechaCorta(domingo)}
+              <span className="sm:hidden">· {ddmm(lunes)} al {ddmm(domingo)}</span>
+              <span className="hidden sm:inline">· {fechaCorta(lunes)} a {fechaCorta(domingo)}</span>
             </span>
           </p>
           <button

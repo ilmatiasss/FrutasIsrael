@@ -386,6 +386,13 @@
     min-height: 297mm;
     padding: 10mm;
     color: #000;
+    overflow-x: auto;
+  }
+  @media screen and (max-width: 640px) {
+    .hoja-a4 {
+      padding: 4mm;
+      min-height: 0;
+    }
   }
   @page {
     size: A4;
@@ -421,10 +428,12 @@
     align-items: center;
     column-gap: 0.5rem;
     row-gap: 0.4rem;
-    grid-template-columns: 4.2rem 6rem minmax(0, 1fr) 1.6rem;
+    /* celular: producto arriba a lo ancho; cantidad, unidad y precio abajo */
+    grid-template-columns: 4.2rem 5.6rem minmax(0, 1fr) 1.6rem;
     grid-template-areas:
-      "c u p x"
-      "pr pr st st";
+      "p p p x"
+      "c u pr pr"
+      ". . st st";
   }
   @media (min-width: 640px) {
     .fila-vale {

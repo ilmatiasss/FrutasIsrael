@@ -173,7 +173,7 @@ export function CuentaCliente({ id }: { id: string }) {
       {/* ------------------------------ período ------------------------------ */}
       <section className="no-print flex flex-wrap items-center gap-x-4 gap-y-3 border-y border-linea py-3">
         <span className="text-[11px] uppercase tracking-[0.2em] text-gris">Período</span>
-        <div className="flex flex-wrap overflow-hidden rounded-sm border border-kraft-osc/60 text-sm" role="group" aria-label="Período">
+        <div className="flex max-w-full overflow-x-auto rounded-full border-[1.5px] border-kraft bg-hoja p-0.5 text-sm" role="group" aria-label="Período">
           {(
             [
               ["mes", MESES[Number(hoy().slice(5, 7)) - 1]],
@@ -188,7 +188,7 @@ export function CuentaCliente({ id }: { id: string }) {
               type="button"
               onClick={() => setPeriodo(k)}
               aria-pressed={periodo === k}
-              className={`px-3 py-1 capitalize ${periodo === k ? "bg-tinta text-white" : "hover:bg-carton"}`}
+              className={`whitespace-nowrap rounded-full px-3 py-1 font-semibold first-letter:uppercase ${periodo === k ? "bg-tinta text-white" : "hover:bg-carton"}`}
             >
               {l}
             </button>

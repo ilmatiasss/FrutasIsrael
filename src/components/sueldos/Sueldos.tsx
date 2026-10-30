@@ -69,7 +69,11 @@ export function Sueldos() {
           ←
         </button>
         <p className="px-1 font-bold">
-          Semana N°{semanaISO(lunes).semana} <span className="font-semibold text-gris">· {fechaCorta(lunes)} a {fechaCorta(semana.hasta)}</span>
+          Semana N°{semanaISO(lunes).semana}{" "}
+          <span className="font-semibold text-gris">
+            <span className="sm:hidden">· {ddmm(lunes)} al {ddmm(semana.hasta)}</span>
+            <span className="hidden sm:inline">· {fechaCorta(lunes)} a {fechaCorta(semana.hasta)}</span>
+          </span>
         </p>
         <button
           type="button"
@@ -271,7 +275,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
 
       <div className="no-print mt-4 flex flex-wrap gap-2">
         {c.falta > 0 && (
-          <button type="button" onClick={() => onPagar(c, "PAGO")} className="btn btn-primario flex-1 sm:flex-none">
+          <button type="button" onClick={() => onPagar(c, "PAGO")} className="btn btn-primario flex-1 whitespace-nowrap sm:flex-none">
             Pagar {clp(c.falta)}
           </button>
         )}

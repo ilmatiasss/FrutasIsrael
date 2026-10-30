@@ -608,7 +608,7 @@ export function RegistroVale() {
                     className={`campo text-right text-lg ${err && !e.p ? "campo-error" : ""}`}
                   />
                   {hint && (hint.general || hint.cliente) && (
-                    <p className="absolute right-0 top-full z-10 mt-0.5 whitespace-nowrap text-[12px] text-gris">
+                    <p className="z-10 mt-1 text-right text-[12px] leading-snug text-gris sm:absolute sm:right-0 sm:top-full sm:mt-0.5 sm:whitespace-nowrap">
                       {hint.cliente && (
                         <>
                           a este cliente <b className="cifra text-grafito">{clp(hint.cliente.precio)}</b> {ddmm(hint.cliente.fecha)}

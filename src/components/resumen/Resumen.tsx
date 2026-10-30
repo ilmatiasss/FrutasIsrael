@@ -203,12 +203,12 @@ export function Resumen() {
 
         <Bloque titulo="Productos" nota="Últimas 4 semanas, contado y fiado. Precio: primero y último cobrado en el período." className="lg:col-span-2">
           <div className="overflow-x-auto">
-            <table className="w-full min-w-[560px] text-sm">
+            <table className="w-full text-sm"> 
               <thead>
                 <tr className="text-left">
                   <th className="rotulo py-2 font-medium">Producto</th>
                   <th className="rotulo py-2 text-right font-medium">Vendido</th>
-                  <th className="rotulo w-[34%] py-2 pl-4 font-medium">Monto</th>
+                  <th className="rotulo py-2 pl-4 text-right font-medium sm:w-[34%] sm:text-left">Monto</th>
                   <th className="rotulo py-2 text-right font-medium">Precio</th>
                 </tr>
               </thead>
@@ -225,10 +225,10 @@ export function Resumen() {
                       </td>
                       <td className="py-2 pl-4">
                         <span className="flex items-center gap-3">
-                          <span className="flex-1">
+                          <span className="hidden flex-1 sm:block">
                             <BarraFila valor={p.monto} max={maxProd} color={SERIE.contado} />
                           </span>
-                          <span className="cifra w-24 text-right">{clp(p.monto)}</span>
+                          <span className="cifra ml-auto text-right sm:w-24">{clp(p.monto)}</span>
                         </span>
                       </td>
                       <td className="cifra py-2 text-right whitespace-nowrap">

@@ -266,7 +266,7 @@ export function ImprimirCaja() {
     contenido = (
       <>
         <Cabecera db={data.db} titulo="Cierre de caja" sub={fechaLarga(fecha)} />
-        <div className="grid grid-cols-2 gap-x-6">
+        <div className="grid gap-x-6 sm:grid-cols-2">
           <Bloque titulo="Totales del día">
             <Totales r={d.r} />
           </Bloque>
@@ -274,7 +274,7 @@ export function ImprimirCaja() {
             <Efectivo d={d} />
           </Bloque>
         </div>
-        <div className="grid grid-cols-2 gap-x-6">
+        <div className="grid gap-x-6 sm:grid-cols-2">
           {(["ventas", "creditos", "abonos", "gastos"] as const).map((m) => (
             <Bloque key={m} titulo={MODULOS[m]} total={m === "gastos" ? undefined : total(m)}>
               <Detalle movs={lista(m)} idx={data.idx} compacto />
