@@ -58,6 +58,10 @@ export function RegistroVale() {
   const [escUna, setEscUna] = useState(false);
   const [ultimoId, setUltimoId] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState<string | null>(null);
+  // "solo monto": vale sin productos, solo la plata (lo más común para fiar rápido)
+  const [soloMonto, setSoloMonto] = useState(false);
+  const [monto, setMonto] = useState("");
+  const [detalle, setDetalle] = useState("");
 
   const refs = useRef(new Map<string, HTMLElement | null>());
   const r = (k: string) => (el: HTMLElement | null) => {
@@ -81,18 +85,42 @@ export function RegistroVale() {
       const e = estados.get(id)!;
       setCliente(e);
       setClienteQ(e.cliente.alias ?? e.cliente.nombre);
-      foco(`${filas[0].k}-cant`);
+      setTimeout(() => foco(primerCampo()), 0);
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [params, estados]);
+
+  useEffect(() => {
+    try {
+      if (localStorage.getItem("frutas-israel:solo-monto") === "1") {
+        setSoloMonto(true);
+        setForma("CREDITO");
+      }
+    } catch {}
+  }, []);
+
+  const primerCampo = () => (soloMonto ? "monto" : `${filas[0].k}-cant`);
+
+  const cambiarModo = (v: boolean) => {
+    flushSync(() => {
+      setSoloMonto(v);
+      setForma(v ? "CREDITO" : "EFECTIVO");
+      setConfirmarMoroso(false);
+    });
+    try {
+      localStorage.setItem("frutas-israel:solo-monto", v ? "1" : "0");
+    } catch {}
+    foco(!cliente ? "cliente" : v ? "monto" : `${filas[0].k}-cant`);
+  };
 
   // el estado del cliente se refresca si cambia la base (p. ej. otro vale)
   const cli = cliente ? (estados.get(cliente.cliente.id) ?? cliente) : null;
 
   const calc = useMemo(() => filas.map(estadoFila), [filas]);
-  const total = calc.reduce((a, c) => a + c.subtotal, 0);
+  const montoSolo = parseMonto(monto) ?? 0;
+  const total = soloMonto ? montoSolo : calc.reduce((a, c) => a + c.subtotal, 0);
   const completas = calc.filter((c) => c.completa).length;
-  const sucio = !!cliente || calc.some((c) => !c.vacia);
+  const sucio = !!cliente || calc.some((c) => !c.vacia) || !!monto || !!detalle;
   const siguiente = data.db.tenant.ultimo_numero + 1;
   const productos = data.db.productos.filter((p) => p.activo);
 
@@ -116,14 +144,16 @@ export function RegistroVale() {
     setCliente(null);
     setClienteQ("");
     setFilas([filaVacia()]);
-    setForma("EFECTIVO");
+    setForma(soloMonto ? "CREDITO" : "EFECTIVO");
+    setMonto("");
+    setDetalle("");
     setAbono("");
     setErrores(new Set());
     setConfirmarMoroso(false);
     setEscUna(false);
     setFecha(hoy());
     foco("cliente");
-  }, [foco]);
+  }, [foco, soloMonto]);
 
   /* ------------------------------- guardar ------------------------------- */
 
@@ -133,7 +163,12 @@ export function RegistroVale() {
       foco("cliente");
       return;
     }
-    const malas = filas.filter((f, i) => !calc[i].vacia && !calc[i].completa).map((f) => f.k);
+    if (soloMonto && montoSolo <= 0) {
+      sacudir("monto");
+      foco("monto");
+      return;
+    }
+    const malas = soloMonto ? [] : filas.filter((f, i) => !calc[i].vacia && !calc[i].completa).map((f) => f.k);
     if (malas.length) {
       setErrores(new Set(malas));
       const f = filas.find((x) => x.k === malas[0])!;
@@ -141,7 +176,7 @@ export function RegistroVale() {
       foco(`${f.k}-${e.c === null ? "cant" : !f.prod ? "prod" : "precio"}`);
       return;
     }
-    if (!completas) {
+    if (!soloMonto && !completas) {
       sacudir("lineas");
       foco(`${filas[0].k}-cant`);
       return;
@@ -151,7 +186,7 @@ export function RegistroVale() {
       foco("forma");
       return;
     }
-    const lineas = filas
+    const lineas = soloMonto ? [] : filas
       .map((f, i) => ({ f, e: calc[i] }))
       .filter(({ e }) => e.completa)
       .map(({ f, e }) => ({ cantidad: e.c!, unidad: f.unidad, producto_id: f.prod!.id, precio_unitario: e.p! }));
@@ -161,6 +196,8 @@ export function RegistroVale() {
       cliente_id: cli.cliente.id,
       forma_pago: forma,
       lineas,
+      monto: soloMonto ? montoSolo : undefined,
+      glosa: soloMonto ? detalle.trim() || (forma === "CREDITO" ? "Crédito sin detalle" : "Venta sin detalle") : null,
       abono: montoAbono > 0 ? { monto: montoAbono, forma: abonoForma } : null,
     });
     setUltimoId(mov.id);
@@ -179,6 +216,9 @@ export function RegistroVale() {
       if ((e.ctrlKey || e.metaKey) && e.key === "Enter") {
         e.preventDefault();
         guardar();
+      } else if (e.altKey && e.key.toLowerCase() === "m") {
+        e.preventDefault();
+        cambiarModo(!soloMonto);
       } else if (e.key === "Escape") {
         if (!sucio) return;
         if (escUna) limpiar();
@@ -228,6 +268,10 @@ export function RegistroVale() {
 
   // "5c" → 5 cajas y salta a producto; "20k" → 20 kg
   const onCantChange = (f: Fila, v: string) => {
+    if (v.trim() === "$" && filas.length === 1) {
+      cambiarModo(true);
+      return;
+    }
     const m = v.match(/^\s*(\d+(?:[.,]\d+)?)\s*([cekCEK])$/);
     if (m) {
       flushSync(() => setFila(f.k, { cant: m[1], unidad: TECLA_UNIDAD[m[2].toLowerCase()], unidadTocada: true }));
@@ -310,7 +354,7 @@ export function RegistroVale() {
     } else if (e.key === "Backspace" || e.key === "ArrowUp") {
       e.preventDefault();
       const ult = filas[filas.length - 1];
-      foco(`${ult.k}-cant`);
+      foco(soloMonto ? "monto" : `${ult.k}-cant`);
     }
   };
 
@@ -377,7 +421,7 @@ export function RegistroVale() {
               setCliente(e);
               setClienteQ(e.cliente.alias ?? e.cliente.nombre);
               setConfirmarMoroso(false);
-              foco(`${filas[0].k}-cant`);
+              foco(primerCampo());
             }}
             onCrear={(q) => setNuevo(q)}
             placeholder="Escribe el alias o nombre"
@@ -394,8 +438,72 @@ export function RegistroVale() {
           )}
         </div>
 
+        {/* modo: con productos o solo monto */}
+        <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
+          <div className="inline-flex rounded-md border border-kraft p-0.5" role="tablist" aria-label="Tipo de vale">
+            {[
+              { v: false, label: "Con productos" },
+              { v: true, label: "Solo monto" },
+            ].map((t) => (
+              <button
+                key={t.label}
+                type="button"
+                role="tab"
+                tabIndex={-1}
+                aria-selected={soloMonto === t.v}
+                onClick={() => soloMonto !== t.v && cambiarModo(t.v)}
+                className={`rounded px-3 py-1 text-sm font-semibold ${soloMonto === t.v ? "bg-grafito text-hoja" : "text-gris hover:text-grafito"}`}
+              >
+                {t.label}
+              </button>
+            ))}
+          </div>
+          <span className="hidden text-xs text-gris md:inline">Alt+M cambia · o escribe $ en Cant.</span>
+        </div>
+
+        {soloMonto ? (
+          <div className={`mt-4 grid gap-4 sm:grid-cols-[minmax(0,14rem)_minmax(0,1fr)] ${sacude === "monto" ? "tiembla" : ""}`}>
+            <label className="block">
+              <span className="rotulo">Monto</span>
+              <input
+                ref={r("monto")}
+                value={monto}
+                onChange={(e) => setMonto(e.target.value)}
+                onBlur={() => montoSolo && setMonto(miles(montoSolo))}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    if (montoSolo > 0) {
+                      setMonto(miles(montoSolo));
+                      foco("forma");
+                    } else sacudir("monto");
+                  }
+                }}
+                inputMode="numeric"
+                placeholder="$"
+                className="campo text-right text-2xl font-semibold"
+              />
+            </label>
+            <label className="block">
+              <span className="rotulo">Detalle (opcional)</span>
+              <input
+                value={detalle}
+                onChange={(e) => setDetalle(e.target.value)}
+                onKeyDown={(e) => {
+                  if (e.key === "Enter") {
+                    e.preventDefault();
+                    foco("forma");
+                  }
+                }}
+                placeholder="ej: fruta varia, saldo de la semana"
+                className="campo font-sans text-lg"
+              />
+            </label>
+          </div>
+        ) : (
+          <>
         {/* líneas */}
-        <div className={`mt-6 ${sacude === "lineas" ? "tiembla" : ""}`}>
+        <div className={`mt-3 ${sacude === "lineas" ? "tiembla" : ""}`}>
           <div className="fila-vale hidden border-b border-linea pb-1 sm:grid">
             <span className="a-n rotulo">#</span>
             <span className="a-c rotulo text-right">Cant.</span>
@@ -523,10 +631,13 @@ export function RegistroVale() {
           })}
         </div>
 
+          </>
+        )}
+
         {/* total */}
         <div className="mt-5 flex items-end justify-between gap-4">
           <span className="text-sm text-gris">
-            {completas} {completas === 1 ? "línea" : "líneas"}
+            {soloMonto ? "Sin productos" : `${completas} ${completas === 1 ? "línea" : "líneas"}`}
           </span>
           <p className="flex items-baseline gap-3">
             <span className="rotulo">Total</span>
@@ -613,7 +724,7 @@ export function RegistroVale() {
 
           <div className="mt-6 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className={`text-sm ${escUna ? "font-semibold text-fuji" : "hidden text-gris md:block"}`}>
-              {escUna ? "Presiona Esc otra vez para limpiar el vale" : "Enter avanza · 5c = 5 cajas · 12k = $12.000"}
+              {escUna ? "Presiona Esc otra vez para limpiar el vale" : soloMonto ? "Enter avanza · 150k = $150.000" : "Enter avanza · 5c = 5 cajas · 12k = $12.000"}
             </p>
             <button type="button" onClick={guardar} className="btn btn-primario px-6 py-3 text-lg">
               Guardar vale
@@ -643,7 +754,7 @@ export function RegistroVale() {
             pendientes: [], sobreLimite: false,
           });
           avisar({ titulo: "Cliente creado", detalle: c.nombre, tono: "tinta" });
-          foco(`${filas[0].k}-cant`);
+          foco(primerCampo());
         }}
       />
     </div>

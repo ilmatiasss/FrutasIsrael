@@ -165,19 +165,23 @@ export function crearVale(p: {
   cliente_id: string;
   forma_pago: FormaPago;
   lineas: LineaInput[];
+  /** vale "solo monto": sin productos, se usa este total */
+  monto?: number;
+  glosa?: string | null;
   abono?: { monto: number; forma: Exclude<FormaPago, "CREDITO"> } | null;
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
     const numero = d.tenant.ultimo_numero + 1;
     const lineas: LineaVale[] = [];
-    const total = p.lineas.reduce((a, l) => a + Math.round(l.cantidad * l.precio_unitario), 0);
+    const total = p.lineas.length ? p.lineas.reduce((a, l) => a + Math.round(l.cantidad * l.precio_unitario), 0) : Math.round(p.monto ?? 0);
     const mov = nuevoMov(d, numero, {
       tipo: p.forma_pago === "CREDITO" ? "VALE_CREDITO" : "VALE_VENTA",
       fecha: p.fecha,
       cliente_id: p.cliente_id,
       forma_pago: p.forma_pago,
       total,
+      glosa: p.glosa ?? null,
     });
     p.lineas.forEach((l, i) =>
       lineas.push({

@@ -35,7 +35,7 @@ tenants ─┬─< tenant_miembros >── auth.users
 | `anulado_at / anulado_por / motivo_anulacion` | anulación auditable; nunca se borra |
 | `importado` | vino del CSV de la planilla |
 
-**Deuda sin productos** (saldo anterior, préstamo, ajuste): es un `VALE_CREDITO` sin líneas y con `glosa` obligatoria. Se crea con `cargar_deuda()`, toma N° del talonario y se anula igual que cualquier vale.
+**Deuda sin productos** (saldo anterior, préstamo, ajuste): es un `VALE_CREDITO` sin líneas; la `glosa` es opcional (por defecto «Crédito sin detalle»). Lo mismo un vale venta «solo monto». Se crea con `cargar_deuda()`, toma N° del talonario y se anula igual que cualquier vale.
 
 **lineas_vale** — `cantidad` (decimal para KG), `unidad`, `producto_id`, `precio_unitario`, `subtotal`.
 

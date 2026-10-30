@@ -247,7 +247,7 @@ declare
   v_usuario text;
 begin
   if not es_miembro(p_tenant) then raise exception 'Sin acceso'; end if;
-  if coalesce(trim(p_glosa), '') = '' then raise exception 'Indica el motivo de la deuda'; end if;
+  p_glosa := coalesce(nullif(trim(p_glosa), ''), 'Crédito sin detalle');
   select nombre into v_usuario from tenant_miembros where tenant_id = p_tenant and user_id = auth.uid();
   update tenants set ultimo_numero = ultimo_numero + 1 where id = p_tenant returning ultimo_numero into v_num;
   insert into movimientos (tenant_id, numero, tipo, fecha, cliente_id, forma_pago, total, glosa, creado_por)

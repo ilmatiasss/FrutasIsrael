@@ -12,14 +12,14 @@ const MOTIVOS = ["Saldo anterior", "Préstamo", "Ajuste de cuenta"];
 export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; abierto: boolean; onCerrar: () => void }) {
   const avisar = useAviso();
   const [monto, setMonto] = useState("");
-  const [motivo, setMotivo] = useState(MOTIVOS[0]);
+  const [motivo, setMotivo] = useState("");
   const [fecha, setFecha] = useState(hoy());
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!abierto) return;
     setMonto("");
-    setMotivo(MOTIVOS[0]);
+    setMotivo("");
     setFecha(hoy());
     setTimeout(() => ref.current?.focus(), 30);
   }, [abierto]);
@@ -27,9 +27,10 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
   const m = parseMonto(monto) ?? 0;
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (m <= 0 || !motivo.trim()) return;
-    const mov = cargarDeuda({ cliente_id: est.cliente.id, monto: m, glosa: motivo.trim(), fecha });
-    avisar({ titulo: `Deuda agregada · N°${mov.numero}`, detalle: `${est.cliente.alias ?? est.cliente.nombre} · ${clp(m)} · ${motivo.trim()}`, tono: "rojo" });
+    if (m <= 0) return;
+    const glosa = motivo.trim() || "Crédito sin detalle";
+    const mov = cargarDeuda({ cliente_id: est.cliente.id, monto: m, glosa, fecha });
+    avisar({ titulo: `Deuda agregada · N°${mov.numero}`, detalle: `${est.cliente.alias ?? est.cliente.nombre} · ${clp(m)} · ${glosa}`, tono: "rojo" });
     onCerrar();
   };
 
@@ -39,7 +40,7 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
         <div>
           <p className="stencil text-2xl">Agregar deuda</p>
           <p className="text-sm text-gris">
-            A {est.cliente.alias ?? est.cliente.nombre}, sin productos. Para una venta fiada usa un vale con forma de pago Crédito.
+            A {est.cliente.alias ?? est.cliente.nombre}. Solo el monto: sin productos.
           </p>
         </div>
         <label className="block">
@@ -55,15 +56,15 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
           />
         </label>
         <div>
-          <span className="rotulo">Motivo</span>
+          <span className="rotulo">Motivo (opcional)</span>
           <div className="mt-1.5 flex flex-wrap gap-2">
             {MOTIVOS.map((x) => (
-              <button key={x} type="button" aria-pressed={motivo === x} onClick={() => setMotivo(x)} className="opcion py-1 text-sm">
+              <button key={x} type="button" aria-pressed={motivo === x} onClick={() => setMotivo(motivo === x ? "" : x)} className="opcion py-1 text-sm">
                 {x}
               </button>
             ))}
           </div>
-          <input value={motivo} onChange={(e) => setMotivo(e.target.value)} className="campo mt-2 font-sans" aria-label="Motivo" placeholder="Otro motivo" />
+          <input value={motivo} onChange={(e) => setMotivo(e.target.value)} className="campo mt-2 font-sans" aria-label="Motivo" placeholder="Escribe otro, o déjalo en blanco" />
         </div>
         <label className="flex items-center gap-3 text-sm">
           <span className="rotulo">Fecha</span>
@@ -82,7 +83,7 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
           <button type="button" onClick={onCerrar} className="btn btn-secundario">
             Cancelar
           </button>
-          <button type="submit" disabled={m <= 0 || !motivo.trim()} className="btn btn-primario disabled:opacity-40">
+          <button type="submit" disabled={m <= 0} className="btn btn-primario disabled:opacity-40">
             Agregar deuda
           </button>
         </div>

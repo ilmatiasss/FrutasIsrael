@@ -43,6 +43,8 @@ c ↵            → CRÉDITO y guarda   (e = efectivo, t = transferencia; Ctrl+
 Esc Esc        → limpia el vale
 ```
 
+**Vale solo monto** (sin productos): en la hoja del vale, pestaña «Solo monto» (`Alt+M`, o escribir `$` en Cant.). Queda solo cliente → monto → forma de pago; por defecto Crédito, así que sirve para fiar plata rápido. El detalle es opcional y el modo elegido se recuerda en ese PC.
+
 Si el cliente está moroso o el vale lo pasa de su tope, aparece un aviso y pide confirmar guardando por segunda vez.
 
 ## Reglas que respeta
