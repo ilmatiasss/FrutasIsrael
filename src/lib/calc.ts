@@ -18,6 +18,16 @@ export function efectoDeuda(m: Movimiento): number {
   return 0;
 }
 
+/** Deuda de cada cliente al final de una fecha (solo los que deben algo) */
+export function saldosAl(movs: Movimiento[], fecha: Fecha): { cliente_id: string; saldo: number }[] {
+  const m = new Map<string, number>();
+  for (const x of movs) {
+    if (!x.cliente_id || x.fecha > fecha) continue;
+    m.set(x.cliente_id, (m.get(x.cliente_id) ?? 0) + efectoDeuda(x));
+  }
+  return [...m.entries()].filter(([, s]) => s > 0).map(([cliente_id, saldo]) => ({ cliente_id, saldo })).sort((a, b) => b.saldo - a.saldo);
+}
+
 export interface Indice {
   cliente: Map<string, Cliente>;
   producto: Map<string, Producto>;

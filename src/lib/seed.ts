@@ -364,6 +364,7 @@ export function crearSeed(anclaje: string = hoy()): Db {
     movimientos,
     lineas,
     cierres: [],
+    cierres_semana: [],
     eventos: [
       {
         id: uid(),

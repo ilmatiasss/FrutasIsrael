@@ -9,8 +9,8 @@ import type {
   Cliente, Config, Db, Evento, FormaPago, LineaVale, Movimiento, TipoMovimiento, Unidad,
 } from "./types";
 import { crearSeed } from "./seed";
-import { hoy, uid } from "./format";
-import { indexar, resumenCaja, type Indice } from "./calc";
+import { hoy, lunesDe, sumarDias, uid } from "./format";
+import { indexar, resumenCaja, saldosAl, type Indice } from "./calc";
 
 const KEY = "frutas-israel:db:v1";
 
@@ -22,7 +22,7 @@ function cargar(): Db {
     const raw = localStorage.getItem(KEY);
     if (raw) {
       const parsed = JSON.parse(raw) as Db;
-      if (parsed.version === 1) return parsed;
+      if (parsed.version === 1) return { ...parsed, cierres_semana: parsed.cierres_semana ?? [] };
     }
   } catch {
     /* almacenamiento bloqueado o corrupto: partimos de cero */
@@ -49,6 +49,23 @@ function sembrar(): Db {
       nota: null,
     });
   });
+  // cierres semanales de las semanas ya terminadas
+  const lunesHoy = lunesDe(hoyF);
+  const primero = [...nueva.movimientos].sort((a, b) => a.fecha.localeCompare(b.fecha))[0];
+  for (let l = lunesDe(sumarDias(primero.fecha, 7)); l < lunesHoy; l = sumarDias(l, 7)) {
+    const domingo = sumarDias(l, 6);
+    const saldos = saldosAl(nueva.movimientos, domingo);
+    nueva.cierres_semana.push({
+      id: uid(),
+      tenant_id: nueva.tenant.id,
+      lunes: l,
+      domingo,
+      cerrado_por: "Israel",
+      cerrado_at: new Date(domingo + "T13:00:00").toISOString(),
+      total: saldos.reduce((a, s) => a + s.saldo, 0),
+      saldos,
+    });
+  }
   return nueva;
 }
 
@@ -285,6 +302,39 @@ export function cerrarCaja(fecha: string, nota: string | null) {
         { id: uid(), tenant_id: d.tenant.id, fecha, cerrado_por: d.config.usuario_actual, cerrado_at: new Date().toISOString(), snapshot: snap, nota },
       ],
       eventos: [...d.eventos, evento(d, "CERRAR_CAJA", null, `Cierre ${fecha} · efectivo esperado $${snap.efectivo_esperado}`)],
+    };
+  });
+}
+
+/** Deuda sin productos: saldo anterior, préstamo, ajuste. Queda como vale crédito con glosa. */
+export function cargarDeuda(p: { cliente_id: string; monto: number; glosa: string; fecha: string }): Movimiento {
+  let creado!: Movimiento;
+  set((d) => {
+    const numero = d.tenant.ultimo_numero + 1;
+    const mov = nuevoMov(d, numero, {
+      tipo: "VALE_CREDITO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: "CREDITO", total: p.monto, glosa: p.glosa,
+    });
+    creado = mov;
+    return {
+      ...d,
+      tenant: { ...d.tenant, ultimo_numero: numero },
+      movimientos: [...d.movimientos, mov],
+      eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", mov.id, `Deuda agregada N°${numero} · ${p.glosa} · $${p.monto}`)],
+    };
+  });
+  return creado;
+}
+
+export function cerrarSemana(lunes: string, domingo: string, saldos: { cliente_id: string; saldo: number }[]) {
+  set((d) => {
+    const total = saldos.reduce((a, s) => a + s.saldo, 0);
+    return {
+      ...d,
+      cierres_semana: [
+        ...d.cierres_semana,
+        { id: uid(), tenant_id: d.tenant.id, lunes, domingo, cerrado_por: d.config.usuario_actual, cerrado_at: new Date().toISOString(), total, saldos },
+      ],
+      eventos: [...d.eventos, evento(d, "CERRAR_SEMANA", null, `Cierre semana ${lunes} a ${domingo} · deuda total $${total}`)],
     };
   });
 }

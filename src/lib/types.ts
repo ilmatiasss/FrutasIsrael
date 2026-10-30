@@ -116,6 +116,18 @@ export interface CierreCaja {
   nota: string | null;
 }
 
+/** Cierre semanal (lunes a domingo): con cuánta deuda quedó cada cliente. */
+export interface CierreSemana {
+  id: UUID;
+  tenant_id: UUID;
+  lunes: Fecha;
+  domingo: Fecha;
+  cerrado_por: string;
+  cerrado_at: Timestamp;
+  total: number;
+  saldos: { cliente_id: UUID; saldo: number }[];
+}
+
 /** Bitácora append-only: todo lo que pasa queda escrito. */
 export interface Evento {
   id: UUID;
@@ -128,6 +140,7 @@ export interface Evento {
     | "CREAR_CLIENTE"
     | "EDITAR_CLIENTE"
     | "CERRAR_CAJA"
+    | "CERRAR_SEMANA"
     | "IMPORTAR_CSV"
     | "REINICIAR_DEMO";
   entidad_id: UUID | null;
@@ -168,6 +181,7 @@ export interface Db {
   movimientos: Movimiento[];
   lineas: LineaVale[];
   cierres: CierreCaja[];
+  cierres_semana: CierreSemana[];
   eventos: Evento[];
   config: Config;
 }

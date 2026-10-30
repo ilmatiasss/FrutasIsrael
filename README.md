@@ -21,15 +21,15 @@ Los datos viven en el `localStorage` del navegador. Al abrir por primera vez se 
 | `F1` | **Vale** (`/`) | Registro rápido: cliente → líneas → forma de pago → guardar. Correlativo automático, pizarra de precios del día y colillas de hoy. |
 | `F2` | **Abono** (`/abono`) | Pago parcial o total. Muestra qué vales impagos quedan saldados (del más antiguo al más nuevo) mientras se escribe el monto. |
 | `F3` | **Clientes** (`/clientes`) | Deuda a la fecha, estado Al día / Atrasado / Moroso (automático o fijado a mano), si sigue comprando. Ordenable y filtrable. |
-| — | **Cuenta cliente** (`/clientes/[id]`) | Deuda vigente grande arriba; historial por mes y semana N° con columnas Vale crédito / Pago crédito / Vale venta y saldo acumulado; filtro por período. |
-| `F4` | **Cierre de caja** (`/caja`) | Totales del día por tipo y por forma de pago, efectivo que debe haber en el cajón, detalle con N° de vale y cliente, egresos/ingresos, cierre timbrado. |
+| — | **Cuenta cliente** (`/clientes/[id]`) | **Agregar deuda** (`D`) sin productos: saldo anterior, préstamo o ajuste. Deuda vigente grande arriba; historial por mes y semana N° con columnas Vale crédito / Pago crédito / Vale venta y saldo acumulado; filtro por período. |
+| `F4` | **Cierre de caja** (`/caja`) | **Diario:** totales del día por tipo y forma de pago, efectivo que debe haber en el cajón, detalle con N° de vale y cliente, egresos/ingresos. **Semanal** (lunes a domingo): solo con cuánta deuda quedó cada cliente y el total; se cierra y queda registrado. |
 | `F6` | **Resumen** (`/resumen`) | La semana en palabras, ventas por semana, fiado en la calle, antigüedad de la deuda, los que más deben y productos. |
 | | Importar planilla (`/importar`) | CSV de Google Sheets con vista previa, mapeo de columnas y validación por fila. |
 | | Bitácora (`/bitacora`) | Registro append-only de todo lo que pasa. |
 
 Además: `Ctrl+K` busca un cliente desde cualquier pantalla y `Alt+1…5` recorre las secciones. En el celular hay una barra inferior con las 5 secciones.
 
-Para crear un cliente solo se pide el nombre; el alias, el teléfono y el tope de crédito son opcionales.
+Para crear un cliente solo se pide el nombre; el alias, el teléfono, la deuda que ya trae y el tope de crédito son opcionales.
 
 ### Cargar un vale sin mouse
 

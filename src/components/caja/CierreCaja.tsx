@@ -33,7 +33,7 @@ function Renglon({ label, valor, signo, fuerte = false, color }: { label: string
   );
 }
 
-export function CierreCaja() {
+export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
   const data = useData()!;
   const avisar = useAviso();
   const [fecha, setFecha] = useState(hoy());
@@ -77,6 +77,7 @@ export function CierreCaja() {
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
           <h1 className="stencil text-[28px] sm:text-[32px]">Cierre de caja</h1>
+          {pestanas}
           <div className="no-print mt-3 flex items-center gap-2">
             <button type="button" onClick={() => setFecha(sumarDias(fecha, -1))} className="btn btn-secundario px-2.5 py-1" aria-label="Día anterior">
               ←

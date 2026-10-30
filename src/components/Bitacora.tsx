@@ -10,6 +10,7 @@ const COLOR: Record<Evento["accion"], string> = {
   CREAR_CLIENTE: "#4f7f2a",
   EDITAR_CLIENTE: "#8a6a3d",
   CERRAR_CAJA: "#26221d",
+  CERRAR_SEMANA: "#26221d",
   IMPORTAR_CSV: "#dd7420",
   REINICIAR_DEMO: "#6b6255",
 };
@@ -18,7 +19,8 @@ const ETIQUETA: Record<Evento["accion"], string> = {
   ANULAR_MOVIMIENTO: "Anulado",
   CREAR_CLIENTE: "Cliente nuevo",
   EDITAR_CLIENTE: "Ficha editada",
-  CERRAR_CAJA: "Cierre",
+  CERRAR_CAJA: "Cierre diario",
+  CERRAR_SEMANA: "Cierre semanal",
   IMPORTAR_CSV: "Importación",
   REINICIAR_DEMO: "Demo",
 };

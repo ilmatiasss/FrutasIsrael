@@ -1,8 +1,8 @@
 "use client";
 import { useEffect, useRef, useState, type FormEvent } from "react";
 import type { Cliente } from "@/lib/types";
-import { crearCliente } from "@/lib/store";
-import { parseMonto } from "@/lib/format";
+import { cargarDeuda, crearCliente } from "@/lib/store";
+import { hoy, parseMonto } from "@/lib/format";
 import { Modal, Tecla } from "./ui";
 
 export function NuevoCliente({
@@ -16,11 +16,11 @@ export function NuevoCliente({
   onCerrar: () => void;
   onCreado: (c: Cliente) => void;
 }) {
-  const [f, setF] = useState({ nombre: "", alias: "", telefono: "", limite: "" });
+  const [f, setF] = useState({ nombre: "", alias: "", telefono: "", limite: "", deuda: "" });
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (abierto) {
-      setF({ nombre: nombreInicial, alias: "", telefono: "", limite: "" });
+      setF({ nombre: nombreInicial, alias: "", telefono: "", limite: "", deuda: "" });
       setTimeout(() => ref.current?.focus(), 30);
     }
   }, [abierto, nombreInicial]);
@@ -34,6 +34,8 @@ export function NuevoCliente({
       telefono: f.telefono || null,
       limite_credito: parseMonto(f.limite),
     });
+    const deuda = parseMonto(f.deuda);
+    if (deuda && deuda > 0) cargarDeuda({ cliente_id: c.id, monto: deuda, glosa: "Saldo anterior", fecha: hoy() });
     onCreado(c);
   };
 
@@ -60,7 +62,10 @@ export function NuevoCliente({
           {campo("alias", "Cómo le dicen", "EL FLACO")}
           {campo("telefono", "Teléfono", "+56 9 …", { inputMode: "tel" })}
         </div>
-        {campo("limite", "Tope de crédito (opcional)", "ej: 800k", { inputMode: "numeric" })}
+        <div className="grid grid-cols-2 gap-3">
+          {campo("deuda", "Deuda que ya tiene", "ej: 350k", { inputMode: "numeric" })}
+          {campo("limite", "Tope de crédito", "opcional", { inputMode: "numeric" })}
+        </div>
         <div className="flex justify-end gap-2 pt-2">
           <button type="button" onClick={onCerrar} className="btn text-gris">
             Cancelar

@@ -123,6 +123,19 @@ create table cierres_caja (
   nota        text
 );
 
+-- cierre semanal (lunes a domingo): con cuánta deuda quedó cada cliente
+create table cierres_semana (
+  id          uuid primary key default gen_random_uuid(),
+  tenant_id   uuid not null references tenants(id),
+  lunes       date not null check (extract(isodow from lunes) = 1),
+  domingo     date not null,
+  cerrado_por text not null,
+  cerrado_at  timestamptz not null default now(),
+  total       bigint not null,
+  saldos      jsonb not null,                          -- [{cliente_id, saldo}]
+  check (domingo = lunes + 6)
+);
+
 -- bitácora append-only
 create table eventos (
   id         uuid primary key default gen_random_uuid(),
@@ -225,6 +238,26 @@ begin
   return v_mov;
 end $$;
 
+-- deuda sin productos (saldo anterior, préstamo, ajuste): vale crédito con glosa
+create or replace function cargar_deuda(p_tenant uuid, p_cliente uuid, p_fecha date, p_monto bigint, p_glosa text)
+returns movimientos language plpgsql security invoker as $$
+declare
+  v_num bigint;
+  v_mov movimientos;
+  v_usuario text;
+begin
+  if not es_miembro(p_tenant) then raise exception 'Sin acceso'; end if;
+  if coalesce(trim(p_glosa), '') = '' then raise exception 'Indica el motivo de la deuda'; end if;
+  select nombre into v_usuario from tenant_miembros where tenant_id = p_tenant and user_id = auth.uid();
+  update tenants set ultimo_numero = ultimo_numero + 1 where id = p_tenant returning ultimo_numero into v_num;
+  insert into movimientos (tenant_id, numero, tipo, fecha, cliente_id, forma_pago, total, glosa, creado_por)
+  values (p_tenant, v_num, 'VALE_CREDITO', p_fecha, p_cliente, 'CREDITO', p_monto, p_glosa, v_usuario)
+  returning * into v_mov;
+  insert into eventos (tenant_id, usuario, accion, entidad_id, detalle)
+  values (p_tenant, v_usuario, 'CREAR_MOVIMIENTO', v_mov.id, format('Deuda agregada N°%s · %s · $%s', v_num, p_glosa, p_monto));
+  return v_mov;
+end $$;
+
 -- ----------------------------------------------------------------------------
 -- Vistas derivadas (lo calculado no se guarda)
 -- ----------------------------------------------------------------------------
@@ -268,6 +301,7 @@ alter table productos        enable row level security;
 alter table movimientos      enable row level security;
 alter table lineas_vale      enable row level security;
 alter table cierres_caja     enable row level security;
+alter table cierres_semana   enable row level security;
 alter table eventos          enable row level security;
 
 create policy tenant_lectura on tenants for select using (es_miembro(id));
@@ -290,6 +324,9 @@ create policy lineas_insert  on lineas_vale for insert with check (es_miembro(te
 
 create policy cierres_lectura on cierres_caja for select using (es_miembro(tenant_id));
 create policy cierres_insert  on cierres_caja for insert with check (es_miembro(tenant_id));
+
+create policy cierres_semana_lectura on cierres_semana for select using (es_miembro(tenant_id));
+create policy cierres_semana_insert  on cierres_semana for insert with check (es_miembro(tenant_id));
 
 create policy eventos_lectura on eventos for select using (es_miembro(tenant_id));
 create policy eventos_insert  on eventos for insert with check (es_miembro(tenant_id));

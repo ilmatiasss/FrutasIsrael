@@ -10,6 +10,7 @@ import {
 } from "@/lib/format";
 import { useEstados } from "../clientes";
 import { DetalleMovimiento } from "../DetalleMovimiento";
+import { AgregarDeuda } from "./AgregarDeuda";
 import { useAviso } from "../Shell";
 import { MontoGrande, Modal, StickerSemaforo, Tecla, Vacio } from "../ui";
 
@@ -43,6 +44,7 @@ export function CuentaCliente({ id }: { id: string }) {
   const [nuevoArriba, setNuevoArriba] = useState(true);
   const [ver, setVer] = useState<string | null>(null);
   const [editar, setEditar] = useState(false);
+  const [deuda, setDeuda] = useState(false);
 
   const movs = useMemo(() => data.idx.movsCliente.get(id) ?? [], [data, id]);
   const [d, h] = rangoDe(periodo, desde, hasta);
@@ -53,6 +55,10 @@ export function CuentaCliente({ id }: { id: string }) {
       if (document.querySelector('[role="dialog"]') || (e.target as HTMLElement).tagName === "INPUT") return;
       if (e.key.toLowerCase() === "v" && !e.ctrlKey && !e.metaKey) router.push(`/?cliente=${id}`);
       if (e.key.toLowerCase() === "a" && !e.ctrlKey && !e.metaKey) router.push(`/abono?cliente=${id}`);
+      if (e.key.toLowerCase() === "d" && !e.ctrlKey && !e.metaKey) {
+        e.preventDefault();
+        setDeuda(true);
+      }
     };
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
@@ -156,6 +162,9 @@ export function CuentaCliente({ id }: { id: string }) {
               <Link href={`/abono?cliente=${c.id}`} className="btn btn-secundario flex-1 sm:flex-none">
                 Abonar <span className="tecla hidden md:inline-flex">A</span>
               </Link>
+              <button type="button" onClick={() => setDeuda(true)} className="btn btn-secundario flex-1 sm:flex-none">
+                Agregar deuda <span className="tecla hidden md:inline-flex">D</span>
+              </button>
             </div>
           </div>
         </div>
@@ -357,11 +366,12 @@ export function CuentaCliente({ id }: { id: string }) {
       </section>
 
       <p className="hidden text-sm text-gris lg:block">
-        <Tecla>V</Tecla> nuevo vale · <Tecla>A</Tecla> abonar · clic en una fila para ver el vale o anularlo
+        <Tecla>V</Tecla> nuevo vale · <Tecla>A</Tecla> abonar · <Tecla>D</Tecla> agregar deuda · clic en una fila para ver el vale o anularlo
       </p>
 
       <DetalleMovimiento movId={ver} onCerrar={() => setVer(null)} />
       <EditarCliente cliente={c} abierto={editar} onCerrar={() => setEditar(false)} />
+      <AgregarDeuda est={est} abierto={deuda} onCerrar={() => setDeuda(false)} />
     </div>
   );
 }

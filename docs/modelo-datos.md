@@ -9,6 +9,7 @@ tenants ─┬─< tenant_miembros >── auth.users
          ├─< movimientos ┼──┘ (cliente_id, null en ingresos/egresos)
          │      └─< lineas_vale >── productos
          ├─< cierres_caja
+         ├─< cierres_semana
          └─< eventos   (bitácora append-only)
 ```
 
@@ -34,9 +35,13 @@ tenants ─┬─< tenant_miembros >── auth.users
 | `anulado_at / anulado_por / motivo_anulacion` | anulación auditable; nunca se borra |
 | `importado` | vino del CSV de la planilla |
 
+**Deuda sin productos** (saldo anterior, préstamo, ajuste): es un `VALE_CREDITO` sin líneas y con `glosa` obligatoria. Se crea con `cargar_deuda()`, toma N° del talonario y se anula igual que cualquier vale.
+
 **lineas_vale** — `cantidad` (decimal para KG), `unidad`, `producto_id`, `precio_unitario`, `subtotal`.
 
 **cierres_caja** — fecha, quién cerró, cuándo, y `snapshot` de totales para detectar movimientos posteriores al cierre.
+
+**cierres_semana** — lunes, domingo, quién cerró, `total` y `saldos` (deuda de cada cliente al domingo). Es lo que muestra el cierre semanal.
 
 **eventos** — bitácora: crear/anular movimiento, crear/editar cliente, cerrar caja, importar.
 
