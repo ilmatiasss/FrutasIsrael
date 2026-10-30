@@ -46,7 +46,6 @@ type Pago = "semanal" | "quincenal" | "lento" | "moroso" | "perdido" | "contado"
 interface ClienteSeed {
   nombre: string;
   alias: string;
-  procedencia: string;
   freq: number; // prob. de comprar un día hábil
   credito: number; // prob. de que la compra sea fiada
   pago: Pago;
@@ -58,34 +57,34 @@ interface ClienteSeed {
 }
 
 const CLIENTES: ClienteSeed[] = [
-  { nombre: "Raúl Contreras Soto", alias: "DON RAÚL", procedencia: "Feria Av. Matta", freq: 0.8, credito: 0.85, pago: "semanal", tam: [6, 18], prods: ["FU", "PL", "VE", "PE"], transf: 0.2, saldoInicial: 380000, limite: 1500000 },
-  { nombre: "Marta Fuentealba", alias: "SEÑORA MARTA", procedencia: "Verdulería · Independencia", freq: 0.55, credito: 0.7, pago: "semanal", tam: [2, 6], prods: ["FU", "NA", "LI", "PE"], transf: 0.1 },
-  { nombre: "Jonathan Muñoz Pérez", alias: "EL JONA", procedencia: "Carro frutero · Estación Central", freq: 0.5, credito: 0.9, pago: "lento", tam: [2, 5], prods: ["FU", "RO", "MQ"], transf: 0.05, saldoInicial: 210000 },
-  { nombre: "Carmen Gálvez", alias: "LA CARMENCITA", procedencia: "Verdulería La Carmencita · Recoleta", freq: 0.45, credito: 0.8, pago: "quincenal", tam: [3, 8], prods: ["FU", "VE", "KI", "NA"], transf: 0.6 },
-  { nombre: "Hermanos Saavedra Ltda.", alias: "LOS SAAVEDRA", procedencia: "Feria Pedro Aguirre Cerda", freq: 0.75, credito: 0.9, pago: "semanal", tam: [10, 25], prods: ["FU", "PL", "RG", "VE", "PE"], transf: 0.9, saldoInicial: 920000, limite: 3000000 },
-  { nombre: "Patricio Rojas Vidal", alias: "EL PATO", procedencia: "Feria Conchalí", freq: 0.35, credito: 0.95, pago: "moroso", tam: [4, 10], prods: ["FU", "RO", "VE"], transf: 0.1, saldoInicial: 640000, limite: 800000 },
-  { nombre: "Minimarket Doña Inés", alias: "DOÑA INÉS", procedencia: "Minimarket · Renca", freq: 0.4, credito: 0.1, pago: "contado", tam: [1, 4], prods: ["FU", "NA", "LI", "KI"], transf: 0.5 },
-  { nombre: "Luis Alberto Henríquez", alias: "EL FLACO", procedencia: "Feria La Pintana", freq: 0.5, credito: 0.85, pago: "lento", tam: [3, 9], prods: ["FU", "VE", "MQ", "C34"], transf: 0.2, saldoInicial: 330000 },
-  { nombre: "Elena Castillo", alias: "LA TÍA NENA", procedencia: "Jugos naturales · Barrio Brasil", freq: 0.45, credito: 0.75, pago: "quincenal", tam: [2, 5], prods: ["NA", "KI", "PE", "LI"], transf: 0.7 },
-  { nombre: "Cristián Vergara", alias: "EL CRISTIAN", procedencia: "Frutería · Ñuñoa", freq: 0.5, credito: 0.6, pago: "semanal", tam: [3, 8], prods: ["PL", "RG", "KI", "PE"], transf: 0.8 },
-  { nombre: "Juan Carlos Pizarro", alias: "EL CHINO PIZARRO", procedencia: "Feria Maipú", freq: 0.5, credito: 0.95, pago: "perdido", tam: [8, 16], prods: ["FU", "VE", "RO", "PE"], transf: 0.1, saldoInicial: 1150000, limite: 1200000 },
-  { nombre: "Sandra Molina", alias: "SANDRA", procedencia: "Almacén · Quilicura", freq: 0.3, credito: 0.05, pago: "contado", tam: [1, 3], prods: ["FU", "NA"], transf: 0.3 },
-  { nombre: "Rodrigo Tapia", alias: "RORRO", procedencia: "Feria San Bernardo", freq: 0.45, credito: 0.8, pago: "quincenal", tam: [4, 12], prods: ["FU", "VE", "PE", "C34"], transf: 0.4 },
-  { nombre: "Alberto Núñez", alias: "DON BETO", procedencia: "Frutería Don Beto · Puente Alto", freq: 0.6, credito: 0.8, pago: "semanal", tam: [4, 10], prods: ["FU", "PL", "RG", "KI"], transf: 0.5 },
-  { nombre: "Gloria Espinoza", alias: "LA GLORIA", procedencia: "Verdulería · Lo Prado", freq: 0.4, credito: 0.85, pago: "lento", tam: [2, 6], prods: ["FU", "NA", "MQ"], transf: 0.2 },
-  { nombre: "Héctor Yáñez", alias: "EL GUATÓN HÉCTOR", procedencia: "Feria Cerro Navia", freq: 0.4, credito: 0.9, pago: "moroso", tam: [5, 12], prods: ["FU", "RO", "VE", "MQ"], transf: 0.1, saldoInicial: 280000 },
-  { nombre: "Restaurante El Rincón Chilote", alias: "RINCÓN CHILOTE", procedencia: "Restaurante · Bellavista", freq: 0.25, credito: 0.15, pago: "contado", tam: [1, 3], prods: ["LI", "NA", "PE"], transf: 1 },
-  { nombre: "Claudia Sepúlveda", alias: "CLAUDITA", procedencia: "Feria Peñalolén", freq: 0.55, credito: 0.75, pago: "semanal", tam: [3, 8], prods: ["FU", "PL", "PE", "KI"], transf: 0.6 },
-  { nombre: "Iván Riquelme", alias: "EL IVÁN", procedencia: "Carro frutero · Plaza de Armas", freq: 0.45, credito: 0.9, pago: "perdido", tam: [2, 5], prods: ["FU", "RO", "MQ"], transf: 0, saldoInicial: 95000 },
-  { nombre: "Sociedad Frutícola Aravena", alias: "ARAVENA", procedencia: "Distribuidora · Talagante", freq: 0.3, credito: 0.9, pago: "quincenal", tam: [15, 30], prods: ["FU", "PL", "RG", "PE"], transf: 1, limite: 5000000 },
-  { nombre: "Manuel Cárcamo", alias: "DON MANUEL", procedencia: "Feria Quinta Normal", freq: 0.55, credito: 0.8, pago: "semanal", tam: [4, 10], prods: ["FU", "VE", "NA", "C34"], transf: 0.2 },
-  { nombre: "Yesenia Bravo", alias: "LA YESSI", procedencia: "Verdulería · Huechuraba", freq: 0.4, credito: 0.85, pago: "lento", tam: [2, 6], prods: ["FU", "KI", "MQ", "LI"], transf: 0.5, saldoInicial: 120000 },
-  { nombre: "Óscar Navarrete", alias: "DON ÓSCAR", procedencia: "Feria Macul", freq: 0.55, credito: 0.7, pago: "semanal", tam: [4, 10], prods: ["FU", "PL", "VE", "PE"], transf: 0.3 },
-  { nombre: "Kiosco Las Hermanitas", alias: "LAS HERMANITAS", procedencia: "Kiosco · Recoleta", freq: 0.35, credito: 0.2, pago: "contado", tam: [1, 2], prods: ["FU", "NA", "KI"], transf: 0.2 },
-  { nombre: "Francisco Díaz", alias: "PANCHO", procedencia: "Feria La Florida", freq: 0.45, credito: 0.8, pago: "quincenal", tam: [4, 10], prods: ["FU", "RG", "VE", "MQ"], transf: 0.4 },
-  { nombre: "Mauricio Leiva", alias: "EL MAURO", procedencia: "Feria Pudahuel", freq: 0.4, credito: 0.9, pago: "moroso", tam: [3, 8], prods: ["FU", "RO", "C34"], transf: 0.1, saldoInicial: 190000 },
-  { nombre: "Casino Constructora Ríos", alias: "CASINO RÍOS", procedencia: "Casino de obra · Lampa", freq: 0.2, credito: 0.9, pago: "quincenal", tam: [3, 8], prods: ["FU", "NA", "PE", "KI"], transf: 1 },
-  { nombre: "Bernarda Ulloa", alias: "DOÑA BERNA", procedencia: "Feria Lo Espejo", freq: 0.35, credito: 0.5, pago: "perdido", tam: [2, 6], prods: ["FU", "PE", "NA"], transf: 0.1 },
+  { nombre: "Raúl Contreras Soto", alias: "DON RAÚL", freq: 0.8, credito: 0.85, pago: "semanal", tam: [6, 18], prods: ["FU", "PL", "VE", "PE"], transf: 0.2, saldoInicial: 380000, limite: 1500000 },
+  { nombre: "Marta Fuentealba", alias: "SEÑORA MARTA", freq: 0.55, credito: 0.7, pago: "semanal", tam: [2, 6], prods: ["FU", "NA", "LI", "PE"], transf: 0.1 },
+  { nombre: "Jonathan Muñoz Pérez", alias: "EL JONA", freq: 0.5, credito: 0.9, pago: "lento", tam: [2, 5], prods: ["FU", "RO", "MQ"], transf: 0.05, saldoInicial: 210000 },
+  { nombre: "Carmen Gálvez", alias: "LA CARMENCITA", freq: 0.45, credito: 0.8, pago: "quincenal", tam: [3, 8], prods: ["FU", "VE", "KI", "NA"], transf: 0.6 },
+  { nombre: "Hermanos Saavedra Ltda.", alias: "LOS SAAVEDRA", freq: 0.75, credito: 0.9, pago: "semanal", tam: [10, 25], prods: ["FU", "PL", "RG", "VE", "PE"], transf: 0.9, saldoInicial: 920000, limite: 3000000 },
+  { nombre: "Patricio Rojas Vidal", alias: "EL PATO", freq: 0.35, credito: 0.95, pago: "moroso", tam: [4, 10], prods: ["FU", "RO", "VE"], transf: 0.1, saldoInicial: 640000, limite: 800000 },
+  { nombre: "Minimarket Doña Inés", alias: "DOÑA INÉS", freq: 0.4, credito: 0.1, pago: "contado", tam: [1, 4], prods: ["FU", "NA", "LI", "KI"], transf: 0.5 },
+  { nombre: "Luis Alberto Henríquez", alias: "EL FLACO", freq: 0.5, credito: 0.85, pago: "lento", tam: [3, 9], prods: ["FU", "VE", "MQ", "C34"], transf: 0.2, saldoInicial: 330000 },
+  { nombre: "Elena Castillo", alias: "LA TÍA NENA", freq: 0.45, credito: 0.75, pago: "quincenal", tam: [2, 5], prods: ["NA", "KI", "PE", "LI"], transf: 0.7 },
+  { nombre: "Cristián Vergara", alias: "EL CRISTIAN", freq: 0.5, credito: 0.6, pago: "semanal", tam: [3, 8], prods: ["PL", "RG", "KI", "PE"], transf: 0.8 },
+  { nombre: "Juan Carlos Pizarro", alias: "EL CHINO PIZARRO", freq: 0.5, credito: 0.95, pago: "perdido", tam: [8, 16], prods: ["FU", "VE", "RO", "PE"], transf: 0.1, saldoInicial: 1150000, limite: 1200000 },
+  { nombre: "Sandra Molina", alias: "SANDRA", freq: 0.3, credito: 0.05, pago: "contado", tam: [1, 3], prods: ["FU", "NA"], transf: 0.3 },
+  { nombre: "Rodrigo Tapia", alias: "RORRO", freq: 0.45, credito: 0.8, pago: "quincenal", tam: [4, 12], prods: ["FU", "VE", "PE", "C34"], transf: 0.4 },
+  { nombre: "Alberto Núñez", alias: "DON BETO", freq: 0.6, credito: 0.8, pago: "semanal", tam: [4, 10], prods: ["FU", "PL", "RG", "KI"], transf: 0.5 },
+  { nombre: "Gloria Espinoza", alias: "LA GLORIA", freq: 0.4, credito: 0.85, pago: "lento", tam: [2, 6], prods: ["FU", "NA", "MQ"], transf: 0.2 },
+  { nombre: "Héctor Yáñez", alias: "EL GUATÓN HÉCTOR", freq: 0.4, credito: 0.9, pago: "moroso", tam: [5, 12], prods: ["FU", "RO", "VE", "MQ"], transf: 0.1, saldoInicial: 280000 },
+  { nombre: "Restaurante El Rincón Chilote", alias: "RINCÓN CHILOTE", freq: 0.25, credito: 0.15, pago: "contado", tam: [1, 3], prods: ["LI", "NA", "PE"], transf: 1 },
+  { nombre: "Claudia Sepúlveda", alias: "CLAUDITA", freq: 0.55, credito: 0.75, pago: "semanal", tam: [3, 8], prods: ["FU", "PL", "PE", "KI"], transf: 0.6 },
+  { nombre: "Iván Riquelme", alias: "EL IVÁN", freq: 0.45, credito: 0.9, pago: "perdido", tam: [2, 5], prods: ["FU", "RO", "MQ"], transf: 0, saldoInicial: 95000 },
+  { nombre: "Sociedad Frutícola Aravena", alias: "ARAVENA", freq: 0.3, credito: 0.9, pago: "quincenal", tam: [15, 30], prods: ["FU", "PL", "RG", "PE"], transf: 1, limite: 5000000 },
+  { nombre: "Manuel Cárcamo", alias: "DON MANUEL", freq: 0.55, credito: 0.8, pago: "semanal", tam: [4, 10], prods: ["FU", "VE", "NA", "C34"], transf: 0.2 },
+  { nombre: "Yesenia Bravo", alias: "LA YESSI", freq: 0.4, credito: 0.85, pago: "lento", tam: [2, 6], prods: ["FU", "KI", "MQ", "LI"], transf: 0.5, saldoInicial: 120000 },
+  { nombre: "Óscar Navarrete", alias: "DON ÓSCAR", freq: 0.55, credito: 0.7, pago: "semanal", tam: [4, 10], prods: ["FU", "PL", "VE", "PE"], transf: 0.3 },
+  { nombre: "Kiosco Las Hermanitas", alias: "LAS HERMANITAS", freq: 0.35, credito: 0.2, pago: "contado", tam: [1, 2], prods: ["FU", "NA", "KI"], transf: 0.2 },
+  { nombre: "Francisco Díaz", alias: "PANCHO", freq: 0.45, credito: 0.8, pago: "quincenal", tam: [4, 10], prods: ["FU", "RG", "VE", "MQ"], transf: 0.4 },
+  { nombre: "Mauricio Leiva", alias: "EL MAURO", freq: 0.4, credito: 0.9, pago: "moroso", tam: [3, 8], prods: ["FU", "RO", "C34"], transf: 0.1, saldoInicial: 190000 },
+  { nombre: "Casino Constructora Ríos", alias: "CASINO RÍOS", freq: 0.2, credito: 0.9, pago: "quincenal", tam: [3, 8], prods: ["FU", "NA", "PE", "KI"], transf: 1 },
+  { nombre: "Bernarda Ulloa", alias: "DOÑA BERNA", freq: 0.35, credito: 0.5, pago: "perdido", tam: [2, 6], prods: ["FU", "PE", "NA"], transf: 0.1 },
 ];
 
 const EGRESOS: [string, number, number][] = [
@@ -132,7 +131,6 @@ export function crearSeed(anclaje: string = hoy()): Db {
     nombre: c.nombre,
     alias: c.alias,
     telefono: `+56 9 ${entre(4000, 9999)} ${String(entre(0, 9999)).padStart(4, "0")}`,
-    procedencia: c.procedencia,
     limite_credito: c.limite ?? null,
     semaforo_manual: null,
     compra_manual: null,

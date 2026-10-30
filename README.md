@@ -20,13 +20,16 @@ Los datos viven en el `localStorage` del navegador. Al abrir por primera vez se 
 |---|---|---|
 | `F1` | **Vale** (`/`) | Registro rápido: cliente → líneas → forma de pago → guardar. Correlativo automático, pizarra de precios del día y colillas de hoy. |
 | `F2` | **Abono** (`/abono`) | Pago parcial o total. Muestra qué vales impagos quedan saldados (del más antiguo al más nuevo) mientras se escribe el monto. |
-| `F3` | **Clientes** (`/clientes`) | Deuda a la fecha, semáforo VERDE/AMARILLO/ROJO (automático o fijado a mano), si sigue comprando. Ordenable y filtrable. |
+| `F3` | **Clientes** (`/clientes`) | Deuda a la fecha, estado Al día / Atrasado / Moroso (automático o fijado a mano), si sigue comprando. Ordenable y filtrable. |
 | — | **Cuenta cliente** (`/clientes/[id]`) | Deuda vigente grande arriba; historial por mes y semana N° con columnas Vale crédito / Pago crédito / Vale venta y saldo acumulado; filtro por período. |
 | `F4` | **Cierre de caja** (`/caja`) | Totales del día por tipo y por forma de pago, efectivo que debe haber en el cajón, detalle con N° de vale y cliente, egresos/ingresos, cierre timbrado. |
+| `F6` | **Resumen** (`/resumen`) | La semana en palabras, ventas por semana, fiado en la calle, antigüedad de la deuda, los que más deben y productos. |
 | | Importar planilla (`/importar`) | CSV de Google Sheets con vista previa, mapeo de columnas y validación por fila. |
 | | Bitácora (`/bitacora`) | Registro append-only de todo lo que pasa. |
 
-Además: `Ctrl+K` busca un cliente desde cualquier pantalla y `Alt+1…4` funciona igual que `F1…F4`.
+Además: `Ctrl+K` busca un cliente desde cualquier pantalla y `Alt+1…5` recorre las secciones. En el celular hay una barra inferior con las 5 secciones.
+
+Para crear un cliente solo se pide el nombre; el alias, el teléfono y el tope de crédito son opcionales.
 
 ### Cargar un vale sin mouse
 
@@ -40,14 +43,14 @@ c ↵            → CRÉDITO y guarda   (e = efectivo, t = transferencia; Ctrl+
 Esc Esc        → limpia el vale
 ```
 
-Si el cliente está en ROJO o el vale lo pasa de su tope, aparece un timbre «¡OJO!» y pide confirmar con un segundo `↵`.
+Si el cliente está moroso o el vale lo pasa de su tope, aparece un aviso y pide confirmar guardando por segunda vez.
 
 ## Reglas que respeta
 
 - Montos en CLP con separador de miles y sin decimales; las deudas van en rojo.
 - **Nunca se borran movimientos.** Se anulan con motivo, usuario y hora (timbre ANULADO). En Supabase lo garantizan triggers (`supabase/schema.sql`).
 - Las semanas son ISO (lunes a domingo), igual que `ISOWEEKNUM` en Sheets.
-- El semáforo se calcula por días sin pagar (15 / 30 días por defecto, configurable) y se puede fijar a mano por cliente.
+- El estado del cliente se calcula por días sin pagar (15 / 30 días por defecto, configurable) y se puede fijar a mano por cliente.
 
 ## Estructura
 
@@ -57,7 +60,8 @@ src/lib/calc.ts       cálculos puros: saldos, FIFO de vales impagos, semáforo,
 src/lib/store.ts      única puerta de escritura (hoy localStorage; mañana Supabase)
 src/lib/seed.ts       datos de ejemplo realistas y determinísticos
 src/lib/csv.ts        importador de Google Sheets
-src/components/       pantallas y piezas del sistema visual «Talonario y Cajón»
+src/lib/resumen.ts    cálculos del Resumen (semanas, antigüedad de la deuda, productos)
+src/components/       pantallas y piezas del sistema visual «Talonario sobrio»
 supabase/schema.sql   tablas, RLS multi-locatario, inmutabilidad, emitir_vale() atómico, vistas
 docs/                 dirección visual, modelo de datos y lista para v2
 ```

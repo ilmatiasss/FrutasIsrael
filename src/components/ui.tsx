@@ -18,7 +18,7 @@ export function Monto({
   signo?: boolean;
   cero?: string;
 }) {
-  if (valor === 0 && cero) return <span className={`cifra text-gris/60 ${className}`}>{cero}</span>;
+  if (valor === 0 && cero) return <span className={`text-gris/70 ${className}`}>{cero}</span>;
   const rojo = deuda && valor > 0;
   return (
     <span className={`cifra ${rojo ? "deuda" : ""} ${className}`}>
@@ -28,20 +28,20 @@ export function Monto({
   );
 }
 
-/** Monto grande con el "$" chico, como en la pizarra */
+/** Monto grande con el "$" chico */
 export function MontoGrande({ valor, className = "", deuda = true }: { valor: number; className?: string; deuda?: boolean }) {
   const rojo = deuda && valor > 0;
   return (
     <span className={`cifra font-semibold tracking-tight ${rojo ? "deuda" : valor < 0 ? "text-pera" : ""} ${className}`}>
-      <span className="mr-[0.08em] align-[0.42em] text-[0.45em] font-medium">$</span>
+      <span className="mr-[0.06em] align-[0.42em] text-[0.45em] font-medium">$</span>
       {miles(Math.abs(valor))}
-      {valor < 0 && <span className="ml-2 align-middle text-[0.3em] font-sans uppercase tracking-wider">a favor</span>}
+      {valor < 0 && <span className="ml-2 align-middle font-sans text-[0.3em] uppercase tracking-wider">a favor</span>}
     </span>
   );
 }
 
 /** Número que corre de un valor a otro (deuda que baja al abonar) */
-export function useCuenta(objetivo: number, ms = 900): number {
+export function useCuenta(objetivo: number, ms = 700): number {
   const [v, setV] = useState(objetivo);
   const desde = useRef(objetivo);
   useEffect(() => {
@@ -88,16 +88,15 @@ export function Numeradora({ numero, className = "" }: { numero: number; classNa
 
 /* ------------------------------- semáforo ------------------------------- */
 
-export const COLOR_SEMAFORO: Record<Semaforo, { bg: string; txt: string; label: string; corto: string }> = {
-  VERDE: { bg: "#4f7f2a", txt: "#fff", label: "Al día", corto: "VERDE" },
-  AMARILLO: { bg: "#e6c238", txt: "#3b2f05", label: "Atrasado", corto: "AMARILLO" },
-  ROJO: { bg: "#c4262e", txt: "#fff", label: "Moroso", corto: "ROJO" },
+export const COLOR_SEMAFORO: Record<Semaforo, { bg: string; suave: string; txt: string; label: string; corto: string }> = {
+  VERDE: { bg: "#4b7a37", suave: "#e8efe2", txt: "#33561f", label: "Al día", corto: "Al día" },
+  AMARILLO: { bg: "#c99a1c", suave: "#f6eed3", txt: "#7a5a06", label: "Atrasado", corto: "Atrasado" },
+  ROJO: { bg: "#b4412f", suave: "#f6e3df", txt: "#8f3123", label: "Moroso", corto: "Moroso" },
 };
 
 export function StickerSemaforo({
   s,
   manual = false,
-  compacto = false,
   onClick,
   title,
 }: {
@@ -110,19 +109,15 @@ export function StickerSemaforo({
   const c = COLOR_SEMAFORO[s];
   const contenido = (
     <>
-      {manual && (
-        <svg width="9" height="9" viewBox="0 0 10 10" aria-hidden className="-ml-0.5">
-          <circle cx="5" cy="5" r="4" fill="none" stroke="currentColor" strokeWidth="1.6" />
-          <circle cx="5" cy="5" r="1.4" fill="currentColor" />
-        </svg>
-      )}
-      {compacto ? c.corto : c.label}
+      <span className="size-2 rounded-full" style={{ background: c.bg }} />
+      {c.label}
+      {manual && <span className="font-normal opacity-70">· fijo</span>}
     </>
   );
-  const style = { background: c.bg, color: c.txt };
+  const style = { background: c.suave, color: c.txt };
   if (onClick)
     return (
-      <button type="button" onClick={onClick} title={title} className="sticker foco cursor-pointer transition-transform hover:-rotate-3 active:scale-95" style={style}>
+      <button type="button" onClick={onClick} title={title} className="sticker cursor-pointer hover:brightness-95" style={style}>
         {contenido}
       </button>
     );
@@ -135,20 +130,14 @@ export function StickerSemaforo({
 
 /** Puntito de color para listas densas */
 export function Punto({ s }: { s: Semaforo }) {
-  return (
-    <span
-      className="inline-block size-2.5 shrink-0 rounded-full ring-2 ring-white/70"
-      style={{ background: COLOR_SEMAFORO[s].bg }}
-      aria-label={COLOR_SEMAFORO[s].label}
-    />
-  );
+  return <span className="inline-block size-2 shrink-0 rounded-full" style={{ background: COLOR_SEMAFORO[s].bg }} aria-label={COLOR_SEMAFORO[s].label} />;
 }
 
 /* --------------------------------- timbre --------------------------------- */
 
 export function Timbre({
   children,
-  color = "#c4262e",
+  color = "#b4412f",
   className = "",
   animar = true,
   rot,
@@ -160,10 +149,7 @@ export function Timbre({
   rot?: number;
 }) {
   return (
-    <span
-      className={`timbre ${animar ? "animate-timbre" : ""} ${className}`}
-      style={{ color, ...(rot !== undefined ? { transform: `rotate(${rot}deg)` } : {}) }}
-    >
+    <span className={`timbre ${animar ? "animate-timbre" : ""} ${className}`} style={{ color, ...(rot !== undefined ? { transform: `rotate(${rot}deg)` } : {}) }}>
       {children}
     </span>
   );
@@ -202,13 +188,13 @@ export function Modal({
   if (!abierto) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center bg-[#2a2013]/45 px-4 pt-[12vh] backdrop-blur-[2px]"
+      className="fixed inset-0 z-50 flex items-end justify-center bg-[#23211d]/35 sm:items-start sm:px-4 sm:pt-[10vh]"
       onMouseDown={(e) => e.target === e.currentTarget && onCerrar()}
       role="dialog"
       aria-modal="true"
       aria-label={etiqueta}
     >
-      <div className={`hoja perforado animate-entra w-full ${ancho} rounded-b-md p-5`}>{children}</div>
+      <div className={`hoja animate-entra max-h-[92dvh] w-full overflow-auto rounded-t-xl p-5 sm:rounded-lg ${ancho}`}>{children}</div>
     </div>
   );
 }
@@ -216,30 +202,17 @@ export function Modal({
 /* ------------------------------ forma de pago ------------------------------ */
 
 export const FORMA: Record<string, { label: string; tecla: string; color: string }> = {
-  EFECTIVO: { label: "Efectivo", tecla: "E", color: "#4f7f2a" },
-  TRANSFERENCIA: { label: "Transferencia", tecla: "T", color: "#1f3c8f" },
-  CREDITO: { label: "Crédito", tecla: "C", color: "#c4262e" },
+  EFECTIVO: { label: "Efectivo", tecla: "E", color: "#4b7a37" },
+  TRANSFERENCIA: { label: "Transferencia", tecla: "T", color: "#2f5d8f" },
+  CREDITO: { label: "Crédito", tecla: "C", color: "#b4412f" },
 };
 
 export function FormaChip({ forma }: { forma: string }) {
-  const f = FORMA[forma];
-  return (
-    <span className="cajon text-[11px]" style={{ color: f.color }}>
-      {forma === "TRANSFERENCIA" ? "TRANSF." : f.label}
-    </span>
-  );
+  return <span className="text-xs text-gris">{forma === "TRANSFERENCIA" ? "Transf." : FORMA[forma].label}</span>;
 }
 
 /* ------------------------------- vacío ------------------------------- */
 
 export function Vacio({ children }: { children: ReactNode }) {
-  return (
-    <div className="flex flex-col items-center gap-2 py-10 text-center text-gris">
-      <svg width="54" height="40" viewBox="0 0 54 40" aria-hidden className="opacity-60">
-        <path d="M3 12h48l-4 26H7z" fill="none" stroke="currentColor" strokeWidth="2" />
-        <path d="M3 12l6-9h36l6 9M14 20h26M12 28h30" stroke="currentColor" strokeWidth="2" fill="none" />
-      </svg>
-      <p className="font-mano text-xl">{children}</p>
-    </div>
-  );
+  return <p className="py-10 text-center text-gris">{children}</p>;
 }

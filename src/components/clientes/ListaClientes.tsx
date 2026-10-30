@@ -5,11 +5,11 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import type { Semaforo } from "@/lib/types";
 import { editarCliente, useData } from "@/lib/store";
 import type { EstadoCliente } from "@/lib/calc";
-import { clp, ddmmaa, haceDias, normalizar } from "@/lib/format";
+import { clp, haceDias, normalizar } from "@/lib/format";
 import { useEstados } from "../clientes";
 import { NuevoCliente } from "../NuevoCliente";
 import { useAviso } from "../Shell";
-import { COLOR_SEMAFORO, MontoGrande, StickerSemaforo, Tecla } from "../ui";
+import { COLOR_SEMAFORO, MontoGrande, Punto, StickerSemaforo } from "../ui";
 
 type Orden = "cliente" | "deuda" | "dias" | "pago" | "compra" | "c30";
 const CICLO: (Semaforo | null)[] = [null, "VERDE", "AMARILLO", "ROJO"];
@@ -19,7 +19,6 @@ export function ListaClientes() {
   const estados = useEstados(data);
   const router = useRouter();
   const avisar = useAviso();
-  const cfg = data.db.config;
 
   const [q, setQ] = useState("");
   const [sem, setSem] = useState<Set<Semaforo>>(new Set());
@@ -41,7 +40,7 @@ export function ListaClientes() {
       if (compra === "si" && !e.compra) return false;
       if (compra === "no" && e.compra) return false;
       if (nq) {
-        const t = normalizar(`${e.cliente.alias ?? ""} ${e.cliente.nombre} ${e.cliente.procedencia ?? ""}`);
+        const t = normalizar(`${e.cliente.alias ?? ""} ${e.cliente.nombre}`);
         if (!nq.split(" ").every((p) => t.includes(p))) return false;
       }
       return true;
@@ -91,14 +90,8 @@ export function ListaClientes() {
     return () => window.removeEventListener("keydown", k);
   }, [lista, sel, router]);
 
-  // totales
   const enLaCalle = todos.reduce((a, e) => a + Math.max(0, e.saldo), 0);
-  const porSem = (["VERDE", "AMARILLO", "ROJO"] as Semaforo[]).map((s) => {
-    const xs = todos.filter((e) => e.semaforo === s && e.saldo > 0);
-    return { s, n: todos.filter((e) => e.semaforo === s).length, monto: xs.reduce((a, e) => a + e.saldo, 0) };
-  });
-  const perdidos = todos.filter((e) => !e.compra && e.saldo > 0);
-  const montoPerdidos = perdidos.reduce((a, e) => a + e.saldo, 0);
+  const conDeudaN = todos.filter((e) => e.saldo > 0).length;
 
   const ciclar = (e: EstadoCliente) => {
     const i = CICLO.indexOf(e.cliente.semaforo_manual);
@@ -106,17 +99,17 @@ export function ListaClientes() {
     editarCliente(e.cliente.id, { semaforo_manual: sig }, `Clasificación ${sig ? `manual: ${sig}` : "vuelve a automática"}`);
     avisar({
       titulo: e.cliente.alias ?? e.cliente.nombre,
-      detalle: sig ? `Clasificación fijada a mano en ${sig}` : `Clasificación automática (${e.semaforoCalc})`,
+      detalle: sig ? `Estado fijado a mano: ${COLOR_SEMAFORO[sig].label}` : `Estado automático: ${COLOR_SEMAFORO[e.semaforoCalc].label}`,
       tono: "tinta",
     });
   };
 
   const Th = ({ k, children, className = "" }: { k: Orden; children: React.ReactNode; className?: string }) => (
-    <th className={`px-2 py-2 font-medium ${className}`} aria-sort={orden.k === k ? (orden.asc ? "ascending" : "descending") : "none"}>
+    <th className={`px-3 py-2.5 font-medium ${className}`} aria-sort={orden.k === k ? (orden.asc ? "ascending" : "descending") : "none"}>
       <button
         type="button"
         onClick={() => setOrden((o) => ({ k, asc: o.k === k ? !o.asc : k === "cliente" }))}
-        className={`inline-flex items-center gap-1 uppercase tracking-[0.14em] hover:text-grafito ${orden.k === k ? "text-grafito" : ""}`}
+        className={`rotulo inline-flex items-center gap-1 hover:text-grafito ${orden.k === k ? "!text-grafito" : ""}`}
       >
         {children}
         <span className="text-[9px]">{orden.k === k ? (orden.asc ? "▲" : "▼") : ""}</span>
@@ -124,220 +117,125 @@ export function ListaClientes() {
     </th>
   );
 
-  const chipSem = (s: Semaforo) => {
-    const on = sem.has(s);
-    const c = COLOR_SEMAFORO[s];
-    return (
-      <button
-        key={s}
-        type="button"
-        onClick={() => {
-          const n = new Set(sem);
-          if (on) n.delete(s);
-          else n.add(s);
-          setSem(n);
-        }}
-        aria-pressed={on}
-        className={`sticker transition ${on ? "scale-105" : "opacity-45 grayscale-[.4] hover:opacity-80"}`}
-        style={{ background: c.bg, color: c.txt }}
-      >
-        {c.corto}
-      </button>
-    );
-  };
-
   return (
-    <div className="space-y-6">
-      {/* -------------------------- resumen arriba -------------------------- */}
-      <section className="grid gap-5 lg:grid-cols-[auto_minmax(0,1fr)] lg:items-end">
+    <div className="space-y-5">
+      <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="stencil text-[40px] font-black leading-none sm:text-[52px]">Clientes</h1>
-          <p className="mt-2 text-[11px] uppercase tracking-[0.2em] text-gris">Fiado en la calle a la fecha</p>
-          <p className="text-[46px] leading-none sm:text-[60px]">
+          <h1 className="stencil text-[28px] sm:text-[32px]">Clientes</h1>
+          <p className="text-sm text-gris">
+            {todos.length} clientes · {conDeudaN} con deuda
+          </p>
+        </div>
+        <div className="text-right">
+          <span className="rotulo">Fiado en la calle</span>
+          <p className="text-[32px] leading-none sm:text-[40px]">
             <MontoGrande valor={enLaCalle} />
           </p>
         </div>
-        <div className="min-w-0 lg:pl-8">
-          {/* barra apilada por semáforo, como etiquetas de cajón pegadas */}
-          <div className="flex h-9 overflow-hidden rounded-sm shadow-[inset_0_0_0_1.5px_rgba(0,0,0,.08)]" role="img" aria-label="Deuda por clasificación">
-            {porSem.map(({ s, monto }) =>
-              monto > 0 ? (
-                <button
-                  key={s}
-                  type="button"
-                  onClick={() => setSem(new Set([s]))}
-                  className="stencil flex items-center justify-center overflow-hidden whitespace-nowrap px-2 text-sm font-extrabold transition hover:brightness-110"
-                  style={{ width: `${(monto / enLaCalle) * 100}%`, background: COLOR_SEMAFORO[s].bg, color: COLOR_SEMAFORO[s].txt }}
-                  title={`${COLOR_SEMAFORO[s].label}: ${clp(monto)}`}
-                >
-                  {((monto / enLaCalle) * 100).toFixed(0)}%
-                </button>
-              ) : null,
-            )}
-          </div>
-          <dl className="mt-3 grid grid-cols-2 gap-x-6 gap-y-2 text-sm sm:grid-cols-4">
-            {porSem.map(({ s, n, monto }) => (
-              <div key={s} className="border-l-4 pl-2" style={{ borderColor: COLOR_SEMAFORO[s].bg }}>
-                <dt className="text-gris">
-                  {COLOR_SEMAFORO[s].label} · {n}
-                </dt>
-                <dd className="cifra font-semibold">{clp(monto)}</dd>
-              </div>
-            ))}
-            <div className="border-l-4 border-dashed border-grafito/50 pl-2">
-              <dt className="text-gris">Ya no compran y deben · {perdidos.length}</dt>
-              <dd className="cifra font-semibold text-fuji">{clp(montoPerdidos)}</dd>
-            </div>
-          </dl>
-        </div>
-      </section>
+      </header>
 
-      {/* -------------------------------- filtros -------------------------------- */}
-      <section className="no-print flex flex-wrap items-center gap-x-5 gap-y-3 border-y-2 border-grafito/80 py-3">
-        <label className="flex min-w-[220px] flex-1 items-center gap-2">
-          <Tecla>/</Tecla>
-          <input
-            ref={buscarRef}
-            value={q}
-            onChange={(e) => setQ(e.target.value)}
-            placeholder="Buscar por alias, nombre o feria"
-            className="campo font-sans text-lg"
-            aria-label="Buscar cliente"
-          />
-        </label>
-        <div className="flex items-center gap-1.5">{(["VERDE", "AMARILLO", "ROJO"] as Semaforo[]).map(chipSem)}</div>
-        <label className="flex cursor-pointer items-center gap-2 text-sm">
-          <input type="checkbox" checked={conDeuda} onChange={(e) => setConDeuda(e.target.checked)} className="size-4 accent-fuji" />
-          Solo con deuda
-        </label>
-        <div className="flex overflow-hidden rounded-sm border border-kraft-osc/60 text-sm" role="group" aria-label="¿Sigue comprando?">
-          {(["todos", "si", "no"] as const).map((v) => (
+      {/* filtros: una sola fila */}
+      <section className="no-print flex flex-wrap items-center gap-2 border-y border-linea py-3">
+        <input
+          ref={buscarRef}
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Buscar cliente"
+          className="campo w-full font-sans text-base sm:w-64"
+          aria-label="Buscar cliente"
+        />
+        <div className="flex flex-wrap gap-1.5">
+          {(["VERDE", "AMARILLO", "ROJO"] as Semaforo[]).map((sm) => (
             <button
-              key={v}
+              key={sm}
               type="button"
-              onClick={() => setCompra(v)}
-              aria-pressed={compra === v}
-              className={`px-3 py-1 ${compra === v ? "bg-grafito text-hoja" : "hover:bg-carton"}`}
+              aria-pressed={sem.has(sm)}
+              onClick={() => {
+                const n = new Set(sem);
+                if (n.has(sm)) n.delete(sm);
+                else n.add(sm);
+                setSem(n);
+              }}
+              className="opcion py-1 text-sm"
             >
-              {v === "todos" ? "Todos" : v === "si" ? "Compran" : "Ya no compran"}
+              <Punto s={sm} /> {COLOR_SEMAFORO[sm].label}
             </button>
           ))}
+          <button type="button" aria-pressed={conDeuda} onClick={() => setConDeuda(!conDeuda)} className="opcion py-1 text-sm">
+            Con deuda
+          </button>
+          <button
+            type="button"
+            aria-pressed={compra === "no"}
+            onClick={() => setCompra(compra === "no" ? "todos" : "no")}
+            className="opcion py-1 text-sm"
+          >
+            Ya no compran
+          </button>
         </div>
-        <button
-          type="button"
-          onClick={() => setNuevo(true)}
-          className="stencil ml-auto rounded-sm bg-tinta px-4 py-1.5 text-lg font-extrabold text-hoja shadow-[0_3px_0_#132760] active:translate-y-[2px] active:shadow-none"
-        >
+        <button type="button" onClick={() => setNuevo(true)} className="btn btn-primario ml-auto py-1.5 text-sm">
           + Cliente
         </button>
       </section>
 
-      {/* -------------------------------- tabla -------------------------------- */}
-      <div ref={tablaRef} className="hoja hidden overflow-hidden rounded-sm md:block">
+      {/* tabla (escritorio) */}
+      <div ref={tablaRef} className="hoja hidden overflow-hidden rounded-lg lg:block">
         <table className="w-full table-fixed text-[15px]">
           <colgroup>
-            <col className="w-[118px]" />
             <col />
             <col className="w-[150px]" />
-            <col className="w-[150px]" />
-            <col className="hidden w-[112px] lg:table-column" />
-            <col className="w-[180px]" />
-            <col className="hidden w-[130px] xl:table-column" />
-            <col className="w-[92px]" />
+            <col className="w-[160px]" />
+            <col className="w-[130px]" />
+            <col className="w-[190px]" />
+            <col className="w-[110px]" />
           </colgroup>
-          <thead className="sticky top-0 border-b-2 border-grafito bg-hoja text-left text-[11px] text-gris">
+          <thead className="border-b border-grafito/70 text-left">
             <tr>
-              <th className="w-[120px] px-3 py-2 font-medium uppercase tracking-[0.14em]">Clasif.</th>
               <Th k="cliente">Cliente</Th>
+              <th className="rotulo px-3 py-2.5 text-left font-medium">Estado</th>
               <Th k="deuda" className="text-right">Deuda</Th>
-              <Th k="dias">Sin pagar</Th>
-              <Th k="pago" className="hidden lg:table-cell">Último pago</Th>
+              <Th k="dias" className="text-right">Sin pagar</Th>
               <Th k="compra">Última compra</Th>
-              <Th k="c30" className="hidden text-right xl:table-cell">Compró 30 d</Th>
-              <th className="px-2 py-2 text-center font-medium uppercase tracking-[0.14em]">¿Compra?</th>
+              <th className="rotulo px-3 py-2.5 text-center font-medium">¿Compra?</th>
             </tr>
           </thead>
           <tbody>
             {lista.map((e, i) => {
               const c = e.cliente;
-              const on = i === sel;
-              const dias = e.diasSinPagar;
-              const pct = dias === null ? 0 : Math.min(100, (dias / (cfg.dias_rojo * 2)) * 100);
               return (
                 <tr
                   key={c.id}
                   data-fila={i}
                   onMouseEnter={() => setSel(i)}
-                  className={`group cursor-pointer border-b border-linea transition-colors ${on ? "bg-resaltador/45" : i % 2 ? "bg-papel/30" : ""}`}
                   onClick={() => router.push(`/clientes/${c.id}`)}
-                  style={{ boxShadow: `inset 5px 0 0 ${COLOR_SEMAFORO[e.semaforo].bg}` }}
+                  className={`cursor-pointer border-b border-linea last:border-0 ${i === sel ? "bg-carton/60" : ""}`}
                 >
-                  <td className="px-3 py-2" onClick={(ev) => ev.stopPropagation()}>
+                  <td className="truncate px-3 py-2.5">
+                    <Link href={`/clientes/${c.id}`} onClick={(ev) => ev.stopPropagation()} className="font-semibold">
+                      {c.alias ?? c.nombre}
+                    </Link>
+                    {c.alias && <span className="ml-2 text-sm text-gris">{c.nombre}</span>}
+                  </td>
+                  <td className="px-3 py-2.5" onClick={(ev) => ev.stopPropagation()}>
                     <StickerSemaforo
                       s={e.semaforo}
                       manual={e.manual}
-                      compacto
                       onClick={() => ciclar(e)}
-                      title={e.manual ? `Fijado a mano (automático diría ${e.semaforoCalc}). Clic para cambiar` : "Automático por días sin pagar. Clic para fijar a mano"}
+                      title={e.manual ? "Fijado a mano. Clic para cambiar" : "Calculado por días sin pagar. Clic para fijarlo a mano"}
                     />
                   </td>
-                  <td className="px-2 py-2">
-                    <Link href={`/clientes/${c.id}`} className="block truncate" onClick={(ev) => ev.stopPropagation()}>
-                      <b className="tracking-wide">{c.alias ?? c.nombre}</b>
-                      {c.alias && <span className="ml-2 text-gris">{c.nombre}</span>}
-                    </Link>
-                    <span className="block truncate text-xs text-gris">{c.procedencia}</span>
+                  <td className="px-3 py-2.5 text-right">
+                    <span className={`cifra ${e.saldo > 0 ? "text-fuji" : "text-gris"}`}>{e.saldo > 0 ? clp(e.saldo) : "—"}</span>
+                    {e.sobreLimite && <span className="block text-[11px] text-fuji">sobre el tope</span>}
                   </td>
-                  <td className="whitespace-nowrap px-2 py-2 text-right">
-                    <span className={`cifra text-[17px] font-semibold ${e.saldo > 0 ? "text-fuji" : "text-pera"}`}>
-                      {e.saldo > 0 ? clp(e.saldo) : e.saldo < 0 ? `${clp(-e.saldo)} a favor` : "al día"}
-                    </span>
-                    {e.sobreLimite && <span className="block text-[10px] font-bold uppercase tracking-wider text-fuji">sobre tope</span>}
-                  </td>
-                  <td className="px-2 py-2">
-                    {dias !== null ? (
-                      <div className="flex items-center gap-2">
-                        <span className="cifra w-9 text-right text-sm">{dias} d</span>
-                        <span className="relative h-2 w-20 overflow-hidden rounded-full bg-linea/60">
-                          <span className="absolute inset-y-0 left-0 rounded-full" style={{ width: `${pct}%`, background: COLOR_SEMAFORO[e.semaforoCalc].bg }} />
-                          <span className="absolute inset-y-0 w-px bg-grafito/30" style={{ left: `${(cfg.dias_amarillo / (cfg.dias_rojo * 2)) * 100}%` }} />
-                          <span className="absolute inset-y-0 w-px bg-grafito/30" style={{ left: "50%" }} />
-                        </span>
-                      </div>
-                    ) : (
-                      <span className="text-sm text-gris/60">—</span>
-                    )}
-                  </td>
-                  <td className="hidden px-2 py-2 text-sm lg:table-cell">
-                    {e.ultimoPago ? (
-                      <>
-                        <span className="cifra">{ddmmaa(e.ultimoPago)}</span>
-                      </>
-                    ) : (
-                      <span className="text-gris/60">nunca</span>
-                    )}
-                  </td>
-                  <td className="px-2 py-2 text-sm">
-                    {e.ultimaCompra ? (
-                      <span className={e.compra ? "" : "text-gris"}>
-                        <span className="cifra">{ddmmaa(e.ultimaCompra)}</span>
-                        <span className="ml-1.5 text-xs text-gris">{haceDias(e.diasSinComprar)}</span>
-                      </span>
-                    ) : (
-                      <span className="text-gris/60">—</span>
-                    )}
-                  </td>
-                  <td className="hidden px-2 py-2 text-right xl:table-cell">
-                    <span className="cifra text-sm text-tinta">{e.compras30 ? clp(e.compras30) : "—"}</span>
-                  </td>
-                  <td className="px-2 py-2 text-center" onClick={(ev) => ev.stopPropagation()}>
+                  <td className="cifra px-3 py-2.5 text-right text-sm">{e.diasSinPagar !== null ? `${e.diasSinPagar} ${e.diasSinPagar === 1 ? "día" : "días"}` : <span className="text-gris">—</span>}</td>
+                  <td className={`px-3 py-2.5 text-sm ${e.compra ? "" : "text-gris"}`}>{e.ultimaCompra ? haceDias(e.diasSinComprar) : "—"}</td>
+                  <td className="px-3 py-2.5 text-center" onClick={(ev) => ev.stopPropagation()}>
                     <button
                       type="button"
-                      onClick={() =>
-                        editarCliente(c.id, { compra_manual: c.compra_manual === null ? !e.compra : null }, "Cambio manual de ¿sigue comprando?")
-                      }
-                      title={c.compra_manual === null ? "Calculado por última compra. Clic para fijar" : "Fijado a mano. Clic para volver a automático"}
-                      className={`cajon text-[11px] transition hover:-rotate-2 ${e.compra ? "text-pera" : "text-gris"} ${c.compra_manual !== null ? "border-dashed" : ""}`}
+                      onClick={() => editarCliente(c.id, { compra_manual: c.compra_manual === null ? !e.compra : null }, "Cambio manual de ¿sigue comprando?")}
+                      title={c.compra_manual === null ? "Calculado por la última compra. Clic para fijar" : "Fijado a mano. Clic para volver a automático"}
+                      className={`text-sm ${e.compra ? "text-grafito" : "text-gris"} ${c.compra_manual !== null ? "underline decoration-dotted underline-offset-4" : ""}`}
                     >
                       {e.compra ? "Sí" : "No"}
                     </button>
@@ -347,33 +245,27 @@ export function ListaClientes() {
             })}
           </tbody>
         </table>
-        {lista.length === 0 && <p className="py-10 text-center font-mano text-2xl text-gris">Nadie con esos filtros.</p>}
-        <p className="border-t border-linea px-4 py-2 text-xs text-gris">
-          {lista.length} clientes · <Tecla>↑</Tecla>
-          <Tecla>↓</Tecla> moverse · <Tecla>↵</Tecla> abrir cuenta · clic en la etiqueta para fijar la clasificación a mano (
-          <span className="cifra">○</span> = manual)
-        </p>
+        {lista.length === 0 && <p className="py-10 text-center text-gris">Nadie con esos filtros.</p>}
       </div>
 
-      {/* ------------------------------- celular ------------------------------- */}
-      <ul className="space-y-2 md:hidden">
+      {/* tarjetas (celular y tablet) */}
+      <ul className="grid gap-2 sm:grid-cols-2 lg:hidden">
         {lista.map((e) => (
           <li key={e.cliente.id}>
-            <Link
-              href={`/clientes/${e.cliente.id}`}
-              className="hoja flex items-center gap-3 rounded-sm px-3 py-2.5"
-              style={{ boxShadow: `inset 5px 0 0 ${COLOR_SEMAFORO[e.semaforo].bg}` }}
-            >
-              <div className="min-w-0 flex-1 pl-1">
-                <p className="truncate font-semibold tracking-wide">{e.cliente.alias ?? e.cliente.nombre}</p>
+            <Link href={`/clientes/${e.cliente.id}`} className="hoja flex items-center gap-3 rounded-lg px-4 py-3">
+              <Punto s={e.semaforo} />
+              <div className="min-w-0 flex-1">
+                <p className="truncate font-semibold">{e.cliente.alias ?? e.cliente.nombre}</p>
                 <p className="truncate text-xs text-gris">
-                  {e.diasSinPagar !== null ? `${e.diasSinPagar} días sin pagar` : "al día"} · {e.compra ? "compra" : "ya no compra"}
+                  {e.diasSinPagar !== null ? `${e.diasSinPagar} días sin pagar` : "al día"}
+                  {!e.compra && " · ya no compra"}
                 </p>
               </div>
-              <span className={`cifra text-lg font-semibold ${e.saldo > 0 ? "text-fuji" : "text-pera"}`}>{e.saldo > 0 ? clp(e.saldo) : "al día"}</span>
+              <span className={`cifra ${e.saldo > 0 ? "text-fuji" : "text-gris"}`}>{e.saldo > 0 ? clp(e.saldo) : "—"}</span>
             </Link>
           </li>
         ))}
+        {lista.length === 0 && <li className="py-10 text-center text-gris">Nadie con esos filtros.</li>}
       </ul>
 
       <NuevoCliente

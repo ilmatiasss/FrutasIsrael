@@ -8,7 +8,7 @@ import { clp, ddmm, diasEntre, haceDias, hoy, miles, parseMonto } from "@/lib/fo
 import { Autocompletar } from "../Autocompletar";
 import { filtrarClientes, OpcionCliente, useEstados } from "../clientes";
 import { useAviso } from "../Shell";
-import { FORMA, MontoGrande, Numeradora, Punto, StickerSemaforo, Tecla, Timbre, useCuenta } from "../ui";
+import { FORMA, MontoGrande, Numeradora, StickerSemaforo, useCuenta } from "../ui";
 import { Colillas } from "../vale/Colillas";
 
 type Forma = "EFECTIVO" | "TRANSFERENCIA";
@@ -64,15 +64,6 @@ export function RegistroAbono() {
       return { ...p, aplica, pagado: aplica >= p.pendiente };
     });
   }, [est, m]);
-
-  const morosos = useMemo(
-    () =>
-      [...estados.values()]
-        .filter((e) => e.saldo > 0)
-        .sort((a, b) => (b.diasSinPagar ?? 0) * Math.log(b.saldo) - (a.diasSinPagar ?? 0) * Math.log(a.saldo))
-        .slice(0, 8),
-    [estados],
-  );
 
   const guardar = () => {
     if (!est) {
@@ -135,27 +126,26 @@ export function RegistroAbono() {
   });
 
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px]">
-      <section className="hoja perforado relative mx-auto w-full max-w-[920px] rounded-b-md px-4 pb-6 pt-5 sm:px-8 sm:pb-8 sm:pt-7" aria-label="Recibo de abono">
-        <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-grafito pb-3">
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="hoja perforado mx-auto w-full max-w-[880px] rounded-b-lg px-4 pb-6 pt-5 sm:px-7 sm:pt-6" aria-label="Abono">
+        <header className="flex items-start justify-between gap-4 border-b border-grafito/80 pb-3">
           <div>
-            <h1 className="stencil text-[40px] font-black leading-none text-pera sm:text-[52px]">Abono</h1>
-            <p className="mt-1 text-[11px] uppercase tracking-[0.25em] text-gris">Pago / abono a crédito</p>
+            <h1 className="stencil text-[28px] sm:text-[32px]">Abono</h1>
+            <p className="text-sm text-gris">Pago total o parcial de una deuda</p>
           </div>
-          <div className="text-right">
-            <p className="text-[11px] uppercase tracking-[0.2em] text-gris">N°</p>
-            <p className="text-[38px] font-bold leading-none text-fuji sm:text-[46px]">
+          <p className="text-right">
+            <span className="rotulo block">N°</span>
+            <span className="text-[28px] font-semibold leading-none text-fuji sm:text-[32px]">
               <Numeradora numero={data.db.tenant.ultimo_numero + 1} />
-            </p>
-          </div>
+            </span>
+          </p>
         </header>
 
-        <div className="mt-5 flex items-end gap-3">
-          <span className="shrink-0 pb-1.5 text-sm text-gris">Recibí de</span>
+        <div className="mt-5">
+          <span className="rotulo">Cliente</span>
           <Autocompletar
             etiqueta="Cliente"
-            className="flex-1"
-            inputClassName="!font-sans text-[22px] font-semibold tracking-wide sm:text-[26px]"
+            inputClassName="font-sans text-[22px] font-semibold"
             inputRef={r("cliente")}
             autoFocus
             items={[...estados.values()]}
@@ -179,34 +169,27 @@ export function RegistroAbono() {
           />
         </div>
 
-        {/* deuda vigente */}
-        <div className="relative mt-6 grid gap-6 md:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <div className="mt-6 grid gap-6 md:grid-cols-2">
           <div>
-            <p className="text-[11px] uppercase tracking-[0.2em] text-gris">Deuda vigente</p>
-            <p className="mt-1 text-[52px] leading-none sm:text-[68px]">
+            <span className="rotulo">Deuda vigente</span>
+            <p className="mt-1 text-[44px] leading-none sm:text-[56px]">
               <MontoGrande valor={est ? animado : 0} />
             </p>
             {est && (
-              <div className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
+              <p className="mt-3 flex flex-wrap items-center gap-x-3 gap-y-1 text-sm">
                 <StickerSemaforo s={est.semaforo} manual={est.manual} />
                 <span className="text-gris">último pago {est.ultimoPago ? haceDias(diasEntre(est.ultimoPago, hoy())) : "nunca"}</span>
-                <Link href={`/clientes/${est.cliente.id}`} className="text-tinta underline decoration-dotted underline-offset-4">
+                <Link href={`/clientes/${est.cliente.id}`} className="text-tinta underline underline-offset-4">
                   ver cuenta
                 </Link>
-              </div>
+              </p>
             )}
-            {alDia > 0 && est && est.saldo <= 0 && (
-              <div className="pointer-events-none absolute left-4 top-6">
-                <Timbre key={alDia} color="#4f7f2a" className="text-4xl">
-                  ¡Al día!
-                </Timbre>
-              </div>
-            )}
+            {alDia > 0 && est && est.saldo <= 0 && <p className="animate-entra mt-3 font-semibold text-pera">Quedó al día.</p>}
           </div>
 
           <div className={sacude ? "tiembla" : ""}>
             <label className="block">
-              <span className="text-[11px] uppercase tracking-[0.2em] text-gris">Monto del abono</span>
+              <span className="rotulo">Monto del abono</span>
               <input
                 ref={r("monto")}
                 value={monto}
@@ -215,12 +198,12 @@ export function RegistroAbono() {
                 onBlur={() => m && setMonto(miles(m))}
                 inputMode="numeric"
                 disabled={!est}
-                placeholder={est && saldo > 0 ? `↵ = todo (${clp(saldo)})` : "$"}
-                className="campo mt-1 text-right text-[34px] font-semibold placeholder:text-base disabled:opacity-40"
+                placeholder={est && saldo > 0 ? `Enter = todo (${clp(saldo)})` : "$"}
+                className="campo mt-1 text-right text-[30px] font-semibold placeholder:text-base"
               />
             </label>
             {est && saldo > 0 && (
-              <div className="mt-3 flex flex-wrap gap-2">
+              <div className="mt-2 flex gap-3 text-sm">
                 {[1, 0.5].map((f) => (
                   <button
                     key={f}
@@ -230,42 +213,28 @@ export function RegistroAbono() {
                       setMonto(miles(Math.round((saldo * f) / 1000) * 1000 || saldo));
                       foco("forma");
                     }}
-                    className="cajon text-xs text-tinta hover:bg-tinta hover:text-hoja"
+                    className="text-tinta underline decoration-dotted underline-offset-4"
                   >
-                    {f === 1 ? `Todo ${clp(saldo)}` : `La mitad`}
+                    {f === 1 ? "Todo" : "La mitad"}
                   </button>
                 ))}
               </div>
             )}
 
-            <div className="mt-5 flex flex-wrap items-center gap-3">
-              <div
-                ref={r("forma")}
-                tabIndex={0}
-                role="radiogroup"
-                aria-label="Forma: E efectivo, T transferencia"
-                onKeyDown={onForma}
-                className="flex gap-2 rounded-sm p-1 outline-none focus:bg-resaltador/50"
-              >
-                {(["EFECTIVO", "TRANSFERENCIA"] as Forma[]).map((k) => {
-                  const on = forma === k;
-                  return (
-                    <button
-                      key={k}
-                      type="button"
-                      tabIndex={-1}
-                      role="radio"
-                      aria-checked={on}
-                      onClick={() => setForma(k)}
-                      className={`stencil flex items-center gap-2 rounded-sm border-2 px-3 py-1.5 text-lg font-extrabold transition-all ${on ? "-rotate-1 scale-105 text-hoja" : "opacity-70"}`}
-                      style={{ borderColor: FORMA[k].color, background: on ? FORMA[k].color : undefined, color: on ? undefined : FORMA[k].color }}
-                    >
-                      {FORMA[k].label}
-                      <span className="tecla !text-[11px]">{FORMA[k].tecla}</span>
-                    </button>
-                  );
-                })}
-              </div>
+            <div
+              ref={r("forma")}
+              tabIndex={0}
+              role="radiogroup"
+              aria-label="Forma: E efectivo, T transferencia"
+              onKeyDown={onForma}
+              className="mt-5 flex flex-wrap gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-tinta/40 focus-visible:ring-offset-4"
+            >
+              {(["EFECTIVO", "TRANSFERENCIA"] as Forma[]).map((k) => (
+                <button key={k} type="button" tabIndex={-1} role="radio" aria-checked={forma === k} onClick={() => setForma(k)} className="opcion">
+                  {FORMA[k].label}
+                  <span className="tecla hidden md:inline-flex">{FORMA[k].tecla}</span>
+                </button>
+              ))}
             </div>
             <input
               value={glosa}
@@ -276,99 +245,54 @@ export function RegistroAbono() {
                   guardar();
                 }
               }}
-              placeholder={forma === "TRANSFERENCIA" ? "Banco / referencia (opcional)" : "Nota (opcional)"}
+              placeholder={forma === "TRANSFERENCIA" ? "Banco o referencia (opcional)" : "Nota (opcional)"}
               className="campo mt-3 font-sans"
             />
           </div>
         </div>
 
-        {/* aplicación a vales pendientes */}
         {est && est.pendientes.length > 0 && (
-          <div className="mt-7">
-            <div className="flex items-baseline justify-between border-b border-grafito/70 pb-1">
-              <h2 className="stencil text-lg font-extrabold">Vales impagos</h2>
-              <span className="text-xs text-gris">se pagan del más antiguo al más nuevo</span>
-            </div>
-            <ul className="mt-2 grid gap-2 sm:grid-cols-2 lg:grid-cols-3">
+          <details className="mt-7 border-t border-linea pt-4" open={m > 0}>
+            <summary className="cursor-pointer text-sm font-semibold">
+              {est.pendientes.length} vales impagos <span className="font-normal text-gris">· el abono paga primero los más antiguos</span>
+            </summary>
+            <ul className="mt-2 text-sm">
               {cobertura.map((c) => (
-                <li
-                  key={c.mov.id}
-                  className={`relative overflow-hidden rounded-sm border px-3 py-2 transition-colors ${c.pagado ? "border-pera/40 bg-pera/5" : c.aplica > 0 ? "border-limon bg-limon/10" : "border-linea bg-papel/40"}`}
-                >
-                  <div className="flex items-baseline justify-between">
-                    <span className="cifra text-sm font-semibold text-fuji">N°{c.mov.numero}</span>
-                    <span className="text-xs text-gris">{c.mov.importado ? "saldo planilla" : ddmm(c.mov.fecha)}</span>
-                  </div>
-                  <p className={`cifra text-lg ${c.pagado ? "text-gris line-through" : "text-fuji"}`}>{clp(c.pendiente)}</p>
-                  {c.aplica > 0 && !c.pagado && <p className="cifra text-xs text-naranjo">abona {clp(c.aplica)} · queda {clp(c.pendiente - c.aplica)}</p>}
-                  {c.pagado && (
-                    <span className="absolute bottom-1.5 right-2">
-                      <Timbre color="#4f7f2a" className="text-sm">
-                        Pagado
-                      </Timbre>
-                    </span>
-                  )}
+                <li key={c.mov.id} className="flex items-baseline justify-between gap-3 border-b border-linea py-1.5">
+                  <span className="text-gris">
+                    N°{c.mov.numero} · {c.mov.importado ? "saldo planilla" : ddmm(c.mov.fecha)}
+                  </span>
+                  <span className="flex items-baseline gap-3">
+                    {c.pagado ? (
+                      <span className="text-xs font-semibold text-pera">queda pagado</span>
+                    ) : c.aplica > 0 ? (
+                      <span className="text-xs text-gris">abona {clp(c.aplica)}</span>
+                    ) : null}
+                    <span className={`cifra ${c.pagado ? "text-gris line-through" : "text-fuji"}`}>{clp(c.pendiente)}</span>
+                  </span>
                 </li>
               ))}
             </ul>
-          </div>
+          </details>
         )}
 
-        <div className="mt-7 flex flex-wrap items-center justify-between gap-4 border-t border-dashed border-kraft pt-5">
+        <div className="mt-6 flex flex-col-reverse items-stretch gap-3 border-t border-linea pt-5 sm:flex-row sm:items-center sm:justify-between">
           <p className="text-sm">
             {est && m > 0 && (
               <>
                 <span className="text-gris">Nuevo saldo </span>
-                <b className={`cifra text-2xl ${nuevoSaldo > 0 ? "text-fuji" : "text-pera"}`}>{clp(Math.max(0, nuevoSaldo))}</b>
-                {nuevoSaldo < 0 && <span className="ml-2 text-naranjo">· paga {clp(-nuevoSaldo)} de más (queda a favor)</span>}
+                <b className={`cifra text-xl ${nuevoSaldo > 0 ? "text-fuji" : "text-pera"}`}>{clp(Math.max(0, nuevoSaldo))}</b>
+                {nuevoSaldo < 0 && <span className="ml-2 text-gris">· paga {clp(-nuevoSaldo)} de más (queda a favor)</span>}
               </>
             )}
           </p>
-          <button
-            type="button"
-            onClick={guardar}
-            className="stencil flex items-center gap-3 rounded-sm bg-pera px-6 py-3 text-2xl font-black text-hoja shadow-[0_4px_0_#2f4f17] transition active:translate-y-[3px] active:shadow-[0_1px_0_#2f4f17]"
-          >
+          <button type="button" onClick={guardar} className="btn btn-primario px-6 py-3 text-lg">
             Registrar abono
-            <span className="tecla">↵</span>
           </button>
         </div>
-        <p className="mt-3 hidden text-sm text-gris sm:block">
-          <Tecla>↵</Tecla> en monto vacío = paga todo · <Tecla>E</Tecla>/<Tecla>T</Tecla> forma · <Tecla>Ctrl</Tecla>
-          <Tecla>↵</Tecla> registra
-        </p>
       </section>
 
-      <aside className="flex min-w-0 flex-col gap-7">
-        <section className="hoja rounded-sm" aria-label="Por cobrar">
-          <header className="border-b-2 border-grafito/80 px-4 pb-2 pt-3">
-            <h2 className="stencil text-xl font-extrabold">Por cobrar primero</h2>
-            <p className="text-xs text-gris">más días sin pagar × más deuda</p>
-          </header>
-          <ul>
-            {morosos.map((e) => (
-              <li key={e.cliente.id}>
-                <button
-                  type="button"
-                  onClick={() => {
-                    flushSync(() => {
-                      setClienteId(e.cliente.id);
-                      setQ(e.cliente.alias ?? e.cliente.nombre);
-                      setMonto("");
-                    });
-                    foco("monto");
-                  }}
-                  className="corte flex w-full items-center gap-3 bg-bottom px-4 py-2 text-left hover:bg-resaltador/40"
-                >
-                  <Punto s={e.semaforo} />
-                  <span className="min-w-0 flex-1 truncate font-semibold">{e.cliente.alias ?? e.cliente.nombre}</span>
-                  <span className="text-xs text-gris">{e.diasSinPagar} d</span>
-                  <span className="cifra w-24 text-right text-fuji">{clp(e.saldo)}</span>
-                </button>
-              </li>
-            ))}
-          </ul>
-        </section>
+      <aside className="min-w-0">
         <Colillas data={data} tipos={["ABONO"]} ultimoId={ultimoId} titulo="Abonos de hoy" />
       </aside>
     </div>

@@ -5,15 +5,15 @@ import type { Movimiento } from "@/lib/types";
 import { anular, useData } from "@/lib/store";
 import { ETIQUETA_TIPO } from "@/lib/calc";
 import { cant, clp, fechaLarga, hora } from "@/lib/format";
-import { FormaChip, Modal, Tecla, Timbre } from "./ui";
+import { FormaChip, Modal, Timbre } from "./ui";
 import { useAviso } from "./Shell";
 
 export const COLOR_TIPO: Record<Movimiento["tipo"], string> = {
-  VALE_VENTA: "#4f7f2a",
-  VALE_CREDITO: "#c4262e",
-  ABONO: "#1f3c8f",
-  INGRESO: "#8a6a3d",
-  EGRESO: "#dd7420",
+  VALE_VENTA: "#6c665d",
+  VALE_CREDITO: "#b4412f",
+  ABONO: "#2f5d8f",
+  INGRESO: "#6c665d",
+  EGRESO: "#6c665d",
 };
 
 export function TipoChip({ tipo, corto = false }: { tipo: Movimiento["tipo"]; corto?: boolean }) {
@@ -69,15 +69,14 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
               {fechaLarga(mov.fecha)} · {hora(mov.created_at)} · {mov.creado_por}
             </p>
           </div>
-          <p className="cifra text-3xl font-bold text-fuji">
+          <p className="cifra text-2xl font-semibold text-fuji">
             <span className="text-base">N°</span> {mov.numero}
           </p>
         </div>
 
         {cli && (
           <Link href={`/clientes/${cli.id}`} onClick={onCerrar} className="mt-3 block border-b border-dashed border-kraft pb-2 hover:text-tinta">
-            <span className="text-xs uppercase tracking-widest text-gris">Señor(a) </span>
-            <span className="stencil text-2xl font-extrabold">{cli.alias ?? cli.nombre}</span>
+            <span className="stencil text-xl">{cli.alias ?? cli.nombre}</span>
             {cli.alias && <span className="ml-2 text-gris">{cli.nombre}</span>}
           </Link>
         )}
@@ -94,7 +93,7 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
             </thead>
             <tbody className="libro">
               {lineas.map((l) => (
-                <tr key={l.id} className="text-tinta">
+                <tr key={l.id}>
                   <td className="cifra py-1.5">{cant(l.cantidad)}</td>
                   <td>
                     <span className="text-gris">{l.unidad}</span> <b>{data.idx.producto.get(l.producto_id)?.nombre}</b>
@@ -106,15 +105,15 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
             </tbody>
           </table>
         ) : (
-          mov.glosa && <p className="mt-4 font-mano text-2xl text-tinta">{mov.glosa}</p>
+          mov.glosa && <p className="mt-4 text-lg">{mov.glosa}</p>
         )}
         {lineas.length > 0 && mov.glosa && <p className="mt-2 text-sm text-gris">{mov.glosa}</p>}
 
         <div className="mt-4 flex items-end justify-between">
           <FormaChip forma={mov.forma_pago} />
           <p className="text-right">
-            <span className="mr-3 text-xs uppercase tracking-widest text-gris">Total</span>
-            <span className={`cifra doble-raya text-2xl font-bold ${mov.anulado_at ? "text-gris line-through" : "text-tinta"}`}>{clp(mov.total)}</span>
+            <span className="rotulo mr-3">Total</span>
+            <span className={`cifra doble-raya text-2xl font-semibold ${mov.anulado_at ? "text-gris line-through" : ""}`}>{clp(mov.total)}</span>
           </p>
         </div>
 
@@ -129,14 +128,14 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
           </p>
         )}
 
-        {mov.importado && <p className="mt-2 text-xs uppercase tracking-wider text-kraft-osc">Importado desde la planilla</p>}
+        {mov.importado && <p className="mt-2 text-xs text-gris">Importado desde la planilla</p>}
 
         {mov.anulado_at && (
           <>
             <div className="pointer-events-none absolute inset-0 flex items-center justify-center">
-              <Timbre className="text-5xl" animar={recien}>Anulado</Timbre>
+              <Timbre className="text-4xl" animar={recien}>Anulado</Timbre>
             </div>
-            <div className="mt-4 border-l-4 border-fuji bg-fuji/5 px-3 py-2 text-sm">
+            <div className="mt-4 border-l-2 border-fuji bg-fuji/5 px-3 py-2 text-sm">
               <b>Anulado</b> por {mov.anulado_por} el {fechaLarga(mov.anulado_at.slice(0, 10))} a las {hora(mov.anulado_at)}
               <br />
               <span className="text-gris">Motivo:</span> {mov.motivo_anulacion}
@@ -145,22 +144,18 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
         )}
 
         {!mov.anulado_at && !anulando && (
-          <div className="mt-5 flex justify-between gap-2 border-t border-dashed border-kraft pt-4">
-            <button type="button" onClick={onCerrar} className="px-3 py-2 text-gris hover:text-grafito">
-              Cerrar <Tecla>Esc</Tecla>
+          <div className="mt-5 flex justify-between gap-2 border-t border-linea pt-4">
+            <button type="button" onClick={onCerrar} className="btn btn-secundario">
+              Cerrar
             </button>
-            <button
-              type="button"
-              onClick={() => setAnulando(true)}
-              className="cajon px-3 py-1.5 text-fuji transition hover:bg-fuji hover:text-hoja"
-            >
+            <button type="button" onClick={() => setAnulando(true)} className="btn text-fuji hover:bg-fuji/10">
               Anular…
             </button>
           </div>
         )}
 
         {anulando && (
-          <div className="mt-5 border-t border-dashed border-kraft pt-4">
+          <div className="mt-5 border-t border-linea pt-4">
             <label className="text-sm font-semibold" htmlFor="motivo">
               ¿Por qué se anula? <span className="font-normal text-gris">(queda registrado, no se borra)</span>
             </label>
@@ -183,16 +178,16 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
               <p className="mt-2 text-sm text-naranjo">También se anulará el abono hecho en este mismo vale.</p>
             )}
             <div className="mt-3 flex justify-end gap-2">
-              <button type="button" onClick={() => setAnulando(false)} className="px-3 py-2 text-gris">
+              <button type="button" onClick={() => setAnulando(false)} className="btn btn-secundario">
                 Volver
               </button>
               <button
                 type="button"
                 onClick={confirmar}
                 disabled={motivo.trim().length < 4}
-                className="stencil rounded-sm bg-fuji px-4 py-2 text-lg font-extrabold text-hoja shadow-[0_3px_0_#7d141a] transition active:translate-y-[2px] active:shadow-none disabled:opacity-40"
+                className="btn bg-fuji text-hoja disabled:opacity-40"
               >
-                Timbrar anulado <Tecla>↵</Tecla>
+                Anular vale
               </button>
             </div>
           </div>

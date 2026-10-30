@@ -5,14 +5,13 @@ import { flushSync } from "react-dom";
 import type { FormaPago, Producto, Unidad } from "@/lib/types";
 import { crearVale, useData } from "@/lib/store";
 import { ultimoPrecio, type EstadoCliente } from "@/lib/calc";
-import { cant as fmtCant, clp, ddmm, fechaLarga, haceDias, hoy, miles, parseCantidad, parseMonto, uid } from "@/lib/format";
+import { clp, ddmm, diasEntre, fechaLarga, haceDias, hoy, miles, parseCantidad, parseMonto, uid } from "@/lib/format";
 import { Autocompletar, puntaje } from "../Autocompletar";
 import { filtrarClientes, OpcionCliente, useEstados } from "../clientes";
 import { NuevoCliente } from "../NuevoCliente";
 import { useAviso } from "../Shell";
-import { FORMA, MontoGrande, Numeradora, StickerSemaforo, Tecla, Timbre } from "../ui";
+import { FORMA, MontoGrande, Numeradora, StickerSemaforo } from "../ui";
 import { Colillas } from "./Colillas";
-import { Pizarra } from "./Pizarra";
 
 interface Fila {
   k: string;
@@ -39,14 +38,6 @@ function estadoFila(f: Fila) {
   return { c, p, vacia, completa, subtotal: completa ? Math.round(c! * p!) : 0 };
 }
 
-interface Fantasma {
-  numero: number;
-  cliente: string;
-  lineas: { txt: string; sub: number }[];
-  total: number;
-  forma: FormaPago;
-}
-
 export function RegistroVale() {
   const data = useData()!;
   const estados = useEstados(data);
@@ -65,7 +56,6 @@ export function RegistroVale() {
   const [sacude, setSacude] = useState<string | null>(null);
   const [confirmarMoroso, setConfirmarMoroso] = useState(false);
   const [escUna, setEscUna] = useState(false);
-  const [fantasma, setFantasma] = useState<Fantasma | null>(null);
   const [ultimoId, setUltimoId] = useState<string | null>(null);
   const [nuevo, setNuevo] = useState<string | null>(null);
 
@@ -173,17 +163,6 @@ export function RegistroVale() {
       lineas,
       abono: montoAbono > 0 ? { monto: montoAbono, forma: abonoForma } : null,
     });
-    setFantasma({
-      numero: mov.numero,
-      cliente: cli.cliente.alias ?? cli.cliente.nombre,
-      lineas: lineas.map((l) => ({
-        txt: `${fmtCant(l.cantidad)} ${l.unidad} ${data.idx.producto.get(l.producto_id)?.nombre ?? ""}`,
-        sub: Math.round(l.cantidad * l.precio_unitario),
-      })),
-      total: mov.total,
-      forma,
-    });
-    setTimeout(() => setFantasma(null), 560);
     setUltimoId(mov.id);
     avisar({
       titulo: `Vale N°${mov.numero} guardado`,
@@ -348,377 +327,304 @@ export function RegistroVale() {
           : null
       : null;
 
+
   return (
-    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_400px] 2xl:grid-cols-[minmax(0,1fr)_460px]">
-      <div className="min-w-0">
-        <div className="relative mx-auto max-w-[920px]">
-          {/* ------------------------------- la hoja ------------------------------- */}
-          <section className="hoja perforado margen-rojo rounded-b-md px-4 pb-5 pt-5 sm:px-8 sm:pb-7 sm:pt-7" aria-label="Vale">
-            {/* encabezado del vale */}
-            <header className="flex flex-wrap items-start justify-between gap-4 border-b-2 border-grafito pb-3">
-              <div>
-                <h1 className="stencil text-[40px] font-black leading-none sm:text-[52px]">Vale</h1>
-                <p className="mt-1 text-[11px] uppercase tracking-[0.25em] text-gris">Frutas Israel · La Vega Central</p>
-              </div>
-              <div className="text-right">
-                <p className="text-[11px] uppercase tracking-[0.2em] text-gris">N°</p>
-                <p className="text-[38px] font-bold leading-none text-fuji sm:text-[46px]" style={{ textShadow: "0.5px 0.5px 0 rgba(150,20,30,.3)" }}>
-                  <Numeradora numero={siguiente} />
-                </p>
-                <label className="mt-1 flex items-center justify-end gap-2 text-sm">
-                  <span className="text-gris">Fecha</span>
-                  <input
-                    type="date"
-                    value={fecha}
-                    max={hoy()}
-                    onChange={(e) => e.target.value && setFecha(e.target.value)}
-                    className={`cifra rounded-sm border-0 bg-transparent p-0 text-right text-sm ${fechaAtrasada ? "font-bold text-naranjo" : "text-tinta"}`}
-                    tabIndex={-1}
-                    aria-label="Fecha del vale"
-                  />
-                </label>
-                {fechaAtrasada && <p className="text-[11px] font-bold uppercase tracking-wider text-naranjo">Vale con fecha atrasada · {fechaLarga(fecha)}</p>}
-              </div>
-            </header>
+    <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
+      <section className="hoja perforado mx-auto w-full max-w-[880px] rounded-b-lg px-4 pb-5 pt-5 sm:px-7 sm:pb-7 sm:pt-6" aria-label="Vale">
+        {/* encabezado */}
+        <header className="flex items-start justify-between gap-4 border-b border-grafito/80 pb-3">
+          <div>
+            <h1 className="stencil text-[28px] sm:text-[32px]">Vale</h1>
+            <label className="mt-1 flex items-center gap-2 text-sm text-gris">
+              <input
+                type="date"
+                value={fecha}
+                max={hoy()}
+                onChange={(e) => e.target.value && setFecha(e.target.value)}
+                className={`bg-transparent p-0 text-sm ${fechaAtrasada ? "font-semibold text-fuji" : "text-gris"}`}
+                tabIndex={-1}
+                aria-label="Fecha del vale"
+              />
+            </label>
+            {fechaAtrasada && <p className="text-xs font-semibold text-fuji">Fecha atrasada: {fechaLarga(fecha)}</p>}
+          </div>
+          <p className="text-right">
+            <span className="rotulo block">N°</span>
+            <span className="text-[28px] font-semibold leading-none text-fuji sm:text-[32px]">
+              <Numeradora numero={siguiente} />
+            </span>
+          </p>
+        </header>
 
-            {/* cliente */}
-            <div className={`mt-4 ${sacude === "cliente" ? "tiembla" : ""}`}>
-              <div className="flex items-end gap-3">
-                <span className="shrink-0 pb-1.5 text-sm text-gris">Señor(a)</span>
-                <Autocompletar
-                  etiqueta="Cliente"
-                  className="flex-1"
-                  inputClassName="!font-sans text-[22px] font-semibold tracking-wide sm:text-[26px]"
-                  inputRef={r("cliente")}
-                  autoFocus
-                  items={[...estados.values()]}
-                  clave={(e) => e.cliente.id}
-                  filtrar={(q) => filtrarClientes(q, estados)}
-                  render={(e) => <OpcionCliente e={e} />}
-                  query={clienteQ}
-                  setQuery={(q) => {
-                    setClienteQ(q);
-                    if (cliente && q !== (cliente.cliente.alias ?? cliente.cliente.nombre)) setCliente(null);
-                  }}
-                  onElegir={(e) => {
-                    setCliente(e);
-                    setClienteQ(e.cliente.alias ?? e.cliente.nombre);
-                    setConfirmarMoroso(false);
-                    foco(`${filas[0].k}-cant`);
-                  }}
-                  onCrear={(q) => setNuevo(q)}
-                  placeholder="Escribe alias o nombre…"
+        {/* cliente */}
+        <div className={`mt-5 ${sacude === "cliente" ? "tiembla" : ""}`}>
+          <span className="rotulo">Cliente</span>
+          <Autocompletar
+            etiqueta="Cliente"
+            inputClassName="font-sans text-[22px] font-semibold"
+            inputRef={r("cliente")}
+            autoFocus
+            items={[...estados.values()]}
+            clave={(e) => e.cliente.id}
+            filtrar={(q) => filtrarClientes(q, estados)}
+            render={(e) => <OpcionCliente e={e} />}
+            query={clienteQ}
+            setQuery={(q) => {
+              setClienteQ(q);
+              if (cliente && q !== (cliente.cliente.alias ?? cliente.cliente.nombre)) setCliente(null);
+            }}
+            onElegir={(e) => {
+              setCliente(e);
+              setClienteQ(e.cliente.alias ?? e.cliente.nombre);
+              setConfirmarMoroso(false);
+              foco(`${filas[0].k}-cant`);
+            }}
+            onCrear={(q) => setNuevo(q)}
+            placeholder="Escribe el alias o nombre"
+          />
+          {cli && (
+            <p className="mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 text-sm">
+              <StickerSemaforo s={cli.semaforo} manual={cli.manual} />
+              <span>
+                Debe <b className={`cifra ${cli.saldo > 0 ? "text-fuji" : "text-pera"}`}>{clp(cli.saldo)}</b>
+              </span>
+              {cli.saldo > 0 && <span className="text-gris">último pago {cli.ultimoPago ? haceDias(diasEntre(cli.ultimoPago, hoy())) : "nunca"}</span>}
+              {cli.cliente.notas && <span className="w-full text-gris">Nota: {cli.cliente.notas}</span>}
+            </p>
+          )}
+        </div>
+
+        {/* líneas */}
+        <div className={`mt-6 ${sacude === "lineas" ? "tiembla" : ""}`}>
+          <div className="fila-vale hidden border-b border-linea pb-1 sm:grid">
+            <span className="a-n rotulo">#</span>
+            <span className="a-c rotulo text-right">Cant.</span>
+            <span className="a-u rotulo">Unidad</span>
+            <span className="a-p rotulo">Producto</span>
+            <span className="a-pr rotulo text-right">Precio</span>
+            <span className="a-st rotulo text-right">Subtotal</span>
+          </div>
+
+          {filas.map((f, i) => {
+            const e = calc[i];
+            const err = errores.has(f.k);
+            const on = activa === f.k;
+            const hint = on && f.prod ? sugerencia : null;
+            return (
+              <div
+                key={f.k}
+                className={`fila-vale relative border-b border-linea py-2 ${sacude === f.k ? "tiembla" : ""}`}
+                onFocus={() => setActiva(f.k)}
+              >
+                <span className="a-n cifra hidden pb-1.5 text-sm text-gris sm:block">{i + 1}</span>
+                <input
+                  ref={r(`${f.k}-cant`)}
+                  value={f.cant}
+                  onChange={(ev) => onCantChange(f, ev.target.value)}
+                  onKeyDown={onCant(f, i)}
+                  onFocus={(ev) => ev.target.select()}
+                  inputMode="decimal"
+                  aria-label={`Cantidad línea ${i + 1}`}
+                  placeholder="Cant."
+                  className={`campo a-c text-right text-lg ${err && e.c === null ? "campo-error" : ""}`}
                 />
-              </div>
-
-              {cli && (
-                <div className="animate-entra mt-2 flex flex-wrap items-center gap-x-4 gap-y-1 pl-0 text-sm sm:pl-[4.5rem]">
-                  <StickerSemaforo s={cli.semaforo} manual={cli.manual} />
-                  {cli.cliente.alias && <span className="text-gris">{cli.cliente.nombre}</span>}
-                  <span>
-                    Debe <b className={`cifra ${cli.saldo > 0 ? "text-fuji" : "text-pera"}`}>{clp(cli.saldo)}</b>
-                  </span>
-                  {cli.saldo > 0 && <span className="text-gris">último pago {haceDias(cli.ultimoPago ? cli.diasSinPagar : null)}</span>}
-                  {cli.cliente.limite_credito !== null && (
-                    <span className="text-gris">
-                      tope <span className="cifra">{clp(cli.cliente.limite_credito)}</span>
+                <button
+                  type="button"
+                  ref={r(`${f.k}-unidad`)}
+                  onKeyDown={onUnidad(f)}
+                  onClick={() => {
+                    const idx = (UNIDADES.indexOf(f.unidad) + 1) % UNIDADES.length;
+                    setFila(f.k, { unidad: UNIDADES[idx], unidadTocada: true });
+                  }}
+                  aria-label={`Unidad: ${f.unidad}. Teclas C, E o K`}
+                  title="C caja · E envase · K kilo"
+                  className="campo a-u text-left font-sans text-[15px] font-semibold"
+                >
+                  {f.unidad === "CAJA" ? "Caja" : f.unidad === "ENVASE" ? "Envase" : "Kg"}
+                </button>
+                <Autocompletar
+                  etiqueta={`Producto línea ${i + 1}`}
+                  className="a-p"
+                  inputClassName={`font-sans text-lg font-semibold uppercase ${err && !f.prod ? "campo-error" : ""}`}
+                  inputRef={r(`${f.k}-prod`)}
+                  items={productos}
+                  clave={(p) => p.id}
+                  filtrar={(q) =>
+                    productos
+                      .map((p) => ({ p, s: puntaje(q, [p.nombre], p.codigo) }))
+                      .filter((x) => x.s > 0)
+                      .sort((a, b) => b.s - a.s)
+                      .map((x) => x.p)
+                  }
+                  render={(p) => (
+                    <span className="flex items-center justify-between gap-3">
+                      <b>{p.nombre}</b>
+                      <span className="font-mono text-xs text-gris">{p.codigo}</span>
                     </span>
                   )}
-                  {cli.cliente.notas && <span className="w-full font-mano text-lg leading-tight text-tinta">“{cli.cliente.notas}”</span>}
-                </div>
-              )}
-            </div>
-
-            {/* líneas */}
-            <div className={`mt-5 ${sacude === "lineas" ? "tiembla" : ""}`}>
-              <div className="fila-vale border-b border-grafito/70 pb-1 text-[11px] uppercase tracking-[0.18em] text-gris">
-                <span className="a-n hidden sm:block">#</span>
-                <span className="a-c">Cant.</span>
-                <span className="a-u">Unidad</span>
-                <span className="a-p">Producto</span>
-                <span className="a-pr hidden text-right sm:block">Precio</span>
-                <span className="a-st hidden text-right sm:block">Subtotal</span>
-              </div>
-
-              {filas.map((f, i) => {
-                const e = calc[i];
-                const err = errores.has(f.k);
-                const on = activa === f.k;
-                const hint = on && f.prod ? sugerencia : null;
-                return (
-                  <div
-                    key={f.k}
-                    className={`fila-vale relative border-b border-linea py-1.5 ${sacude === f.k ? "tiembla" : ""} ${on ? "bg-resaltador/[0.12]" : ""}`}
-                    onFocus={() => setActiva(f.k)}
-                  >
-                    <span className="a-n cifra hidden pb-1.5 text-sm text-gris sm:block">{i + 1}</span>
-                    <input
-                      ref={r(`${f.k}-cant`)}
-                      value={f.cant}
-                      onChange={(ev) => onCantChange(f, ev.target.value)}
-                      onKeyDown={onCant(f, i)}
-                      onFocus={(ev) => ev.target.select()}
-                      inputMode="decimal"
-                      aria-label={`Cantidad línea ${i + 1}`}
-                      placeholder={i === 0 ? "5" : ""}
-                      className={`campo a-c text-right text-lg ${err && e.c === null ? "campo-error" : ""}`}
-                    />
-                    <button
-                      type="button"
-                      ref={r(`${f.k}-unidad`)}
-                      onKeyDown={onUnidad(f)}
-                      onClick={() => {
-                        const idx = (UNIDADES.indexOf(f.unidad) + 1) % UNIDADES.length;
-                        setFila(f.k, { unidad: UNIDADES[idx], unidadTocada: true });
-                      }}
-                      aria-label={`Unidad: ${f.unidad}. Teclas C, E o K`}
-                      className="campo a-u group flex items-center justify-between !font-sans text-[15px] font-semibold tracking-wider focus:bg-[length:100%_72%]"
-                    >
-                      {f.unidad}
-                      <span className="text-[10px] text-gris opacity-0 transition group-focus:opacity-100">C·E·K</span>
-                    </button>
-                    <Autocompletar
-                      etiqueta={`Producto línea ${i + 1}`}
-                      className="a-p"
-                      inputClassName={`!font-sans text-lg font-semibold uppercase tracking-wide ${err && !f.prod ? "campo-error" : ""}`}
-                      inputRef={r(`${f.k}-prod`)}
-                      items={productos}
-                      clave={(p) => p.id}
-                      filtrar={(q) =>
-                        productos
-                          .map((p) => ({ p, s: puntaje(q, [p.nombre], p.codigo) }))
-                          .filter((x) => x.s > 0)
-                          .sort((a, b) => b.s - a.s)
-                          .map((x) => x.p)
-                      }
-                      render={(p) => (
-                        <span className="flex items-center gap-2.5">
-                          <span className="size-3 rounded-full" style={{ background: p.color }} />
-                          <b className="tracking-wide">{p.nombre}</b>
-                          <span className="ml-auto rounded-sm border border-kraft px-1 font-mono text-[11px] text-gris">{p.codigo}</span>
-                        </span>
+                  query={f.prodQ}
+                  setQuery={(q) => setFila(f.k, { prodQ: q, prod: f.prod && q === f.prod.nombre ? f.prod : null })}
+                  onElegir={(p) => elegirProducto(f, p)}
+                  onKeyDownExtra={(ev) => {
+                    if (ev.key === "Backspace" && !f.prodQ) {
+                      ev.preventDefault();
+                      foco(`${f.k}-unidad`);
+                    }
+                  }}
+                  placeholder="Producto"
+                />
+                <div className="a-pr relative">
+                  <input
+                    ref={r(`${f.k}-precio`)}
+                    value={f.precio}
+                    onChange={(ev) => setFila(f.k, { precio: ev.target.value })}
+                    onKeyDown={onPrecio(f, i)}
+                    onFocus={(ev) => ev.target.select()}
+                    onBlur={() => {
+                      const p = parseMonto(f.precio);
+                      if (p) setFila(f.k, { precio: miles(p) });
+                    }}
+                    inputMode="numeric"
+                    aria-label={`Precio unitario línea ${i + 1}`}
+                    placeholder="Precio"
+                    className={`campo text-right text-lg ${err && !e.p ? "campo-error" : ""}`}
+                  />
+                  {hint && (hint.general || hint.cliente) && (
+                    <p className="absolute right-0 top-full z-10 mt-0.5 whitespace-nowrap text-[12px] text-gris">
+                      {hint.cliente && (
+                        <>
+                          a este cliente <b className="cifra text-grafito">{clp(hint.cliente.precio)}</b> {ddmm(hint.cliente.fecha)}
+                        </>
                       )}
-                      query={f.prodQ}
-                      setQuery={(q) => setFila(f.k, { prodQ: q, prod: f.prod && q === f.prod.nombre ? f.prod : null })}
-                      onElegir={(p) => elegirProducto(f, p)}
-                      onKeyDownExtra={(ev) => {
-                        if (ev.key === "Backspace" && !f.prodQ) {
-                          ev.preventDefault();
-                          foco(`${f.k}-unidad`);
-                        }
-                      }}
-                      placeholder={i === 0 ? "fuji, pl, pera…" : ""}
-                    />
-                    <div className="a-pr relative">
-                      <input
-                        ref={r(`${f.k}-precio`)}
-                        value={f.precio}
-                        onChange={(ev) => setFila(f.k, { precio: ev.target.value })}
-                        onKeyDown={onPrecio(f, i)}
-                        onFocus={(ev) => ev.target.select()}
-                        onBlur={() => {
-                          const p = parseMonto(f.precio);
-                          if (p) setFila(f.k, { precio: miles(p) });
-                        }}
-                        inputMode="numeric"
-                        aria-label={`Precio unitario línea ${i + 1}`}
-                        placeholder="$"
-                        className={`campo text-right text-lg ${err && !e.p ? "campo-error" : ""}`}
-                      />
-                      {hint && (hint.general || hint.cliente) && (
-                        <div className="pizarra animate-entra absolute right-0 top-full z-20 mt-1.5 whitespace-nowrap sm:right-full sm:top-1/2 sm:mr-3 sm:mt-0 sm:-translate-y-1/2 rounded-[2px] !border-[4px] px-2.5 py-1 [animation-duration:180ms]">
-                          {hint.cliente && (
-                            <p className="tiza text-[17px] leading-tight">
-                              a este cliente <b className="text-resaltador">${miles(hint.cliente.precio)}</b>{" "}
-                              <span className="opacity-60">{ddmm(hint.cliente.fecha)}</span>
-                            </p>
-                          )}
-                          {hint.general && (
-                            <p className="tiza text-[17px] leading-tight">
-                              último <b>${miles(hint.general.precio)}</b> <span className="opacity-60">{ddmm(hint.general.fecha)}</span>
-                            </p>
-                          )}
-                        </div>
+                      {hint.cliente && hint.general && " · "}
+                      {hint.general && (
+                        <>
+                          último <b className="cifra text-grafito">{clp(hint.general.precio)}</b>
+                        </>
                       )}
-                    </div>
-                    <span className={`a-st cifra pb-1.5 text-right text-lg ${e.completa ? "text-tinta" : "text-linea"}`}>
-                      {e.completa ? clp(e.subtotal) : "—"}
-                    </span>
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => {
-                        if (filas.length === 1) setFilas([filaVacia()]);
-                        else setFilas((fs) => fs.filter((x) => x.k !== f.k));
-                      }}
-                      className="a-x hidden pb-1.5 text-gris/50 transition hover:text-fuji sm:block"
-                      aria-label={`Borrar línea ${i + 1}`}
-                    >
-                      ✕
-                    </button>
-                  </div>
-                );
-              })}
-            </div>
-
-            {/* total */}
-            <div className="mt-4 flex flex-wrap items-end justify-between gap-4">
-              <p className="text-sm text-gris">
-                {completas} {completas === 1 ? "línea" : "líneas"}
-              </p>
-              <p className="flex items-baseline gap-3">
-                <span className="stencil text-2xl font-extrabold text-gris">Total</span>
-                <span className="doble-raya text-[40px] leading-none text-tinta sm:text-[48px]">
-                  <MontoGrande valor={total} deuda={false} />
-                </span>
-              </p>
-            </div>
-
-            {/* forma de pago */}
-            <div className="mt-6 border-t border-dashed border-kraft pt-5">
-              <div className="flex flex-wrap items-center gap-4">
-                <span className="text-[11px] uppercase tracking-[0.2em] text-gris">Forma de pago</span>
-                <div
-                  ref={r("forma")}
-                  tabIndex={0}
-                  role="radiogroup"
-                  aria-label="Forma de pago: E efectivo, T transferencia, C crédito"
-                  onKeyDown={onForma}
-                  className="foco group flex flex-wrap gap-2 rounded-sm p-1 outline-none focus:bg-resaltador/50"
-                >
-                  {(Object.keys(FORMA) as FormaPago[]).map((k) => {
-                    const on = forma === k;
-                    return (
-                      <button
-                        key={k}
-                        type="button"
-                        tabIndex={-1}
-                        role="radio"
-                        aria-checked={on}
-                        onClick={() => {
-                          setForma(k);
-                          setConfirmarMoroso(false);
-                        }}
-                        className={`stencil flex items-center gap-2 rounded-sm border-2 px-3 py-1.5 text-lg font-extrabold transition-all ${on ? "-rotate-1 scale-105 text-hoja shadow-[0_3px_0_rgba(0,0,0,.25)]" : "bg-transparent opacity-70 hover:opacity-100"}`}
-                        style={{ borderColor: FORMA[k].color, background: on ? FORMA[k].color : undefined, color: on ? undefined : FORMA[k].color }}
-                      >
-                        {FORMA[k].label}
-                        <span className="tecla !text-[11px]">{FORMA[k].tecla}</span>
-                      </button>
-                    );
-                  })}
-                </div>
-                {alerta && (
-                  <span className="ml-1">
-                    <Timbre key={alerta} className="text-lg" rot={-6}>
-                      ¡Ojo! {alerta}
-                    </Timbre>
-                  </span>
-                )}
-              </div>
-
-              {forma === "CREDITO" && (
-                <div className="animate-entra mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
-                  <label className="flex items-end gap-2">
-                    <span className="pb-1.5 text-sm text-gris">Abona ahora</span>
-                    <input
-                      ref={r("abono")}
-                      value={abono}
-                      onChange={(e) => setAbono(e.target.value)}
-                      onKeyDown={(e) => {
-                        if (e.key === "Enter") {
-                          e.preventDefault();
-                          guardar();
-                        } else if (e.key.toLowerCase() === "t" && !abono.match(/\d$/)) {
-                          e.preventDefault();
-                          setAbonoForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"));
-                        }
-                      }}
-                      inputMode="numeric"
-                      placeholder="opcional"
-                      className="campo w-32 text-right"
-                    />
-                    <button
-                      type="button"
-                      tabIndex={-1}
-                      onClick={() => setAbonoForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"))}
-                      className="cajon mb-1 text-[11px]"
-                      style={{ color: FORMA[abonoForma].color }}
-                    >
-                      {abonoForma === "EFECTIVO" ? "Efectivo" : "Transf."}
-                    </button>
-                  </label>
-                  {cli && (
-                    <p className="text-sm">
-                      <span className="text-gris">Queda debiendo </span>
-                      <b className="cifra text-xl text-fuji">{clp(nuevoSaldo)}</b>
                     </p>
                   )}
                 </div>
-              )}
-
-              {confirmarMoroso && (
-                <p className="animate-entra mt-3 border-l-4 border-fuji bg-fuji/5 px-3 py-2 text-sm">
-                  {alerta === "MOROSO" ? "Este cliente está en rojo." : "Con este vale pasa su tope de crédito."} ¿Fiar igual? Presiona <Tecla>↵</Tecla> otra vez para confirmar, o cambia la forma de pago.
-                </p>
-              )}
-
-              <div className="mt-6 flex flex-wrap items-center justify-between gap-3">
-                <p className={`text-sm transition ${escUna ? "font-semibold text-fuji" : "text-gris"}`}>
-                  {escUna ? (
-                    <>
-                      Presiona <Tecla>Esc</Tecla> otra vez para limpiar el vale
-                    </>
-                  ) : (
-                    <span className="hidden sm:inline">
-                      <Tecla>↵</Tecla> avanza · <Tecla>5c</Tecla> 5 cajas · <Tecla>12k</Tecla> $12.000 · <Tecla>Esc</Tecla><Tecla>Esc</Tecla> limpia
-                    </span>
-                  )}
-                </p>
+                <span className={`a-st cifra pb-1.5 text-right text-lg ${e.completa ? "text-grafito" : "text-kraft"}`}>{e.completa ? clp(e.subtotal) : "—"}</span>
                 <button
                   type="button"
-                  onClick={guardar}
-                  className="stencil group flex items-center gap-3 rounded-sm bg-grafito px-6 py-3 text-2xl font-black text-hoja shadow-[0_4px_0_#000] transition active:translate-y-[3px] active:shadow-[0_1px_0_#000]"
+                  tabIndex={-1}
+                  onClick={() => {
+                    if (filas.length === 1) setFilas([filaVacia()]);
+                    else setFilas((fs) => fs.filter((x) => x.k !== f.k));
+                  }}
+                  className="a-x pb-1.5 text-kraft hover:text-fuji"
+                  aria-label={`Borrar línea ${i + 1}`}
                 >
-                  Guardar vale
-                  <span className="hidden gap-0.5 sm:flex">
-                    <span className="tecla">Ctrl</span>
-                    <span className="tecla">↵</span>
-                  </span>
+                  ✕
                 </button>
               </div>
-            </div>
-          </section>
+            );
+          })}
+        </div>
 
-          {/* la hoja que se arranca */}
-          {fantasma && (
-            <div className="hoja perforado pointer-events-none absolute inset-x-0 top-0 z-20 animate-arranque rounded-b-md px-8 pb-7 pt-7" aria-hidden>
-              <div className="flex justify-between border-b-2 border-grafito pb-3">
-                <p className="stencil text-[52px] font-black leading-none">Vale</p>
-                <p className="cifra text-[46px] font-bold text-fuji">{fantasma.numero}</p>
-              </div>
-              <p className="mt-4 text-[26px] font-semibold text-tinta">{fantasma.cliente}</p>
-              {fantasma.lineas.map((l, i) => (
-                <p key={i} className="cifra flex justify-between border-b border-linea py-2 text-lg text-tinta">
-                  <span>{l.txt}</span>
-                  <span>{clp(l.sub)}</span>
+        {/* total */}
+        <div className="mt-5 flex items-end justify-between gap-4">
+          <span className="text-sm text-gris">
+            {completas} {completas === 1 ? "línea" : "líneas"}
+          </span>
+          <p className="flex items-baseline gap-3">
+            <span className="rotulo">Total</span>
+            <span className="doble-raya text-[34px] leading-none sm:text-[40px]">
+              <MontoGrande valor={total} deuda={false} />
+            </span>
+          </p>
+        </div>
+
+        {/* forma de pago */}
+        <div className="mt-6 border-t border-linea pt-5">
+          <span className="rotulo">Forma de pago</span>
+          <div
+            ref={r("forma")}
+            tabIndex={0}
+            role="radiogroup"
+            aria-label="Forma de pago: E efectivo, T transferencia, C crédito"
+            onKeyDown={onForma}
+            className="mt-2 flex flex-wrap gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-tinta/40 focus-visible:ring-offset-4"
+          >
+            {(Object.keys(FORMA) as FormaPago[]).map((k) => {
+              const on = forma === k;
+              return (
+                <button
+                  key={k}
+                  type="button"
+                  tabIndex={-1}
+                  role="radio"
+                  aria-checked={on}
+                  onClick={() => {
+                    setForma(k);
+                    setConfirmarMoroso(false);
+                  }}
+                  className="opcion"
+                  style={on && k === "CREDITO" ? { background: "#b4412f", borderColor: "#b4412f" } : undefined}
+                >
+                  {FORMA[k].label}
+                  <span className="tecla hidden md:inline-flex">{FORMA[k].tecla}</span>
+                </button>
+              );
+            })}
+          </div>
+
+          {forma === "CREDITO" && (
+            <div className="animate-entra mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
+              <label className="flex items-end gap-2">
+                <span className="pb-1.5 text-sm text-gris">Abona ahora</span>
+                <input
+                  value={abono}
+                  onChange={(e) => setAbono(e.target.value)}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      guardar();
+                    }
+                  }}
+                  inputMode="numeric"
+                  placeholder="opcional"
+                  className="campo w-32 text-right"
+                />
+                <button
+                  type="button"
+                  tabIndex={-1}
+                  onClick={() => setAbonoForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"))}
+                  className="pb-1.5 text-sm text-tinta underline decoration-dotted underline-offset-4"
+                >
+                  {abonoForma === "EFECTIVO" ? "en efectivo" : "por transferencia"}
+                </button>
+              </label>
+              {cli && (
+                <p className="text-sm text-gris">
+                  Queda debiendo <b className="cifra text-lg text-fuji">{clp(nuevoSaldo)}</b>
                 </p>
-              ))}
-              <div className="mt-4 flex items-center justify-between">
-                <Timbre color={FORMA[fantasma.forma].color} className="text-2xl" animar={false}>
-                  {fantasma.forma === "CREDITO" ? "Crédito" : "Pagado"}
-                </Timbre>
-                <p className="cifra doble-raya text-4xl font-bold text-tinta">{clp(fantasma.total)}</p>
-              </div>
+              )}
             </div>
           )}
-        </div>
-      </div>
 
-      {/* ---------------------------- columna derecha ---------------------------- */}
-      <aside className="flex min-w-0 flex-col gap-7">
-        <Pizarra data={data} resaltado={filaActiva?.prod?.id ?? null} />
-        <Colillas data={data} tipos={["VALE_VENTA", "VALE_CREDITO", "ABONO"]} ultimoId={ultimoId} />
+          {alerta && (
+            <p className="animate-entra mt-4 border-l-2 border-fuji pl-3 text-sm">
+              <b className="text-fuji">{alerta === "MOROSO" ? "Cliente moroso." : "Pasa su tope de crédito."}</b>{" "}
+              {confirmarMoroso ? "Presiona Guardar otra vez para fiar igual." : "Se pedirá confirmar al guardar."}
+            </p>
+          )}
+
+          <div className="mt-6 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
+            <p className={`text-sm ${escUna ? "font-semibold text-fuji" : "hidden text-gris md:block"}`}>
+              {escUna ? "Presiona Esc otra vez para limpiar el vale" : "Enter avanza · 5c = 5 cajas · 12k = $12.000"}
+            </p>
+            <button type="button" onClick={guardar} className="btn btn-primario px-6 py-3 text-lg">
+              Guardar vale
+              <span className="tecla hidden md:inline-flex">Ctrl ↵</span>
+            </button>
+          </div>
+        </div>
+      </section>
+
+      <aside className="min-w-0">
+        <Colillas data={data} tipos={["VALE_VENTA", "VALE_CREDITO", "ABONO"]} ultimoId={ultimoId} titulo="Hoy" />
       </aside>
 
       <NuevoCliente
@@ -731,7 +637,6 @@ export function RegistroVale() {
         onCreado={(c) => {
           setNuevo(null);
           setClienteQ(c.alias ?? c.nombre);
-          // el estado aparece en el próximo render; lo construimos al vuelo
           setCliente({
             cliente: c, saldo: 0, ultimoPago: null, ultimaCompra: null, diasSinPagar: null, diasSinComprar: null,
             valeMasAntiguo: null, semaforoCalc: "VERDE", semaforo: "VERDE", manual: false, compra: true, compras30: 0,

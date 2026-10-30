@@ -1,26 +1,30 @@
 # Dirección visual
 
-Se propusieron dos direcciones inspiradas en La Vega:
+## Versión 2: Talonario sobrio (la actual)
 
-- **A · Pizarra de Precios:** fondo verde pizarra, letra de tiza, colores de tiza por tipo de movimiento. Mucha personalidad, pero cansa la vista en jornadas largas, se lee peor con luz de día y la letra de tiza no sirve para tablas densas.
-- **B · Talonario y Cajón (elegida):** la pantalla es el talonario de vales que ya usan, con colores de etiquetas de cajón.
+La primera versión de «Talonario y Cajón» tenía demasiados estímulos a la vez: colores de etiqueta en cada fila, timbres, pizarra, letra stencil en todos los títulos y animaciones en cada acción. Esta versión conserva la idea (la pantalla es el vale) y deja que el color solo signifique algo.
 
-## Lo que se construyó (B + el letrero de pizarra)
-
-| Elemento | Decisión |
+| Regla | Cómo se aplica |
 |---|---|
-| Fondo | Papel crema `#F3ECD9` con grano; hojas `#FBF7EC` con hojas apiladas debajo (sombra escalonada) y perforación de talonario. |
-| Tinta | Azul calco `#1F3C8F` para lo escrito por la caja; grafito `#26221D` para el texto impreso. |
-| Colores de cajón | Rojo Fuji `#C4262E` (deuda, crédito, moroso) · verde pera `#4F7F2A` (al día, venta, abono) · amarillo limón `#E6C238` (atrasado) · naranjo `#DD7420` (egresos, vale) · kraft `#8A6A3D`. |
-| Tipografía | *Big Shoulders Stencil* (letra de cajón) en títulos · *IBM Plex Sans Condensed* para datos densos · *IBM Plex Mono* con cifras tabulares para montos · *Caveat* solo en la pizarra y en notas a mano. |
-| Pizarra | Un solo lugar: «Precios de hoy» (último precio cobrado por producto, ▲▼ vs. día anterior) y la sugerencia de precio junto al campo. Es donde la pizarra existe de verdad en la feria. |
+| El color significa, no decora | **Rojo ladrillo** `#B4412F` = deuda / fiado. **Verde** `#4B7A37` = al día. **Ámbar** `#B8890F` = atrasado. **Azul tinta** `#2F5D8F` = lo que se puede tocar y lo que escribió la caja. Todo lo demás es grafito y gris. |
+| Fondo tranquilo | Papel neutro `#F4F2ED`, hojas `#FCFBF8` con un borde fino. Sin textura ni sombras apiladas. |
+| Una sola tipografía para leer | *IBM Plex Sans Condensed* para todo; *IBM Plex Mono* con cifras alineadas para los montos. La *Big Shoulders Stencil* (letra de cajón) queda solo en la marca. |
+| Identidad mínima | La perforación del talonario solo en la hoja del vale y del abono; el N° de vale en rojo con la numeradora que rueda; la doble raya contable bajo los totales. |
+| Movimiento solo cuando informa | Desaparecieron la hoja que se arranca y los timbres de celebración. Quedan: la numeradora, la deuda que baja al abonar, la colilla que se resalta al guardar y el timbre ANULADO (que sí es información). |
+| Responsivo de verdad | Escritorio con pestañas; celular con barra inferior de 5 secciones; tablas que pasan a tarjetas bajo 1024 px; modales que suben desde abajo en el celular. |
 
-## Microinteracciones con función
+## Resumen (tablero)
 
-- **Numeradora:** el N° de vale rueda dígito a dígito al avanzar el correlativo.
-- **Arrancar la hoja:** al guardar, el vale se desprende por la perforación y queda la colilla en «Colillas de hoy» (resaltada).
-- **Resaltador:** el campo con foco se pinta con una pasada de destacador amarillo.
-- **Timbres de goma:** ANULADO, PAGADO, ¡AL DÍA!, CERRADO, ¡OJO! MOROSO — con tinta gastada, caen con un golpe.
-- **Deuda que corre:** en el abono, la deuda vigente baja contando hasta el nuevo saldo; los vales impagos se timbran PAGADO en vivo mientras se escribe el monto.
-- **Doble raya contable** bajo cada total, como en el libro.
-- **Boleta térmica** con borde dentado para el cierre de caja (también imprimible).
+En vez de la grilla de tarjetas con indicadores, el Resumen se lee de arriba abajo como un informe:
+
+1. **La semana en palabras:** ventas, contado y fiado, cobros, cuánto hay en la calle y cuánto cambió desde el domingo, y cuántos clientes están morosos.
+2. **Ventas por semana:** columnas apiladas (contado / fiado), 13 semanas, con la semana en curso más clara.
+3. **Fiado en la calle:** una sola línea, al cierre de cada semana.
+4. **¿Desde cuándo se debe?:** la deuda separada por antigüedad de los vales impagos, en un solo tono que se oscurece con la edad.
+5. **Los que más deben** y **Productos** de las últimas 4 semanas, con el precio del inicio y del final del período.
+
+Los gráficos tienen una sola escala, grilla tenue y leyenda cuando hay dos series. Muestran el detalle al pasar el mouse o tocar, y cada uno tiene «Ver como tabla». La paleta de las series (azul `#3A6EA5` / ladrillo `#C2553F`) pasó el validador de daltonismo y contraste.
+
+## Versión 1 (descartada): Talonario y Cajón
+
+Papel crema con textura, colores de etiqueta de cajón por tipo de movimiento, letra stencil en títulos, timbres de goma, pizarra de precios en tiza y la hoja que se arrancaba al guardar. Se descartó por exceso de estímulos para quien atiende con clientes esperando.

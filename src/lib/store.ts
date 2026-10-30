@@ -254,7 +254,7 @@ export function crearCliente(p: Partial<Cliente> & { nombre: string }): Cliente 
   set((d) => {
     creado = {
       id: uid(), tenant_id: d.tenant.id, nombre: p.nombre.trim(), alias: p.alias?.trim().toUpperCase() || null,
-      telefono: p.telefono ?? null, procedencia: p.procedencia ?? null, limite_credito: p.limite_credito ?? null,
+      telefono: p.telefono ?? null, limite_credito: p.limite_credito ?? null,
       semaforo_manual: null, compra_manual: null, notas: p.notas ?? null, created_at: new Date().toISOString(),
     };
     return {
@@ -319,7 +319,7 @@ export function importar(filas: ImportFila[], resolverCliente: (nombre: string) 
         cliente_id = resolverCliente(f.cliente) ?? porNombre.get(f.cliente.toLowerCase()) ?? null;
         if (!cliente_id) {
           const c: Cliente = {
-            id: uid(), tenant_id: d.tenant.id, nombre: f.cliente, alias: null, telefono: null, procedencia: null,
+            id: uid(), tenant_id: d.tenant.id, nombre: f.cliente, alias: null, telefono: null,
             limite_credito: null, semaforo_manual: null, compra_manual: null, notas: "Creado por el importador",
             created_at: new Date().toISOString(),
           };

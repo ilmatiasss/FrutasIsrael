@@ -1,473 +1,415 @@
 @import "tailwindcss";
 
 /* ==========================================================================
-   TALONARIO Y CAJÓN — sistema visual
-   Papel de vale, tinta de calco azul, etiquetas de cajón, timbres de goma.
+   TALONARIO — versión sobria
+   Papel neutro, tinta azul para lo que se toca, rojo ladrillo solo para deuda,
+   verde solo para "al día". El color significa algo o no aparece.
    ========================================================================== */
 
 @theme {
-  --color-papel: #f3ecd9;
-  --color-hoja: #fbf7ec;
-  --color-carton: #e6d6b4;
-  --color-kraft: #cdae7e;
-  --color-kraft-osc: #8a6a3d;
-  --color-linea: #dccfb3;
-  --color-grafito: #26221d;
-  --color-gris: #6b6255;
-  --color-tinta: #1f3c8f;
-  --color-tinta-clara: #3a5bbf;
-  --color-fuji: #c4262e;
-  --color-fuji-osc: #9a1a22;
-  --color-pera: #4f7f2a;
-  --color-limon: #e6c238;
-  --color-naranjo: #dd7420;
-  --color-pizarra: #1e2a23;
+  --color-papel: #f4f2ed;
+  --color-hoja: #fcfbf8;
+  --color-carton: #ebe7df;
+  --color-kraft: #d8d0c1;
+  --color-kraft-osc: #7a6c58;
+  --color-linea: #e4dfd5;
+  --color-grafito: #23211d;
+  --color-gris: #6c665d;
+  --color-tinta: #2f5d8f;
+  --color-tinta-clara: #3a6ea5;
+  --color-fuji: #b4412f;
+  --color-fuji-osc: #8f3123;
+  --color-pera: #4b7a37;
+  --color-limon: #b8890f;
+  --color-naranjo: #9a6b3f;
+  --color-pizarra: #2b2f2c;
   --color-tiza: #efebdd;
-  --color-resaltador: #f7e47c;
+  --color-resaltador: #f4e9b3;
 
   --font-stencil: var(--f-stencil), "Arial Narrow", sans-serif;
   --font-sans: var(--f-sans), "Arial Narrow", system-ui, sans-serif;
   --font-mono: var(--f-mono), ui-monospace, monospace;
-  --font-mano: var(--f-mano), "Comic Sans MS", cursive;
+  --font-mano: var(--f-sans), system-ui, sans-serif;
 
-  --animate-arranque: arranque 520ms cubic-bezier(0.55, 0, 0.75, 0.2) forwards;
-  --animate-entra: entra 420ms cubic-bezier(0.2, 0.9, 0.3, 1.15) both;
-  --animate-timbre: timbre 380ms cubic-bezier(0.2, 1.6, 0.4, 1) both;
-  --animate-resalta: resalta 1600ms ease-out both;
-}
-
-:root {
-  color-scheme: light;
-  --grano: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='220' height='220'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.85' numOctaves='3' stitchTiles='stitch'/%3E%3CfeColorMatrix values='0 0 0 0 .35 0 0 0 0 .27 0 0 0 0 .15 0 0 0 .09 0'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)'/%3E%3C/svg%3E");
-  --tinta-gastada: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160'%3E%3Cfilter id='g'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='.9' numOctaves='2'/%3E%3CfeColorMatrix values='0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 0 -2.2 1.6'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23g)'/%3E%3C/svg%3E");
+  --animate-entra: entra 220ms ease-out both;
+  --animate-timbre: timbre 260ms ease-out both;
+  --animate-resalta: resalta 1800ms ease-out both;
 }
 
 @layer base {
-html {
-  background: var(--color-papel);
-}
-
-body {
-  background-color: var(--color-papel);
-  background-image: var(--grano);
-  color: var(--color-grafito);
-  font-family: var(--font-sans);
-  font-size: 15px;
-  -webkit-font-smoothing: antialiased;
-  font-feature-settings: "tnum" 1;
-  min-height: 100dvh;
-}
-
-::selection {
-  background: var(--color-resaltador);
-  color: var(--color-grafito);
-}
-
+  html {
+    background: var(--color-papel);
+  }
+  body {
+    background-color: var(--color-papel);
+    color: var(--color-grafito);
+    font-family: var(--font-sans);
+    font-size: 15px;
+    -webkit-font-smoothing: antialiased;
+    font-feature-settings: "tnum" 1;
+    min-height: 100dvh;
+  }
+  ::selection {
+    background: var(--color-resaltador);
+    color: var(--color-grafito);
+  }
 }
 
 @layer components {
-/* ------------------------------- tipografía ------------------------------- */
+  /* ------------------------------ tipografía ------------------------------ */
 
-.stencil {
-  font-family: var(--font-stencil);
-  font-variation-settings: "opsz" 72;
-  text-transform: uppercase;
-  letter-spacing: 0.02em;
-  line-height: 0.92;
-}
-
-.cifra {
-  font-family: var(--font-mono);
-  font-variant-numeric: tabular-nums;
-  letter-spacing: -0.02em;
-}
-
-.deuda {
-  color: var(--color-fuji);
-}
-
-/* total contable: doble raya bajo la cifra */
-.doble-raya {
-  border-bottom: 3px double currentColor;
-  padding-bottom: 1px;
-}
-
-/* -------------------------------- la hoja -------------------------------- */
-
-/* hoja del talonario con hojas apiladas debajo */
-.hoja {
-  position: relative;
-  background-color: var(--color-hoja);
-  background-image: var(--grano);
-  box-shadow:
-    0 1px 0 rgba(80, 60, 30, 0.08),
-    0 3px 0 -1px #efe6cf,
-    0 4px 0 -1px rgba(80, 60, 30, 0.12),
-    0 7px 0 -3px #ebe1c8,
-    0 8px 0 -3px rgba(80, 60, 30, 0.1),
-    0 18px 30px -18px rgba(60, 40, 10, 0.35);
-}
-
-/* perforación del talonario */
-.perforado::before {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  top: -5px;
-  height: 10px;
-  background: radial-gradient(circle at 7px 5px, var(--color-papel) 3.4px, transparent 4px) repeat-x;
-  background-size: 14px 10px;
-}
-.perforado-abajo::after {
-  content: "";
-  position: absolute;
-  left: 0;
-  right: 0;
-  bottom: -5px;
-  height: 10px;
-  background: radial-gradient(circle at 7px 5px, var(--color-papel) 3.4px, transparent 4px) repeat-x;
-  background-size: 14px 10px;
-}
-
-/* línea de corte punteada */
-.corte {
-  background-image: linear-gradient(90deg, var(--color-kraft) 50%, transparent 50%);
-  background-size: 8px 1.5px;
-  background-repeat: repeat-x;
-  background-position: left center;
-}
-
-/* renglones de libro contable */
-.libro > * {
-  border-bottom: 1px solid var(--color-linea);
-}
-.renglones {
-  background-image: repeating-linear-gradient(
-    to bottom,
-    transparent 0,
-    transparent 35px,
-    var(--color-linea) 35px,
-    var(--color-linea) 36px
-  );
-}
-
-/* margen rojo de cuaderno contable */
-.margen-rojo {
-  box-shadow: inset 3px 0 0 -1px rgba(196, 38, 46, 0.35);
-}
-
-/* --------------------------------- campos --------------------------------- */
-
-/* un campo es una línea en blanco del vale, se "subraya con resaltador" al enfocar */
-.campo {
-  background: transparent;
-  border: 0;
-  border-bottom: 1.5px dotted var(--color-kraft-osc);
-  border-radius: 0;
-  outline: none;
-  padding: 4px 6px;
-  color: var(--color-tinta);
-  font-family: var(--font-mono);
-  transition: background-size 180ms ease, border-color 120ms;
-  background-image: linear-gradient(
-    100deg,
-    transparent 0 2%,
-    var(--color-resaltador) 3% 96%,
-    transparent 97%
-  );
-  background-repeat: no-repeat;
-  background-size: 0% 72%;
-  background-position: 0 70%;
-  width: 100%;
-}
-.campo::placeholder {
-  color: #b3a68c;
-  font-family: var(--font-sans);
-}
-.campo:focus {
-  background-size: 100% 72%;
-  border-bottom-color: var(--color-tinta);
-  border-bottom-style: solid;
-}
-.campo-error {
-  border-bottom-color: var(--color-fuji) !important;
-}
-
-/* foco visible genérico para botones y filas */
-.foco:focus-visible,
-button:focus-visible,
-a:focus-visible {
-  outline: 2px solid var(--color-tinta);
-  outline-offset: 2px;
-  border-radius: 3px;
-}
-
-/* --------------------------------- teclas --------------------------------- */
-
-.tecla {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  min-width: 1.45em;
-  height: 1.45em;
-  padding: 0 0.35em;
-  font-family: var(--font-mono);
-  font-size: 0.72em;
-  font-weight: 600;
-  line-height: 1;
-  color: var(--color-grafito);
-  background: linear-gradient(#fffdf6, #efe5cc);
-  border: 1px solid #b9a77f;
-  border-bottom-width: 2.5px;
-  border-radius: 4px;
-  vertical-align: 0.1em;
-}
-
-/* ------------------------------ timbres de goma ------------------------------ */
-
-.timbre {
-  display: inline-block;
-  font-family: var(--font-stencil);
-  font-variation-settings: "opsz" 72;
-  font-weight: 800;
-  text-transform: uppercase;
-  letter-spacing: 0.08em;
-  padding: 0.12em 0.5em 0.05em;
-  border: 3px solid currentColor;
-  border-radius: 6px;
-  box-shadow: inset 0 0 0 2px var(--color-hoja), inset 0 0 0 3.5px currentColor;
-  transform: rotate(-9deg);
-  mix-blend-mode: multiply;
-  opacity: 0.86;
-  -webkit-mask-image: var(--tinta-gastada);
-  mask-image: var(--tinta-gastada);
-  -webkit-mask-size: 160px;
-  mask-size: 160px;
-  white-space: nowrap;
-  pointer-events: none;
-  user-select: none;
-}
-
-/* ------------------------------- etiquetas ------------------------------- */
-
-/* etiqueta tipo sticker de fruta (PLU) */
-.sticker {
-  display: inline-flex;
-  align-items: center;
-  gap: 0.35em;
-  border-radius: 999px;
-  padding: 0.18em 0.7em 0.14em;
-  font-family: var(--font-stencil);
-  font-variation-settings: "opsz" 40;
-  font-weight: 800;
-  letter-spacing: 0.06em;
-  text-transform: uppercase;
-  font-size: 0.82em;
-  line-height: 1.1;
-  color: #fff;
-  box-shadow:
-    inset 0 0 0 1.5px rgba(255, 255, 255, 0.55),
-    0 1px 0 rgba(0, 0, 0, 0.18);
-  white-space: nowrap;
-}
-
-/* etiqueta de cajón: rectangular, impresa */
-.cajon {
-  font-family: var(--font-stencil);
-  font-variation-settings: "opsz" 40;
-  font-weight: 800;
-  letter-spacing: 0.05em;
-  text-transform: uppercase;
-  border: 2px solid currentColor;
-  padding: 0.05em 0.4em 0;
-  line-height: 1.15;
-  border-radius: 2px;
-}
-
-/* --------------------------------- pizarra --------------------------------- */
-
-.pizarra {
-  background-color: var(--color-pizarra);
-  background-image:
-    radial-gradient(ellipse at 30% 20%, rgba(255, 255, 255, 0.07), transparent 60%),
-    radial-gradient(ellipse at 80% 90%, rgba(255, 255, 255, 0.05), transparent 50%),
-    var(--grano);
-  color: var(--color-tiza);
-  border: 7px solid #9b7444;
-  border-image: linear-gradient(135deg, #b48a52, #7d5a30 40%, #a67c47 60%, #6f4f28) 1;
-  box-shadow: inset 0 0 24px rgba(0, 0, 0, 0.5), 0 10px 22px -12px rgba(30, 20, 5, 0.6);
-}
-.tiza {
-  font-family: var(--font-mano);
-  text-shadow: 0 0 1px rgba(239, 235, 221, 0.6), 0 0 6px rgba(239, 235, 221, 0.12);
-}
-
-/* --------------------------------- pestañas --------------------------------- */
-
-.pestana {
-  position: relative;
-  border-radius: 10px 10px 0 0;
-  border: 1.5px solid var(--color-kraft-osc);
-  border-bottom: 0;
-  transition: transform 160ms ease, background-color 160ms;
-}
-.pestana[data-activa="false"] {
-  transform: translateY(5px);
-  filter: saturate(0.75);
-}
-.pestana[data-activa="false"]:hover {
-  transform: translateY(1px);
-  filter: none;
-}
-
-/* ------------------------------- animaciones ------------------------------- */
-
-@keyframes arranque {
-  0% {
-    transform: translateY(0) rotate(0);
-    opacity: 1;
+  /* títulos: condensada y firme, en tipo oración (la stencil queda solo en la marca) */
+  .stencil {
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.05;
   }
-  25% {
-    transform: translateY(-6px) rotate(-0.6deg);
+  .marca {
+    font-family: var(--font-stencil);
+    font-variation-settings: "opsz" 72;
+    text-transform: uppercase;
+    letter-spacing: 0.03em;
+    line-height: 0.9;
   }
-  100% {
-    transform: translate(60px, -140px) rotate(-7deg);
-    opacity: 0;
-  }
-}
-@keyframes entra {
-  0% {
-    transform: translateY(18px);
-    opacity: 0;
-  }
-  100% {
-    transform: none;
-    opacity: 1;
-  }
-}
-@keyframes timbre {
-  0% {
-    transform: scale(2.4) rotate(-22deg);
-    opacity: 0;
-  }
-  70% {
-    opacity: 0.95;
-  }
-  100% {
-    transform: scale(1) rotate(-9deg);
-    opacity: 0.86;
-  }
-}
-@keyframes resalta {
-  0%,
-  35% {
-    background-color: var(--color-resaltador);
-  }
-  100% {
-    background-color: transparent;
-  }
-}
-@keyframes golpe {
-  0% {
-    transform: translateY(0);
-  }
-  30% {
-    transform: translateY(3px) scale(0.98);
-  }
-  100% {
-    transform: translateY(0);
-  }
-}
-@keyframes tiembla {
-  0%,
-  100% {
-    transform: translateX(0);
-  }
-  20%,
-  60% {
-    transform: translateX(-4px);
-  }
-  40%,
-  80% {
-    transform: translateX(4px);
-  }
-}
-.tiembla {
-  animation: tiembla 320ms ease;
-}
-.golpe {
-  animation: golpe 240ms ease;
-}
 
-/* numeradora: dígitos que ruedan */
-.rodillo {
-  display: inline-block;
-  height: 1em;
-  overflow: hidden;
-  line-height: 1;
-  vertical-align: top;
-}
-.rodillo > span {
-  display: flex;
-  flex-direction: column;
-  transition: transform 520ms cubic-bezier(0.3, 1.4, 0.5, 1);
-}
-
-@media (prefers-reduced-motion: reduce) {
-  *,
-  *::before,
-  *::after {
-    animation-duration: 1ms !important;
-    transition-duration: 1ms !important;
+  .cifra {
+    font-family: var(--font-mono);
+    font-variant-numeric: tabular-nums;
+    letter-spacing: -0.02em;
   }
-}
-
-/* scroll fino color cartón */
-* {
-  scrollbar-width: thin;
-  scrollbar-color: var(--color-kraft) transparent;
-}
-
-/* --------------------------------- impresión --------------------------------- */
-
-@media print {
-  body {
-    background: #fff;
+  .deuda {
+    color: var(--color-fuji);
   }
-  .no-print {
-    display: none !important;
+  .doble-raya {
+    border-bottom: 3px double currentColor;
+    padding-bottom: 1px;
   }
+  .rotulo {
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 0.14em;
+    color: var(--color-gris);
+  }
+
+  /* ------------------------------- superficies ------------------------------- */
+
   .hoja {
-    box-shadow: none;
+    position: relative;
+    background-color: var(--color-hoja);
+    border: 1px solid var(--color-linea);
+    box-shadow: 0 1px 2px rgba(40, 30, 10, 0.04);
   }
-}
 
-/* ------------------------------ fila del vale ------------------------------ */
+  /* la perforación del talonario: solo en la hoja del vale y del abono */
+  .perforado::before {
+    content: "";
+    position: absolute;
+    left: 0;
+    right: 0;
+    top: -5px;
+    height: 10px;
+    background: radial-gradient(circle at 7px 5px, var(--color-papel) 3px, transparent 3.6px) repeat-x;
+    background-size: 14px 10px;
+  }
+  .perforado-abajo::after {
+    content: none;
+  }
 
-.fila-vale {
-  display: grid;
-  align-items: end;
-  column-gap: 0.5rem;
-  row-gap: 0.15rem;
-  grid-template-columns: 1.4rem 3.6rem 5.4rem minmax(0, 1fr);
-  grid-template-areas:
-    "n c u p"
-    ". pr pr st";
-}
-@media (min-width: 640px) {
+  .corte {
+    border-bottom: 1px solid var(--color-linea);
+  }
+  .libro > * {
+    border-bottom: 1px solid var(--color-linea);
+  }
+  .renglones > * {
+    border-bottom: 1px solid var(--color-linea);
+  }
+  .margen-rojo {
+  }
+
+  /* ---------------------------------- campos ---------------------------------- */
+
+  .campo {
+    background: transparent;
+    border: 0;
+    border-bottom: 1.5px solid var(--color-kraft);
+    border-radius: 0;
+    outline: none;
+    padding: 5px 6px;
+    color: var(--color-tinta);
+    font-family: var(--font-mono);
+    width: 100%;
+    transition: background-color 120ms, border-color 120ms;
+  }
+  .campo::placeholder {
+    color: #aaa297;
+    font-family: var(--font-sans);
+  }
+  .campo:focus {
+    background-color: rgba(244, 233, 179, 0.55);
+    border-bottom-color: var(--color-tinta);
+  }
+  .campo:disabled {
+    opacity: 0.45;
+  }
+  .campo-error {
+    border-bottom-color: var(--color-fuji) !important;
+  }
+
+  .foco:focus-visible,
+  button:focus-visible,
+  a:focus-visible,
+  [tabindex="0"]:focus-visible {
+    outline: 2px solid var(--color-tinta);
+    outline-offset: 2px;
+    border-radius: 4px;
+  }
+
+  /* --------------------------------- botones --------------------------------- */
+
+  .btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.5rem;
+    border-radius: 6px;
+    padding: 0.55rem 1rem;
+    font-weight: 600;
+    line-height: 1.1;
+    transition: background-color 120ms, transform 80ms;
+  }
+  .btn:active {
+    transform: translateY(1px);
+  }
+  .btn-primario {
+    background: var(--color-grafito);
+    color: var(--color-hoja);
+  }
+  .btn-primario:hover {
+    background: #000;
+  }
+  .btn-secundario {
+    border: 1px solid var(--color-kraft);
+    background: var(--color-hoja);
+    color: var(--color-grafito);
+  }
+  .btn-secundario:hover {
+    background: var(--color-carton);
+  }
+
+  /* opción de un grupo (forma de pago, filtros) */
+  .opcion {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.45rem;
+    border: 1px solid var(--color-kraft);
+    border-radius: 6px;
+    padding: 0.4rem 0.8rem;
+    font-weight: 600;
+    color: var(--color-gris);
+    background: var(--color-hoja);
+    transition: all 120ms;
+  }
+  .opcion:hover {
+    color: var(--color-grafito);
+  }
+  .opcion[aria-checked="true"],
+  .opcion[aria-pressed="true"] {
+    background: var(--color-grafito);
+    border-color: var(--color-grafito);
+    color: var(--color-hoja);
+  }
+
+  /* ---------------------------------- teclas ---------------------------------- */
+
+  .tecla {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 1.4em;
+    height: 1.4em;
+    padding: 0 0.3em;
+    font-family: var(--font-mono);
+    font-size: 0.7em;
+    font-weight: 600;
+    line-height: 1;
+    color: inherit;
+    opacity: 0.75;
+    border: 1px solid currentColor;
+    border-radius: 4px;
+    vertical-align: 0.1em;
+  }
+
+  /* --------------------------- timbre (solo ANULADO) --------------------------- */
+
+  .timbre {
+    display: inline-block;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    padding: 0.1em 0.45em;
+    border: 1.5px solid currentColor;
+    border-radius: 4px;
+    transform: rotate(-4deg);
+    opacity: 0.85;
+    white-space: nowrap;
+    pointer-events: none;
+    user-select: none;
+  }
+
+  /* ------------------------------- etiquetas ------------------------------- */
+
+  /* estado del cliente: punto de color + texto, fondo apenas teñido */
+  .sticker {
+    display: inline-flex;
+    align-items: center;
+    gap: 0.4em;
+    border-radius: 999px;
+    padding: 0.15em 0.65em;
+    font-weight: 600;
+    font-size: 0.82em;
+    line-height: 1.35;
+    white-space: nowrap;
+  }
+
+  /* tipo / forma de pago: texto chico, sin caja */
+  .cajon {
+    font-size: 0.78em;
+    font-weight: 600;
+    letter-spacing: 0.06em;
+    text-transform: uppercase;
+    line-height: 1.2;
+  }
+
+  /* ------------------------------ animaciones ------------------------------ */
+
+  @keyframes entra {
+    from {
+      transform: translateY(6px);
+      opacity: 0;
+    }
+    to {
+      transform: none;
+      opacity: 1;
+    }
+  }
+  @keyframes timbre {
+    from {
+      transform: scale(1.4) rotate(-4deg);
+      opacity: 0;
+    }
+    to {
+      transform: scale(1) rotate(-4deg);
+      opacity: 0.85;
+    }
+  }
+  @keyframes resalta {
+    0%,
+    30% {
+      background-color: var(--color-resaltador);
+    }
+    100% {
+      background-color: transparent;
+    }
+  }
+  @keyframes tiembla {
+    0%,
+    100% {
+      transform: translateX(0);
+    }
+    25%,
+    75% {
+      transform: translateX(-3px);
+    }
+    50% {
+      transform: translateX(3px);
+    }
+  }
+  .tiembla {
+    animation: tiembla 240ms ease;
+  }
+
+  /* numeradora: dígitos que ruedan */
+  .rodillo {
+    display: inline-block;
+    height: 1em;
+    overflow: hidden;
+    line-height: 1;
+    vertical-align: top;
+  }
+  .rodillo > span {
+    display: flex;
+    flex-direction: column;
+    transition: transform 420ms cubic-bezier(0.3, 1.2, 0.5, 1);
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+      animation-duration: 1ms !important;
+      transition-duration: 1ms !important;
+    }
+  }
+
+  * {
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-kraft) transparent;
+  }
+
+  @media print {
+    body {
+      background: #fff;
+    }
+    .no-print {
+      display: none !important;
+    }
+    .hoja {
+      box-shadow: none;
+      border: 0;
+    }
+  }
+
+  /* ------------------------------ fila del vale ------------------------------ */
+
   .fila-vale {
-    column-gap: 0.75rem;
-    grid-template-columns: 1.6rem 4.6rem 6rem minmax(0, 1fr) 8.5rem 8.5rem 1.6rem;
-    grid-template-areas: "n c u p pr st x";
+    display: grid;
+    align-items: end;
+    column-gap: 0.5rem;
+    row-gap: 0.15rem;
+    grid-template-columns: 3.6rem 5.2rem minmax(0, 1fr) 1.6rem;
+    grid-template-areas:
+      "c u p x"
+      "pr pr st st";
   }
-}
-.a-n { grid-area: n; }
-.a-c { grid-area: c; }
-.a-u { grid-area: u; }
-.a-p { grid-area: p; }
-.a-pr { grid-area: pr; }
-.a-st { grid-area: st; }
-.a-x { grid-area: x; }
-
+  @media (min-width: 640px) {
+    .fila-vale {
+      column-gap: 0.75rem;
+      grid-template-columns: 1.4rem 4.4rem 5.6rem minmax(0, 1fr) 8rem 8rem 1.6rem;
+      grid-template-areas: "n c u p pr st x";
+    }
+  }
+  .a-n {
+    grid-area: n;
+  }
+  .a-c {
+    grid-area: c;
+  }
+  .a-u {
+    grid-area: u;
+  }
+  .a-p {
+    grid-area: p;
+  }
+  .a-pr {
+    grid-area: pr;
+  }
+  .a-st {
+    grid-area: st;
+  }
+  .a-x {
+    grid-area: x;
+  }
 }

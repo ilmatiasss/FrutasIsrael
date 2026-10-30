@@ -50,7 +50,6 @@ create table clientes (
   nombre          text not null,
   alias           text,                               -- "EL FLACO"
   telefono        text,
-  procedencia     text,                               -- feria / local
   limite_credito  bigint check (limite_credito is null or limite_credito >= 0),
   semaforo_manual text check (semaforo_manual in ('VERDE', 'AMARILLO', 'ROJO')),
   compra_manual   boolean,

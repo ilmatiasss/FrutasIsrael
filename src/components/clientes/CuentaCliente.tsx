@@ -11,7 +11,7 @@ import {
 import { useEstados } from "../clientes";
 import { DetalleMovimiento } from "../DetalleMovimiento";
 import { useAviso } from "../Shell";
-import { COLOR_SEMAFORO, MontoGrande, Modal, StickerSemaforo, Tecla, Timbre, Vacio } from "../ui";
+import { MontoGrande, Modal, StickerSemaforo, Tecla, Vacio } from "../ui";
 
 type Periodo = "mes" | "anterior" | "3m" | "todo" | "rango";
 
@@ -48,19 +48,6 @@ export function CuentaCliente({ id }: { id: string }) {
   const [d, h] = rangoDe(periodo, desde, hasta);
   const libro = useMemo(() => libroCuenta(movs, d, h), [movs, d, h]);
 
-  // curva de deuda semanal (todo el historial)
-  const curva = useMemo(() => {
-    const full = libroCuenta(movs, null, null);
-    const pts: { lunes: string; saldo: number; semana: number }[] = [];
-    for (const m of full.meses)
-      for (const s of m.semanas) {
-        const prev = pts[pts.length - 1];
-        if (prev && prev.lunes === s.lunes) prev.saldo = s.saldoFinal;
-        else pts.push({ lunes: s.lunes, saldo: s.saldoFinal, semana: s.semana });
-      }
-    return pts.slice(-16);
-  }, [movs]);
-
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]') || (e.target as HTMLElement).tagName === "INPUT") return;
@@ -80,7 +67,6 @@ export function CuentaCliente({ id }: { id: string }) {
     );
   }
   const c = est.cliente;
-  const sc = COLOR_SEMAFORO[est.semaforo];
 
   const detalle = (m: Movimiento) => {
     const ls = data.idx.lineasMov.get(m.id);
@@ -91,7 +77,6 @@ export function CuentaCliente({ id }: { id: string }) {
     return m.glosa ?? (m.tipo === "ABONO" ? (m.forma_pago === "TRANSFERENCIA" ? "Transferencia" : "Efectivo") : "");
   };
 
-  const maxCurva = Math.max(1, ...curva.map((p) => p.saldo));
   const meses = nuevoArriba ? [...libro.meses].reverse() : libro.meses;
   const ciclo: (Semaforo | null)[] = [null, "VERDE", "AMARILLO", "ROJO"];
   const totalPeriodo = libro.meses.reduce(
@@ -102,123 +87,74 @@ export function CuentaCliente({ id }: { id: string }) {
   return (
     <div className="space-y-6">
       {/* ------------------------------ ficha ------------------------------ */}
-      <section className="hoja perforado relative overflow-hidden rounded-b-md" aria-label="Ficha del cliente">
-        <div className="absolute inset-y-0 left-0 w-2" style={{ background: sc.bg }} aria-hidden />
-        <div className="grid gap-6 px-5 pb-6 pt-6 sm:px-8 lg:grid-cols-[minmax(0,1fr)_auto]">
+      <section className="hoja rounded-lg" aria-label="Ficha del cliente">
+        <div className="grid gap-6 px-5 py-5 sm:px-7 sm:py-6 lg:grid-cols-[minmax(0,1fr)_auto]">
           <div className="min-w-0">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-gris">
+            <p className="text-sm text-gris">
               <Link href="/clientes" className="hover:text-tinta">Clientes</Link> / Cuenta cliente
             </p>
-            <h1 className="stencil mt-1 break-words text-[44px] font-black leading-[0.9] sm:text-[64px]">{c.alias ?? c.nombre}</h1>
-            <p className="mt-2 text-lg">
-              {c.alias && <span className="font-semibold">{c.nombre}</span>}
-              {c.procedencia && <span className="text-gris"> · {c.procedencia}</span>}
-            </p>
-            <div className="mt-3 flex flex-wrap items-center gap-3 text-sm">
+            <h1 className="stencil mt-1 break-words text-[30px] sm:text-[38px]">{c.alias ?? c.nombre}</h1>
+            {c.alias && <p className="text-gris">{c.nombre}</p>}
+            <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <StickerSemaforo
                 s={est.semaforo}
                 manual={est.manual}
                 onClick={() => {
                   const sig = ciclo[(ciclo.indexOf(c.semaforo_manual) + 1) % ciclo.length];
                   editarCliente(c.id, { semaforo_manual: sig }, `Clasificación ${sig ? `manual: ${sig}` : "automática"}`);
-                  avisar({ titulo: sig ? `Fijado en ${sig}` : "Clasificación automática", tono: "tinta" });
+                  avisar({ titulo: sig ? "Estado fijado a mano" : "Estado automático", tono: "tinta" });
                 }}
-                title="Clic para fijar la clasificación a mano"
+                title="Clic para fijar el estado a mano"
               />
-              <span className={`cajon text-[11px] ${est.compra ? "text-pera" : "text-gris"}`}>{est.compra ? "Sigue comprando" : "Ya no compra"}</span>
+              <span className="text-gris">{est.compra ? "Sigue comprando" : "Ya no compra"}</span>
               {c.telefono && (
-                <a href={`tel:${c.telefono.replace(/\s/g, "")}`} className="cifra text-tinta underline decoration-dotted underline-offset-4">
+                <a href={`tel:${c.telefono.replace(/\s/g, "")}`} className="cifra text-tinta">
                   {c.telefono}
                 </a>
               )}
-              <button type="button" onClick={() => setEditar(true)} className="text-gris underline decoration-dotted underline-offset-4 hover:text-grafito">
-                editar ficha
+              <button type="button" onClick={() => setEditar(true)} className="text-tinta underline underline-offset-4">
+                Editar
               </button>
             </div>
-            {c.notas && <p className="mt-3 max-w-xl font-mano text-[22px] leading-tight text-tinta">“{c.notas}”</p>}
+            {c.notas && <p className="mt-3 max-w-xl text-sm text-gris">Nota: {c.notas}</p>}
 
-            <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-3 text-sm sm:grid-cols-4 [&>div]:min-w-0">
+            <dl className="mt-5 grid grid-cols-2 gap-x-6 gap-y-4 text-sm sm:grid-cols-4 [&>div]:min-w-0">
               <div>
-                <dt className="text-[11px] uppercase tracking-widest text-gris">Último pago</dt>
-                <dd className="font-semibold">{est.ultimoPago ? ddmmaa(est.ultimoPago) : "nunca"}</dd>
-                <dd className="text-xs text-gris">{est.ultimoPago ? haceDias(diasEntre(est.ultimoPago, hoy())) : ""}</dd>
+                <dt className="rotulo">Último pago</dt>
+                <dd className="mt-0.5 font-semibold">{est.ultimoPago ? haceDias(diasEntre(est.ultimoPago, hoy())) : "nunca"}</dd>
+                <dd className="text-xs text-gris">{est.ultimoPago ? ddmmaa(est.ultimoPago) : ""}</dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-widest text-gris">Vale impago más antiguo</dt>
-                <dd className="font-semibold">{est.valeMasAntiguo ? ddmmaa(est.valeMasAntiguo) : "—"}</dd>
-                <dd className="text-xs text-gris">{est.valeMasAntiguo ? `${est.pendientes.length} vales impagos` : "sin vales impagos"}</dd>
+                <dt className="rotulo">Vales impagos</dt>
+                <dd className="mt-0.5 font-semibold">{est.pendientes.length || "ninguno"}</dd>
+                <dd className="text-xs text-gris">{est.valeMasAntiguo ? `el más antiguo del ${ddmmaa(est.valeMasAntiguo)}` : ""}</dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-widest text-gris">Compró últimos 30 d</dt>
-                <dd className="cifra font-semibold text-tinta">{clp(est.compras30)}</dd>
+                <dt className="rotulo">Compró en 30 días</dt>
+                <dd className="cifra mt-0.5 font-semibold">{clp(est.compras30)}</dd>
                 <dd className="text-xs text-gris">última compra {haceDias(est.diasSinComprar)}</dd>
               </div>
               <div>
-                <dt className="text-[11px] uppercase tracking-widest text-gris">Tope de crédito</dt>
-                {c.limite_credito !== null ? (
-                  <>
-                    <dd className="cifra font-semibold">{clp(c.limite_credito)}</dd>
-                    <dd className="mt-1 h-1.5 w-full max-w-[9rem] overflow-hidden rounded-full bg-linea">
-                      <span
-                        className="block h-full rounded-full"
-                        style={{ width: `${Math.min(100, (est.saldo / c.limite_credito) * 100)}%`, background: est.sobreLimite ? "#c4262e" : "#1f3c8f" }}
-                      />
-                    </dd>
-                  </>
-                ) : (
-                  <dd className="text-gris">sin tope</dd>
-                )}
+                <dt className="rotulo">Tope de crédito</dt>
+                <dd className="cifra mt-0.5 font-semibold">{c.limite_credito !== null ? clp(c.limite_credito) : "sin tope"}</dd>
+                {est.sobreLimite && <dd className="text-xs font-semibold text-fuji">lo sobrepasa</dd>}
               </div>
             </dl>
           </div>
 
           {/* deuda vigente: lo más grande de la pantalla */}
-          <div className="flex flex-col items-start lg:items-end">
-            <p className="text-[11px] uppercase tracking-[0.25em] text-gris">Deuda vigente</p>
-            <p className="doble-raya mt-1 text-[48px] leading-none text-fuji sm:text-[72px] xl:text-[88px]">
+          <div className="flex flex-col items-start border-t border-linea pt-5 lg:items-end lg:border-0 lg:pt-0">
+            <span className="rotulo">Deuda vigente</span>
+            <p className="doble-raya mt-1 text-[44px] leading-none sm:text-[60px]">
               <MontoGrande valor={est.saldo} />
             </p>
-            {est.saldo <= 0 && (
-              <span className="mt-3">
-                <Timbre color="#4f7f2a" className="text-2xl" animar={false}>
-                  Al día
-                </Timbre>
-              </span>
-            )}
-            {/* curva de deuda por semana */}
-            {curva.length > 1 && (
-              <figure className="mt-4 w-full max-w-[340px]">
-                <svg viewBox={`0 0 ${curva.length * 20} 56`} className="h-14 w-full" role="img" aria-label="Deuda al cierre de cada semana">
-                  {curva.map((p, i) => {
-                    const hh = (Math.max(0, p.saldo) / maxCurva) * 48;
-                    return (
-                      <g key={p.lunes}>
-                        <title>{`Semana N°${p.semana}: ${clp(p.saldo)}`}</title>
-                        <rect x={i * 20 + 3} y={52 - hh} width={14} height={Math.max(hh, 1)} rx={1.5} fill={i === curva.length - 1 ? "#c4262e" : "#c4262e55"} />
-                      </g>
-                    );
-                  })}
-                  <line x1="0" x2={curva.length * 20} y1="52.5" y2="52.5" stroke="#8a6a3d" strokeWidth="1" />
-                </svg>
-                <figcaption className="flex justify-between text-[10px] uppercase tracking-wider text-gris">
-                  <span>N°{curva[0].semana}</span>
-                  <span>deuda al cierre de cada semana</span>
-                  <span>N°{curva[curva.length - 1].semana}</span>
-                </figcaption>
-              </figure>
-            )}
-            <div className="mt-5 flex flex-wrap gap-2">
-              <Link
-                href={`/?cliente=${c.id}`}
-                className="stencil flex items-center gap-2 rounded-sm bg-grafito px-4 py-2 text-lg font-extrabold text-hoja shadow-[0_3px_0_#000] active:translate-y-[2px] active:shadow-none"
-              >
-                Nuevo vale <span className="tecla">V</span>
+            {est.saldo <= 0 && <p className="mt-2 font-semibold text-pera">Al día</p>}
+            <div className="mt-5 flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end">
+              <Link href={`/?cliente=${c.id}`} className="btn btn-primario flex-1 sm:flex-none">
+                Nuevo vale <span className="tecla hidden md:inline-flex">V</span>
               </Link>
-              <Link
-                href={`/abono?cliente=${c.id}`}
-                className="stencil flex items-center gap-2 rounded-sm bg-pera px-4 py-2 text-lg font-extrabold text-hoja shadow-[0_3px_0_#2f4f17] active:translate-y-[2px] active:shadow-none"
-              >
-                Abonar <span className="tecla">A</span>
+              <Link href={`/abono?cliente=${c.id}`} className="btn btn-secundario flex-1 sm:flex-none">
+                Abonar <span className="tecla hidden md:inline-flex">A</span>
               </Link>
             </div>
           </div>
@@ -226,7 +162,7 @@ export function CuentaCliente({ id }: { id: string }) {
       </section>
 
       {/* ------------------------------ período ------------------------------ */}
-      <section className="no-print flex flex-wrap items-center gap-x-4 gap-y-3 border-y-2 border-grafito/80 py-3">
+      <section className="no-print flex flex-wrap items-center gap-x-4 gap-y-3 border-y border-linea py-3">
         <span className="text-[11px] uppercase tracking-[0.2em] text-gris">Período</span>
         <div className="flex flex-wrap overflow-hidden rounded-sm border border-kraft-osc/60 text-sm" role="group" aria-label="Período">
           {(
@@ -265,8 +201,8 @@ export function CuentaCliente({ id }: { id: string }) {
       </section>
 
       {/* ------------------------------ libro ------------------------------ */}
-      <section className="hoja overflow-hidden rounded-sm" aria-label="Historial de la cuenta">
-        <div className="hidden md:block">
+      <section className="hoja overflow-hidden rounded-lg" aria-label="Historial de la cuenta">
+        <div className="hidden lg:block">
           <table className="w-full table-fixed text-[15px]">
             <colgroup>
               <col className="w-[92px]" />
@@ -302,9 +238,9 @@ export function CuentaCliente({ id }: { id: string }) {
               const semanas = nuevoArriba ? [...mes.semanas].reverse() : mes.semanas;
               return (
                 <tbody key={mes.key}>
-                  <tr className="bg-carton/70" style={{ backgroundImage: "var(--grano)" }}>
+                  <tr className="bg-carton/60">
                     <td colSpan={3} className="px-3 py-2">
-                      <span className="stencil text-[22px] font-black">
+                      <span className="font-semibold capitalize">
                         {MESES[mes.mes - 1]} {mes.anio}
                       </span>
                     </td>
@@ -318,7 +254,7 @@ export function CuentaCliente({ id }: { id: string }) {
                     return [
                       <tr key={s.key} className="border-b border-grafito/25 bg-hoja text-[13px]">
                         <td colSpan={3} className="px-3 pb-1 pt-3">
-                          <span className="cajon mr-2 text-[12px] text-kraft-osc">Semana N°{s.semana}</span>
+                          <span className="mr-2 font-semibold text-grafito">Semana N°{s.semana}</span>
                           <span className="text-gris">
                             {fechaCorta(s.lunes)} – {fechaCorta(sumarDias(s.lunes, 6))}
                           </span>
@@ -363,7 +299,7 @@ export function CuentaCliente({ id }: { id: string }) {
             {libro.meses.length > 0 && (
               <tfoot className="border-t-2 border-grafito">
                 <tr>
-                  <td colSpan={3} className="stencil px-3 py-3 text-lg font-extrabold">
+                  <td colSpan={3} className="px-3 py-3 font-semibold">
                     Total del período
                   </td>
                   <td className="cifra px-2 text-right font-bold text-fuji">{clp(totalPeriodo.credito)}</td>
@@ -381,16 +317,16 @@ export function CuentaCliente({ id }: { id: string }) {
         </div>
 
         {/* celular: tarjetas por semana */}
-        <div className="md:hidden">
+        <div className="lg:hidden">
           {meses.map((mes) => (
             <div key={mes.key}>
-              <p className="stencil sticky top-[60px] z-10 bg-carton px-3 py-1.5 text-xl font-black">
+              <p className="stencil bg-carton/60 px-3 py-2 text-lg capitalize">
                 {MESES[mes.mes - 1]} {mes.anio}
               </p>
               {(nuevoArriba ? [...mes.semanas].reverse() : mes.semanas).map((s) => (
                 <div key={s.key} className="border-b border-grafito/20">
                   <p className="flex justify-between px-3 pb-1 pt-2 text-xs text-gris">
-                    <span className="cajon text-[11px] text-kraft-osc">N°{s.semana}</span>
+                    <span className="font-semibold text-grafito">Semana N°{s.semana}</span>
                     <span className="cifra">saldo {clp(s.saldoFinal)}</span>
                   </p>
                   {(nuevoArriba ? [...s.filas].reverse() : s.filas).map(({ mov: m, saldo }) => (
@@ -420,7 +356,7 @@ export function CuentaCliente({ id }: { id: string }) {
         {libro.meses.length === 0 && <Vacio>Sin movimientos en este período.</Vacio>}
       </section>
 
-      <p className="hidden text-sm text-gris md:block">
+      <p className="hidden text-sm text-gris lg:block">
         <Tecla>V</Tecla> nuevo vale · <Tecla>A</Tecla> abonar · clic en una fila para ver el vale o anularlo
       </p>
 
@@ -432,14 +368,13 @@ export function CuentaCliente({ id }: { id: string }) {
 
 function EditarCliente({ cliente, abierto, onCerrar }: { cliente: Cliente; abierto: boolean; onCerrar: () => void }) {
   const avisar = useAviso();
-  const [f, setF] = useState({ nombre: "", alias: "", telefono: "", procedencia: "", limite: "", notas: "" });
+  const [f, setF] = useState({ nombre: "", alias: "", telefono: "", limite: "", notas: "" });
   useEffect(() => {
     if (abierto)
       setF({
         nombre: cliente.nombre,
         alias: cliente.alias ?? "",
         telefono: cliente.telefono ?? "",
-        procedencia: cliente.procedencia ?? "",
         limite: cliente.limite_credito ? miles(cliente.limite_credito) : "",
         notas: cliente.notas ?? "",
       });
@@ -450,7 +385,6 @@ function EditarCliente({ cliente, abierto, onCerrar }: { cliente: Cliente; abier
       nombre: f.nombre.trim() || cliente.nombre,
       alias: f.alias.trim().toUpperCase() || null,
       telefono: f.telefono.trim() || null,
-      procedencia: f.procedencia.trim() || null,
       limite_credito: parseMonto(f.limite),
       notas: f.notas.trim() || null,
     }, "Ficha editada");
@@ -459,28 +393,27 @@ function EditarCliente({ cliente, abierto, onCerrar }: { cliente: Cliente; abier
   };
   const campo = (k: keyof typeof f, label: string) => (
     <label className="block">
-      <span className="text-[11px] uppercase tracking-widest text-gris">{label}</span>
+      <span className="rotulo">{label}</span>
       <input value={f[k]} onChange={(e) => setF({ ...f, [k]: e.target.value })} className="campo font-sans text-lg" />
     </label>
   );
   return (
     <Modal abierto={abierto} onCerrar={onCerrar} etiqueta="Editar ficha">
       <form onSubmit={enviar} className="space-y-3">
-        <p className="stencil text-2xl font-extrabold">Editar ficha</p>
+        <p className="stencil text-2xl">Editar cliente</p>
         {campo("nombre", "Nombre")}
         <div className="grid grid-cols-2 gap-3">
           {campo("alias", "Alias")}
           {campo("telefono", "Teléfono")}
         </div>
-        {campo("procedencia", "Feria / local")}
         {campo("limite", "Tope de crédito")}
         <label className="block">
-          <span className="text-[11px] uppercase tracking-widest text-gris">Nota</span>
-          <textarea value={f.notas} onChange={(e) => setF({ ...f, notas: e.target.value })} rows={2} className="campo resize-none font-mano text-xl" />
+          <span className="rotulo">Nota</span>
+          <textarea value={f.notas} onChange={(e) => setF({ ...f, notas: e.target.value })} rows={2} className="campo resize-none font-sans" />
         </label>
         <div className="flex justify-end gap-2 pt-2">
-          <button type="button" onClick={onCerrar} className="px-3 py-2 text-gris">Cancelar</button>
-          <button type="submit" className="stencil rounded-sm bg-tinta px-4 py-2 text-lg font-extrabold text-hoja">Guardar</button>
+          <button type="button" onClick={onCerrar} className="btn btn-secundario">Cancelar</button>
+          <button type="submit" className="btn btn-primario">Guardar</button>
         </div>
       </form>
     </Modal>

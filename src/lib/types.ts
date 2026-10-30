@@ -46,8 +46,6 @@ export interface Cliente {
   /** como lo conocen en el local: "EL FLACO", "LA TÍA NENA" */
   alias: string | null;
   telefono: string | null;
-  /** puesto / feria / almacén, texto libre */
-  procedencia: string | null;
   /** tope de crédito sugerido; null = sin tope */
   limite_credito: number | null;
   /** null = semáforo calculado por días sin pagar */

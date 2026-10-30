@@ -7,7 +7,7 @@ import { resumenCaja, vivo } from "@/lib/calc";
 import { clp, fechaLarga, hora, hoy, miles, parseMonto, sumarDias } from "@/lib/format";
 import { COLOR_TIPO, DetalleMovimiento } from "../DetalleMovimiento";
 import { useAviso } from "../Shell";
-import { FormaChip, MontoGrande, Tecla, Timbre, Vacio } from "../ui";
+import { FormaChip, MontoGrande, Tecla, Vacio } from "../ui";
 
 const SECCIONES: { tipo: TipoMovimiento; titulo: string; nota: string }[] = [
   { tipo: "VALE_VENTA", titulo: "Vales venta", nota: "pagados al contado" },
@@ -41,7 +41,6 @@ export function CierreCaja() {
   const [form, setForm] = useState<null | "EGRESO" | "INGRESO">(null);
   const [cerrando, setCerrando] = useState(false);
   const [nota, setNota] = useState("");
-  const [recienCerrado, setRecienCerrado] = useState(false);
 
   const movs = useMemo(() => data.idx.movsFecha.get(fecha) ?? [], [data, fecha]);
   const r = useMemo(() => resumenCaja(movs), [movs]);
@@ -62,7 +61,6 @@ export function CierreCaja() {
     window.addEventListener("keydown", k);
     return () => window.removeEventListener("keydown", k);
   }, []);
-  useEffect(() => setRecienCerrado(false), [fecha]);
 
   // matriz tipo × forma de pago
   const matriz = SECCIONES.map(({ tipo, titulo }) => {
@@ -78,9 +76,9 @@ export function CierreCaja() {
       {/* ------------------------------ cabecera ------------------------------ */}
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="stencil text-[40px] font-black leading-none sm:text-[52px]">Cierre de caja</h1>
+          <h1 className="stencil text-[28px] sm:text-[32px]">Cierre de caja</h1>
           <div className="no-print mt-3 flex items-center gap-2">
-            <button type="button" onClick={() => setFecha(sumarDias(fecha, -1))} className="cajon px-2 text-grafito hover:bg-carton" aria-label="Día anterior">
+            <button type="button" onClick={() => setFecha(sumarDias(fecha, -1))} className="btn btn-secundario px-2.5 py-1" aria-label="Día anterior">
               ←
             </button>
             <input
@@ -95,7 +93,7 @@ export function CierreCaja() {
               type="button"
               onClick={() => esHoy || setFecha(sumarDias(fecha, 1))}
               disabled={esHoy}
-              className="cajon px-2 text-grafito hover:bg-carton disabled:opacity-30"
+              className="btn btn-secundario px-2.5 py-1 disabled:opacity-30"
               aria-label="Día siguiente"
             >
               →
@@ -109,13 +107,13 @@ export function CierreCaja() {
           <p className="mt-1 text-lg text-gris first-letter:uppercase">{fechaLarga(fecha)}</p>
         </div>
         <div className="no-print flex flex-wrap gap-2">
-          <button type="button" onClick={() => setForm("EGRESO")} className="stencil flex items-center gap-2 rounded-sm border-2 border-naranjo px-3 py-1.5 text-lg font-extrabold text-naranjo hover:bg-naranjo hover:text-hoja">
+          <button type="button" onClick={() => setForm("EGRESO")} className="btn btn-secundario">
             − Egreso <span className="tecla">G</span>
           </button>
-          <button type="button" onClick={() => setForm("INGRESO")} className="stencil flex items-center gap-2 rounded-sm border-2 border-kraft-osc px-3 py-1.5 text-lg font-extrabold text-kraft-osc hover:bg-kraft-osc hover:text-hoja">
+          <button type="button" onClick={() => setForm("INGRESO")} className="btn btn-secundario">
             + Ingreso <span className="tecla">I</span>
           </button>
-          <button type="button" onClick={() => window.print()} className="stencil rounded-sm border-2 border-grafito px-3 py-1.5 text-lg font-extrabold hover:bg-grafito hover:text-hoja">
+          <button type="button" onClick={() => window.print()} className="btn btn-secundario hidden sm:inline-flex">
             Imprimir
           </button>
         </div>
@@ -134,8 +132,8 @@ export function CierreCaja() {
               href={`#${tipo}`}
               className="group border-b border-r border-linea px-4 py-3 last:border-r-0 hover:bg-resaltador/30 lg:border-b-0"
             >
-              <span className="cajon text-[11px]" style={{ color: COLOR_TIPO[tipo] }}>{titulo}</span>
-              <p className="mt-2 text-[30px] leading-none" style={{ color: COLOR_TIPO[tipo] }}>
+              <span className="rotulo">{titulo}</span>
+              <p className="mt-1.5 text-[24px] leading-none" style={{ color: tipo === "VALE_CREDITO" ? COLOR_TIPO[tipo] : undefined }}>
                 <MontoGrande valor={total} deuda={false} />
               </p>
               <p className="mt-1 text-xs text-gris">{xs.length} {xs.length === 1 ? "movimiento" : "movimientos"}</p>
@@ -157,9 +155,9 @@ export function CierreCaja() {
             if (!xs.length) return null;
             const total = xs.filter(vivo).reduce((a, m) => a + m.total, 0);
             return (
-              <section key={tipo} id={tipo} className="hoja scroll-mt-28 overflow-hidden rounded-sm" style={{ boxShadow: `inset 0 4px 0 ${COLOR_TIPO[tipo]}` }}>
+              <section key={tipo} id={tipo} className="hoja scroll-mt-20 overflow-hidden rounded-lg">
                 <header className="flex items-baseline justify-between border-b-2 border-grafito/80 px-4 pb-2 pt-4">
-                  <h2 className="stencil text-2xl font-black" style={{ color: COLOR_TIPO[tipo] }}>
+                  <h2 className="font-semibold">
                     {titulo} <span className="ml-1 font-sans text-sm font-normal normal-case tracking-normal text-gris">{nota}</span>
                   </h2>
                   <span className="cifra doble-raya text-xl font-bold" style={{ color: COLOR_TIPO[tipo] }}>{clp(total)}</span>
@@ -178,7 +176,7 @@ export function CierreCaja() {
 
         {/* ------------------------------ la boleta ------------------------------ */}
         <aside className="xl:sticky xl:top-24 xl:self-start">
-          <div className="relative bg-[#fffdf7] px-6 pb-10 pt-6 font-mono text-grafito shadow-[0_18px_30px_-18px_rgba(60,40,10,.45)]" style={{ backgroundImage: "var(--grano)" }}>
+          <div className="relative bg-[#fffdf7] px-6 pb-10 pt-6 font-mono text-grafito shadow-[0_18px_30px_-18px_rgba(60,40,10,.45)]" >
             {/* borde dentado de boleta */}
             <div
               aria-hidden
@@ -193,7 +191,7 @@ export function CierreCaja() {
             <Renglon signo="+" label="Ventas" valor={ventasEf} />
             <Renglon signo="+" label="Abonos" valor={abonosEf} />
             <Renglon signo="+" label="Ingresos" valor={ingresosEf} />
-            <Renglon signo="−" label="Egresos" valor={r.egresos_efectivo} color="#dd7420" />
+            <Renglon signo="−" label="Egresos" valor={r.egresos_efectivo} />
             <p className="my-2 border-t border-grafito/50" />
             <p className="flex items-baseline justify-between">
               <span className="text-[12px] font-bold uppercase leading-tight tracking-wider">
@@ -201,7 +199,7 @@ export function CierreCaja() {
                 <br />
                 en caja
               </span>
-              <span className="cifra doble-raya text-[30px] font-bold text-pera">{clp(r.efectivo_esperado)}</span>
+              <span className="cifra doble-raya text-[28px] font-bold">{clp(r.efectivo_esperado)}</span>
             </p>
 
             <p className="my-3 border-t-2 border-dashed border-grafito/40" />
@@ -248,8 +246,8 @@ export function CierreCaja() {
               {cierre ? (
                 <div className="relative">
                   <p className="text-sm">
-                    Cerrada por <b>{cierre.cerrado_por}</b> a las {hora(cierre.cerrado_at)}
-                    {cierre.nota && <span className="block font-mano text-lg text-tinta">“{cierre.nota}”</span>}
+                    <b className="text-pera">Caja cerrada</b> por {cierre.cerrado_por} a las {hora(cierre.cerrado_at)}
+                    {cierre.nota && <span className="block text-gris">Nota: {cierre.nota}</span>}
                   </p>
                   {cierre.snapshot.efectivo_esperado !== r.efectivo_esperado && (
                     <p className="mt-2 border-l-4 border-naranjo bg-naranjo/10 px-2 py-1 text-sm">
@@ -266,7 +264,7 @@ export function CierreCaja() {
                   type="button"
                   onClick={() => setCerrando(true)}
                   disabled={!movs.length}
-                  className="stencil w-full rounded-sm bg-grafito py-3 text-2xl font-black text-hoja shadow-[0_4px_0_#000] active:translate-y-[3px] active:shadow-none disabled:opacity-30"
+                  className="btn btn-primario w-full py-3 text-lg disabled:opacity-30"
                 >
                   Cerrar la caja
                 </button>
@@ -278,7 +276,6 @@ export function CierreCaja() {
                     cerrarCaja(fecha, nota.trim() || null);
                     setCerrando(false);
                     setNota("");
-                    setRecienCerrado(true);
                     avisar({ titulo: "Caja cerrada", detalle: `Efectivo esperado ${clp(r.efectivo_esperado)}` });
                   }}
                   className="mt-3"
@@ -286,20 +283,14 @@ export function CierreCaja() {
                   <input autoFocus value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nota del cierre (opcional)" className="campo font-sans" />
                   <div className="mt-2 flex justify-end gap-2">
                     <button type="button" onClick={() => setCerrando(false)} className="px-2 text-gris">Cancelar</button>
-                    <button type="submit" className="stencil rounded-sm bg-grafito px-4 py-1.5 text-lg font-extrabold text-hoja">
+                    <button type="submit" className="btn btn-primario">
                       Confirmar <Tecla>↵</Tecla>
                     </button>
                   </div>
                 </form>
               )}
             </div>
-            {cierre && (
-              <div className="pointer-events-none absolute right-5 top-16">
-                <Timbre key={cierre.id} color="#1f3c8f" className="text-3xl" animar={recienCerrado}>
-                  Cerrado
-                </Timbre>
-              </div>
-            )}
+
           </div>
         </aside>
       </div>
@@ -355,15 +346,14 @@ function FormCaja({ tipo, fecha, onCerrar }: { tipo: "EGRESO" | "INGRESO"; fecha
     avisar({ titulo: `${tipo === "EGRESO" ? "Egreso" : "Ingreso"} N°${mov.numero}`, detalle: `${glosa} · ${clp(m)}`, tono: tipo === "EGRESO" ? "rojo" : "ok" });
     onCerrar();
   };
-  const color = tipo === "EGRESO" ? "#dd7420" : "#8a6a3d";
   return (
     <form
       onSubmit={enviar}
       onKeyDown={(e) => e.key === "Escape" && onCerrar()}
-      className="hoja perforado animate-entra flex flex-wrap items-end gap-4 rounded-b-sm px-5 py-4"
-      style={{ boxShadow: `inset 5px 0 0 ${color}` }}
+      className="hoja animate-entra flex flex-wrap items-end gap-4 rounded-lg px-5 py-4"
+      
     >
-      <p className="stencil text-2xl font-black" style={{ color }}>{tipo === "EGRESO" ? "Egreso" : "Ingreso"}</p>
+      <p className="w-full font-semibold sm:w-auto">{tipo === "EGRESO" ? "Egreso de caja" : "Ingreso de caja"}</p>
       <label className="min-w-[220px] flex-1">
         <span className="text-[11px] uppercase tracking-widest text-gris">Detalle</span>
         <input ref={ref} value={glosa} onChange={(e) => setGlosa(e.target.value)} list="glosas" className="campo font-sans text-lg" placeholder={sugerencias[0]} />
@@ -375,10 +365,10 @@ function FormCaja({ tipo, fecha, onCerrar }: { tipo: "EGRESO" | "INGRESO"; fecha
         <span className="text-[11px] uppercase tracking-widest text-gris">Monto</span>
         <input value={monto} onChange={(e) => setMonto(e.target.value)} inputMode="numeric" className="campo text-right text-lg" placeholder="$" />
       </label>
-      <button type="button" onClick={() => setForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"))} className="cajon mb-1 text-xs text-tinta">
+      <button type="button" onClick={() => setForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"))} className="mb-1.5 text-sm text-tinta underline decoration-dotted underline-offset-4">
         {forma === "EFECTIVO" ? "Efectivo" : "Transf."}
       </button>
-      <button type="submit" className="stencil rounded-sm px-4 py-2 text-lg font-extrabold text-hoja" style={{ background: color }}>
+      <button type="submit" className="btn btn-primario">
         Registrar <Tecla>↵</Tecla>
       </button>
       <button type="button" onClick={onCerrar} className="text-gris">Cancelar</button>

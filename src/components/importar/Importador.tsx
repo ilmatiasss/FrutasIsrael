@@ -6,7 +6,6 @@ import { CAMPOS, CSV_EJEMPLO, adivinarCampo, parseCSV, revisar, type Campo } fro
 import { clp, ddmmaa, normalizar } from "@/lib/format";
 import { TipoChip } from "../DetalleMovimiento";
 import { useAviso } from "../Shell";
-import { Timbre } from "../ui";
 
 export function Importador() {
   const data = useData()!;
@@ -46,7 +45,7 @@ export function Importador() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="stencil text-[40px] font-black leading-none sm:text-[52px]">Importar planilla</h1>
+        <h1 className="stencil text-[28px] sm:text-[32px]">Importar planilla</h1>
         <p className="mt-2 max-w-2xl text-gris">
           Trae el historial desde Google Sheets: <b>Archivo → Descargar → Valores separados por comas (.csv)</b>. Se reconocen columnas como FECHA, N° VALE,
           CLIENTE, TIPO, MONTO o las columnas VALE CRÉDITO / PAGO CRÉDITO / VALE VENTA. Lo importado queda marcado y se puede anular como cualquier movimiento.
@@ -56,7 +55,7 @@ export function Importador() {
       <section className="grid gap-6 lg:grid-cols-[360px_minmax(0,1fr)]">
         <div className="space-y-4">
           <label
-            className="hoja perforado flex cursor-pointer flex-col items-center gap-2 rounded-b-sm border-2 border-dashed border-kraft px-4 py-8 text-center hover:bg-resaltador/20"
+            className="hoja flex cursor-pointer flex-col items-center gap-2 rounded-lg border-2 border-dashed border-kraft px-4 py-8 text-center hover:bg-resaltador/20"
             onDragOver={(e) => e.preventDefault()}
             onDrop={(e) => {
               e.preventDefault();
@@ -68,7 +67,7 @@ export function Importador() {
               <path d="M6 3h9l4 4v14H6z" />
               <path d="M15 3v4h4M9 12h7M9 15h7M9 18h4" />
             </svg>
-            <span className="stencil text-xl font-extrabold">{archivo ?? "Suelta el CSV acá"}</span>
+            <span className="text-lg font-semibold">{archivo ?? "Suelta el CSV acá"}</span>
             <span className="text-sm text-gris">o haz clic para elegirlo</span>
             <input type="file" accept=".csv,text/csv,.tsv,.txt" className="sr-only" onChange={(e) => e.target.files?.[0] && cargar(e.target.files[0])} />
           </label>
@@ -99,7 +98,7 @@ export function Importador() {
 
         <div className="min-w-0 space-y-4">
           {headers.length === 0 ? (
-            <div className="hoja flex min-h-[240px] items-center justify-center rounded-sm p-8 text-center font-mano text-2xl text-gris">
+            <div className="hoja flex min-h-[240px] items-center justify-center rounded-lg p-8 text-center text-gris">
               Acá aparece la vista previa antes de importar nada.
             </div>
           ) : (
@@ -176,15 +175,10 @@ export function Importador() {
                     setHecho(r);
                     avisar({ titulo: "Planilla importada", detalle: `${r.creados} movimientos · ${r.clientesNuevos} clientes nuevos` });
                   }}
-                  className="stencil ml-auto rounded-sm bg-tinta px-5 py-2.5 text-xl font-black text-hoja shadow-[0_3px_0_#132760] active:translate-y-[2px] active:shadow-none disabled:opacity-40"
+                  className="btn btn-primario ml-auto disabled:opacity-40"
                 >
                   Importar {buenas.length} movimientos
                 </button>
-                {hecho && (
-                  <div className="pointer-events-none absolute right-8 top-2">
-                    <Timbre color="#4f7f2a" className="text-3xl">Importado</Timbre>
-                  </div>
-                )}
               </div>
               {hecho && (
                 <p className="text-sm">

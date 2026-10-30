@@ -18,7 +18,7 @@ tenants ─┬─< tenant_miembros >── auth.users
 
 **tenant_miembros** — quién trabaja en cada bodega y con qué rol (`DUENO` / `CAJA`). Base de todas las políticas RLS.
 
-**clientes** — `nombre`, `alias` (como lo conocen: «EL FLACO»), `telefono`, `procedencia` (feria/local), `limite_credito` opcional, `semaforo_manual` (null = automático), `compra_manual` (null = automático), `notas`.
+**clientes** — `nombre`, `alias` (como lo conocen: «EL FLACO»), `telefono`, `limite_credito` opcional, `semaforo_manual` (null = automático), `compra_manual` (null = automático), `notas`.
 
 **productos** — `nombre` (FUJI, PINK LADY, VERDE, PERA, KIWI, NARANJA, MANCAQUI, CAJONES 3/4…), `codigo` de tipeo (FU, PL…), `unidad_default` (CAJA / ENVASE / KG), `color` de etiqueta. El precio **no** vive en el producto: cambia a diario y se escribe en cada línea.
 

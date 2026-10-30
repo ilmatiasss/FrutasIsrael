@@ -16,11 +16,11 @@ export function useEstados(data: { db: Db; idx: Indice } | null): Map<string, Es
   }, [data]);
 }
 
-/** Busca por alias, nombre o procedencia; desempata por quien compró más reciente */
+/** Busca por alias o nombre; desempata por quien compró más reciente */
 export function filtrarClientes(q: string, estados: Map<string, EstadoCliente>): EstadoCliente[] {
   const lista = [...estados.values()];
   return lista
-    .map((e) => ({ e, s: puntaje(q, [e.cliente.alias, e.cliente.nombre, e.cliente.procedencia]) }))
+    .map((e) => ({ e, s: puntaje(q, [e.cliente.alias, e.cliente.nombre]) }))
     .filter((x) => x.s > 0)
     .sort((a, b) => b.s - a.s || (b.e.ultimaCompra ?? "").localeCompare(a.e.ultimaCompra ?? ""))
     .map((x) => x.e);
@@ -39,7 +39,6 @@ export function OpcionCliente({ e }: { e: EstadoCliente }) {
           {e.cliente.alias ?? e.cliente.nombre}
           {e.cliente.alias && <span className="ml-2 font-normal text-gris">{e.cliente.nombre}</span>}
         </div>
-        {e.cliente.procedencia && <div className="truncate text-xs text-gris">{e.cliente.procedencia}</div>}
       </div>
       <Monto valor={e.saldo} deuda className="text-sm" cero="al día" />
     </div>

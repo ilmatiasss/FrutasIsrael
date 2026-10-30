@@ -35,10 +35,10 @@ export function Ajustes() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <h1 className="stencil text-[40px] font-black leading-none sm:text-[52px]">Ajustes</h1>
+      <h1 className="stencil text-[28px] sm:text-[32px]">Ajustes</h1>
 
-      <section className="hoja perforado rounded-b-sm px-6 py-5">
-        <h2 className="stencil text-2xl font-extrabold">Quién atiende la caja</h2>
+      <section className="hoja rounded-lg px-6 py-5">
+        <h2 className="text-lg font-semibold">Quién atiende la caja</h2>
         <p className="text-sm text-gris">Queda registrado en cada vale, abono, anulación y cierre.</p>
         <div className="mt-3 flex flex-wrap gap-2">
           {data.db.usuarios.map((u) => (
@@ -47,7 +47,7 @@ export function Ajustes() {
               type="button"
               onClick={() => setConfig({ usuario_actual: u.nombre })}
               aria-pressed={cfg.usuario_actual === u.nombre}
-              className={`stencil rounded-sm border-2 px-4 py-1.5 text-lg font-extrabold ${cfg.usuario_actual === u.nombre ? "border-tinta bg-tinta text-hoja" : "border-kraft-osc text-kraft-osc"}`}
+              className="opcion"
             >
               {u.nombre} <span className="font-sans text-xs font-normal normal-case">{u.rol === "DUENO" ? "dueño" : "caja"}</span>
             </button>
@@ -55,8 +55,8 @@ export function Ajustes() {
         </div>
       </section>
 
-      <section className="hoja rounded-sm px-6 py-5">
-        <h2 className="stencil text-2xl font-extrabold">Clasificación automática</h2>
+      <section className="hoja rounded-lg px-6 py-5">
+        <h2 className="text-lg font-semibold">Clasificación automática</h2>
         <p className="text-sm text-gris">
           Se calcula por días sin pagar (desde el último abono, o desde el vale impago más antiguo si nunca ha pagado). Se puede fijar a mano por cliente.
         </p>
@@ -71,13 +71,13 @@ export function Ajustes() {
         <p className="mt-3 text-xs text-gris">Semanas: se numeran como semana ISO (lunes a domingo), igual que el N° de semana de Google Sheets con ISOWEEKNUM.</p>
       </section>
 
-      <section className="hoja rounded-sm px-6 py-5">
-        <h2 className="stencil text-2xl font-extrabold">Datos de ejemplo</h2>
+      <section className="hoja rounded-lg px-6 py-5">
+        <h2 className="text-lg font-semibold">Datos de ejemplo</h2>
         <p className="text-sm text-gris">
           Este boceto guarda todo en este navegador. Regenerar borra lo que hayas cargado y vuelve a los clientes de ejemplo.
         </p>
         {!confirmar ? (
-          <button type="button" onClick={() => setConfirmar(true)} className="cajon mt-3 text-sm text-fuji">
+          <button type="button" onClick={() => setConfirmar(true)} className="btn btn-secundario mt-3 text-fuji">
             Regenerar datos de ejemplo…
           </button>
         ) : (
@@ -90,7 +90,7 @@ export function Ajustes() {
                 setConfirmar(false);
                 avisar({ titulo: "Datos regenerados", tono: "tinta" });
               }}
-              className="stencil rounded-sm bg-fuji px-3 py-1 font-extrabold text-hoja"
+              className="btn bg-fuji py-1 text-hoja"
             >
               Sí, regenerar
             </button>

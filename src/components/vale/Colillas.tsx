@@ -5,12 +5,12 @@ import type { Indice } from "@/lib/calc";
 import { clp, hoy, hora } from "@/lib/format";
 import { DetalleMovimiento, TipoChip } from "../DetalleMovimiento";
 
-/** Las colillas que quedan en el talonario: lo emitido hoy, lo último arriba */
+/** Lo emitido hoy, lo último arriba (las colillas que quedan en el talonario) */
 export function Colillas({
   data,
   tipos,
   ultimoId,
-  titulo = "Colillas de hoy",
+  titulo = "Hoy",
 }: {
   data: { db: Db; idx: Indice };
   tipos: Movimiento["tipo"][];
@@ -23,15 +23,15 @@ export function Colillas({
   const total = vivos.reduce((a, m) => a + m.total, 0);
 
   return (
-    <section className="hoja perforado-abajo relative rounded-t-sm" aria-label={titulo}>
-      <header className="flex items-baseline justify-between border-b-2 border-grafito/80 px-4 pb-2 pt-3">
-        <h2 className="stencil text-xl font-extrabold">{titulo}</h2>
+    <section className="hoja rounded-lg" aria-label={titulo}>
+      <header className="flex items-baseline justify-between border-b border-linea px-4 py-3">
+        <h2 className="font-semibold">{titulo}</h2>
         <span className="text-sm text-gris">
-          {vivos.length} · <b className="cifra text-grafito">{clp(total)}</b>
+          {vivos.length} · <span className="cifra text-grafito">{clp(total)}</span>
         </span>
       </header>
-      <ol className="max-h-[46vh] overflow-auto">
-        {movs.length === 0 && <li className="px-4 py-6 text-center font-mano text-xl text-gris">Todavía nada hoy.</li>}
+      <ol className="max-h-[60vh] overflow-auto">
+        {movs.length === 0 && <li className="px-4 py-6 text-center text-gris">Todavía nada hoy.</li>}
         {movs.map((m) => {
           const cli = m.cliente_id ? data.idx.cliente.get(m.cliente_id) : null;
           const anulado = !!m.anulado_at;
@@ -40,23 +40,16 @@ export function Colillas({
               <button
                 type="button"
                 onClick={() => setVer(m.id)}
-                className={`corte grid w-full grid-cols-[3.6rem_minmax(0,1fr)_auto] items-center gap-x-2 bg-bottom px-4 py-1.5 text-left transition-colors hover:bg-resaltador/40 ${m.id === ultimoId ? "animate-resalta" : ""}`}
+                className={`grid w-full grid-cols-[minmax(0,1fr)_auto] items-center gap-x-3 border-b border-linea px-4 py-2 text-left last:border-0 hover:bg-carton/60 ${m.id === ultimoId ? "animate-resalta" : ""}`}
               >
-                <span className="cifra text-[13px] font-semibold text-fuji">{m.numero}</span>
                 <span className={`min-w-0 truncate ${anulado ? "text-gris line-through" : ""}`}>
-                  <span className="font-semibold">{cli ? (cli.alias ?? cli.nombre) : m.glosa}</span>
-                  <span className="ml-1.5 text-xs text-gris">{hora(m.created_at)}</span>
+                  <span className="font-medium">{cli ? (cli.alias ?? cli.nombre) : m.glosa}</span>
                 </span>
-                <span className="flex items-center gap-2">
-                  {anulado ? (
-                    <span className="timbre !rotate-[-4deg] text-[10px] text-fuji">Anulado</span>
-                  ) : (
-                    <TipoChip tipo={m.tipo} corto />
-                  )}
-                  <span className={`cifra w-[5.6rem] text-right text-[14px] ${anulado ? "text-gris line-through" : m.tipo === "VALE_CREDITO" ? "text-fuji" : "text-tinta"}`}>
-                    {clp(m.total)}
-                  </span>
+                <span className={`cifra text-right ${anulado ? "text-gris line-through" : m.tipo === "VALE_CREDITO" ? "text-fuji" : ""}`}>{clp(m.total)}</span>
+                <span className="text-xs text-gris">
+                  N°{m.numero} · {hora(m.created_at)}
                 </span>
+                <span className="text-right">{anulado ? <span className="cajon text-fuji">Anulado</span> : <TipoChip tipo={m.tipo} corto />}</span>
               </button>
             </li>
           );
