@@ -11,6 +11,15 @@ import { NuevoCliente } from "../NuevoCliente";
 import { useAviso } from "../Shell";
 import { COLOR_SEMAFORO, MontoGrande, Punto, StickerSemaforo } from "../ui";
 
+import { Encabezado } from "../Encabezado";
+
+const PASOS = [
+  { titulo: "Busca", texto: "Escribe parte del nombre o apodo. También puedes filtrar por color." },
+  { titulo: "Los colores", texto: "Verde: al día. Amarillo: atrasado (15+ días sin pagar). Rojo: moroso (30+ días)." },
+  { titulo: "Abre la cuenta", texto: "Toca un cliente para ver todo su historial, cobrarle o agregarle deuda." },
+  { titulo: "¿Sigue comprando?", texto: "Se calcula solo por su última compra. Tócalo si quieres marcarlo a mano." },
+];
+
 type Orden = "cliente" | "deuda" | "dias" | "pago" | "compra" | "c30";
 const CICLO: (Semaforo | null)[] = [null, "VERDE", "AMARILLO", "ROJO"];
 
@@ -119,20 +128,13 @@ export function ListaClientes() {
 
   return (
     <div className="space-y-5">
-      <header className="flex flex-wrap items-end justify-between gap-4">
-        <div>
-          <h1 className="stencil text-[28px] sm:text-[32px]">Clientes</h1>
-          <p className="text-sm text-gris">
-            {todos.length} clientes · {conDeudaN} con deuda
-          </p>
-        </div>
-        <div className="text-right">
-          <span className="rotulo">Fiado en la calle</span>
-          <p className="text-[32px] leading-none sm:text-[40px]">
-            <MontoGrande valor={enLaCalle} />
-          </p>
-        </div>
-      </header>
+      <Encabezado href="/clientes" bajada={`${todos.length} clientes · ${conDeudaN} con deuda`} pasos={PASOS} />
+      <section className="hoja flex flex-wrap items-center justify-between gap-3 px-5 py-4">
+        <span className="font-bold text-gris">Fiado en la calle a la fecha</span>
+        <span className="text-[32px] leading-none sm:text-[40px]">
+          <MontoGrande valor={enLaCalle} />
+        </span>
+      </section>
 
       {/* filtros: una sola fila */}
       <section className="no-print flex flex-wrap items-center gap-2 border-y border-linea py-3">

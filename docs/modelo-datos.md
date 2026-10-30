@@ -1,15 +1,17 @@
 # Modelo de datos
 
-Fuente de verdad: [`src/lib/types.ts`](../src/lib/types.ts) (TypeScript) y [`supabase/schema.sql`](../supabase/schema.sql) (Postgres). Son espejo 1:1, en snake_case, para que migrar sea reemplazar `src/lib/store.ts` por llamadas a Supabase.
+Fuente de verdad: [`src/lib/types.ts`](../src/lib/types.ts) (TypeScript) y [`db/schema.sql`](../db/schema.sql) (Postgres en Neon). Usan las mismas columnas, en snake_case. Los ids son texto (UUID generados en el equipo) para poder trabajar sin internet.
 
 ```
-tenants ─┬─< tenant_miembros >── auth.users
+tenants ─┬─< usuarios
          ├─< clientes ──────┐
          ├─< productos ──┐  │
          ├─< movimientos ┼──┘ (cliente_id, null en ingresos/egresos)
          │      └─< lineas_vale >── productos
          ├─< cierres_caja
          ├─< cierres_semana
+         ├─< trabajadores ─┬─< asistencias
+         │                 └─< pagos_sueldo ──> movimientos (egreso, si salió del cajón)
          └─< eventos   (bitácora append-only)
 ```
 
@@ -17,7 +19,9 @@ tenants ─┬─< tenant_miembros >── auth.users
 
 **tenants** — un locatario (bodega). `ultimo_numero` es el correlativo de vales; también guarda los umbrales del semáforo.
 
-**tenant_miembros** — quién trabaja en cada bodega y con qué rol (`DUENO` / `CAJA`). Base de todas las políticas RLS.
+**usuarios** — quién atiende (`DUENO` / `CAJA`); queda en cada vale como `creado_por`. El acceso al sistema es con la clave del local (`CLAVE_ACCESO`).
+
+**trabajadores / asistencias / pagos_sueldo** — sueldos: modalidad (por día, semanal o mensual) y monto; los días trabajados; y cada pago, adelanto, bono o descuento. Un pago en efectivo que sale del cajón crea además un `EGRESO` en `movimientos`. Los pagos no se borran, se anulan (y anulan su egreso).
 
 **clientes** — `nombre`, `alias` (como lo conocen: «EL FLACO»), `telefono`, `limite_credito` opcional, `semaforo_manual` (null = automático), `compra_manual` (null = automático), `notas`.
 
@@ -35,7 +39,7 @@ tenants ─┬─< tenant_miembros >── auth.users
 | `anulado_at / anulado_por / motivo_anulacion` | anulación auditable; nunca se borra |
 | `importado` | vino del CSV de la planilla |
 
-**Deuda sin productos** (saldo anterior, préstamo, ajuste): es un `VALE_CREDITO` sin líneas; la `glosa` es opcional (por defecto «Crédito sin detalle»). Lo mismo un vale venta «solo monto». Se crea con `cargar_deuda()`, toma N° del talonario y se anula igual que cualquier vale.
+**Deuda sin productos** (saldo anterior, préstamo, ajuste): es un `VALE_CREDITO` sin líneas; la `glosa` es opcional (por defecto «Crédito sin detalle»). Lo mismo un vale venta «solo monto». Toma N° del talonario y se anula igual que cualquier vale.
 
 **lineas_vale** — `cantidad` (decimal para KG), `unidad`, `producto_id`, `precio_unitario`, `subtotal`.
 
@@ -57,14 +61,14 @@ tenants ─┬─< tenant_miembros >── auth.users
 | Último precio | última línea viva del producto en la misma unidad (general y para ese cliente) |
 | Efectivo en caja | ventas + abonos + ingresos en efectivo − egresos en efectivo |
 
-En Supabase: vistas `v_saldos_clientes` y `v_caja_diaria`.
+En Postgres: vistas `v_saldos_clientes` y `v_caja_diaria`, para consultar directo en el SQL Editor de Neon.
 
 ## Garantías en la base
 
 - Sin `DELETE` en movimientos, líneas ni eventos (trigger `prohibir_borrado`).
 - `UPDATE` de un movimiento solo puede anularlo, con motivo obligatorio, y lo anota en la bitácora (trigger `solo_anular`).
-- `emitir_vale()` toma el correlativo bloqueando la fila del tenant, así dos cajas nunca sacan el mismo número.
-- RLS: cada usuario solo ve los datos de las bodegas donde es miembro; productos y miembros solo los administra el dueño.
+- El servidor filtra todo por `tenant_id` y solo acepta tablas y columnas de una lista blanca (`src/lib/server/tablas.ts`).
+- El N° de vale lo confirma el servidor dentro de una transacción con la fila del locatario bloqueada: si dos cajas usan el mismo, a una se le asigna el siguiente.
 
 ## Migración desde la planilla
 

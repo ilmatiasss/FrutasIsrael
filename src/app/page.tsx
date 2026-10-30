@@ -1,10 +1,5 @@
-import { Suspense } from "react";
-import { RegistroVale } from "@/components/vale/RegistroVale";
+import { Inicio } from "@/components/inicio/Inicio";
 
 export default function Page() {
-  return (
-    <Suspense>
-      <RegistroVale />
-    </Suspense>
-  );
+  return <Inicio />;
 }

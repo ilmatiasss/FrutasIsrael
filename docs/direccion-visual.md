@@ -1,6 +1,20 @@
 # Dirección visual
 
-## Versión 2: Talonario sobrio (la actual)
+## Versión 3: Huerto (la actual)
+
+Pedido: más intuitivo y didáctico, con el ambiente de las frutas y verduras.
+
+| Regla | Cómo se aplica |
+|---|---|
+| Cada sección es una fruta | Vale = manzana roja, Abono = pera, Clientes = naranja, Caja = cajón, Sueldos = plátano, Resumen = uvas. Se repite en el inicio, el menú y el encabezado de cada pantalla, así se sabe dónde se está sin leer. |
+| Inicio con botones grandes | La portada muestra las tareas en tarjetas grandes con una frase simple ("Recibir un pago de alguien que debe"), más cómo va el día y a quién cobrarle. |
+| Guía en cada pantalla | «¿Cómo se usa?» con 4 pasos numerados. Aparece abierta la primera vez y luego se oculta. |
+| Colores con significado | Verde hoja `#2F7D45` = acciones y "al día". Tomate `#D0402E` = deuda. Plátano `#D9A514` = aviso / atrasado. Fondo crema `#FBF7EE`, tarjetas blancas redondeadas. |
+| Letras amables | Títulos en *Fraunces* suave (como letrero pintado de verdulería); texto en *Nunito*, redonda y muy legible, con cifras alineadas. |
+| Campos que se ven | Cada campo es una caja clara con borde; al escribir se marca en verde. Los botones son redondos y grandes. |
+| Imprimible | Hojas A4 limpias para el cierre: por partes o todo en una hoja. |
+
+## Versión 2: Talonario sobrio
 
 La primera versión de «Talonario y Cajón» tenía demasiados estímulos a la vez: colores de etiqueta en cada fila, timbres, pizarra, letra stencil en todos los títulos y animaciones en cada acción. Esta versión conserva la idea (la pantalla es el vale) y deja que el color solo signifique algo.
 

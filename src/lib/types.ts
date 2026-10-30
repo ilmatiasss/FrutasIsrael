@@ -1,5 +1,5 @@
 /**
- * Modelo de datos — espejo 1:1 de las tablas de supabase/schema.sql.
+ * Modelo de datos — mismas columnas que las tablas de db/schema.sql.
  * Los nombres van en snake_case para que la migración sea copiar y pegar.
  * Todas las entidades llevan tenant_id desde el día uno (multi-locatario).
  */
@@ -128,6 +128,51 @@ export interface CierreSemana {
   saldos: { cliente_id: UUID; saldo: number }[];
 }
 
+/* ---------------------------------- sueldos ---------------------------------- */
+
+/** Cómo se le paga: por día trabajado, fijo semanal o fijo mensual */
+export type Modalidad = "DIA" | "SEMANA" | "MES";
+
+export interface Trabajador {
+  id: UUID;
+  tenant_id: UUID;
+  nombre: string;
+  cargo: string; // "Cargador", "Carretillero", "Caja"…
+  modalidad: Modalidad;
+  monto: number; // por día, por semana o por mes según modalidad
+  telefono: string | null;
+  activo: boolean;
+  created_at: Timestamp;
+}
+
+/** Día trabajado (para los que se pagan por día) */
+export interface Asistencia {
+  id: UUID;
+  tenant_id: UUID;
+  trabajador_id: UUID;
+  fecha: Fecha;
+}
+
+export type TipoPagoSueldo = "PAGO" | "ADELANTO" | "BONO" | "DESCUENTO";
+
+export interface PagoSueldo {
+  id: UUID;
+  tenant_id: UUID;
+  trabajador_id: UUID;
+  fecha: Fecha;
+  tipo: TipoPagoSueldo;
+  monto: number;
+  forma: "EFECTIVO" | "TRANSFERENCIA";
+  /** egreso de caja que generó (si salió plata del cajón) */
+  movimiento_id: UUID | null;
+  nota: string | null;
+  creado_por: string;
+  created_at: Timestamp;
+  anulado_at: Timestamp | null;
+  anulado_por: string | null;
+  motivo_anulacion: string | null;
+}
+
 /** Bitácora append-only: todo lo que pasa queda escrito. */
 export interface Evento {
   id: UUID;
@@ -142,6 +187,7 @@ export interface Evento {
     | "CERRAR_CAJA"
     | "CERRAR_SEMANA"
     | "IMPORTAR_CSV"
+    | "SUELDOS"
     | "REINICIAR_DEMO";
   entidad_id: UUID | null;
   detalle: string;
@@ -182,6 +228,9 @@ export interface Db {
   lineas: LineaVale[];
   cierres: CierreCaja[];
   cierres_semana: CierreSemana[];
+  trabajadores: Trabajador[];
+  asistencias: Asistencia[];
+  pagos_sueldo: PagoSueldo[];
   eventos: Evento[];
   config: Config;
 }

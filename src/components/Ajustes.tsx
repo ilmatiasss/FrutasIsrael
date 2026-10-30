@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { reiniciarDemo, setConfig, useData } from "@/lib/store";
+import { reiniciarDemo, setConfig, useData, useSync } from "@/lib/store";
 import { useAviso } from "./Shell";
 import { COLOR_SEMAFORO } from "./ui";
 
@@ -9,6 +9,8 @@ export function Ajustes() {
   const avisar = useAviso();
   const cfg = data.db.config;
   const [confirmar, setConfirmar] = useState(false);
+  const sync = useSync();
+  const enNube = sync.modo === "nube" || sync.modo === "sin-conexion";
 
   const num = (k: "dias_amarillo" | "dias_rojo" | "dias_sin_compra", label: string, color?: string) => (
     <label className="flex items-center justify-between gap-4 border-b border-linea py-3">
@@ -72,6 +74,37 @@ export function Ajustes() {
       </section>
 
       <section className="hoja rounded-lg px-6 py-5">
+        <h2 className="text-lg font-semibold">Base de datos</h2>
+        {enNube ? (
+          <>
+            <p className="mt-1">
+              <b className="text-tinta">Conectada a Neon.</b> Todo lo que se anota queda guardado en la nube y se ve desde cualquier computador o celular.
+            </p>
+            {sync.pendientes > 0 && <p className="mt-1 text-sm text-fuji">Hay {sync.pendientes} cambios esperando internet. Se envían solos.</p>}
+            <button
+              type="button"
+              onClick={async () => {
+                await fetch("/api/sesion", { method: "DELETE" });
+                location.assign("/entrar");
+              }}
+              className="btn btn-secundario mt-3"
+            >
+              Cerrar sesión en este computador
+            </button>
+          </>
+        ) : (
+          <p className="mt-1 text-gris">
+            <b className="text-limon">Modo prueba:</b> los datos se guardan solo en este navegador. Para conectar la base de datos ve a{" "}
+            <a href="/instalar" className="font-bold text-tinta underline underline-offset-4">
+              Conectar con Neon
+            </a>
+            .
+          </p>
+        )}
+      </section>
+
+      {!enNube && (
+      <section className="hoja rounded-lg px-6 py-5">
         <h2 className="text-lg font-semibold">Datos de ejemplo</h2>
         <p className="text-sm text-gris">
           Este boceto guarda todo en este navegador. Regenerar borra lo que hayas cargado y vuelve a los clientes de ejemplo.
@@ -100,6 +133,7 @@ export function Ajustes() {
           </div>
         )}
       </section>
+      )}
     </div>
   );
 }

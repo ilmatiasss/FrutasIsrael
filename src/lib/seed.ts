@@ -4,7 +4,8 @@
  * semilla → mismos datos) para que las demos se puedan repetir.
  */
 import type { Cliente, Db, FormaPago, LineaVale, Movimiento, Producto, Unidad } from "./types";
-import { fromFecha, hoy, sumarDias, uid } from "./format";
+import { fromFecha, hoy, sumarDias, uid, lunesDe } from "./format";
+import { sueldosEjemplo } from "./sueldos";
 
 const TENANT = "00000000-0000-4000-8000-000000000001";
 const ULTIMO_VALE = 20307;
@@ -365,6 +366,7 @@ export function crearSeed(anclaje: string = hoy()): Db {
     lineas,
     cierres: [],
     cierres_semana: [],
+    ...sueldosEjemplo(TENANT, anclaje, lunesDe),
     eventos: [
       {
         id: uid(),
@@ -376,6 +378,33 @@ export function crearSeed(anclaje: string = hoy()): Db {
         detalle: `Historial de ejemplo cargado: ${movimientos.length} movimientos, ${clientes.length} clientes`,
       },
     ],
+    config: { dias_amarillo: 15, dias_rojo: 30, dias_sin_compra: 21, usuario_actual: "Caja" },
+  };
+}
+
+/** Base nueva para un locatario: solo productos y usuarios, sin clientes ni movimientos. */
+export function baseVacia(): Db {
+  const tenant = uid();
+  const now = new Date().toISOString();
+  return {
+    version: 1,
+    tenant: { id: tenant, nombre: "Frutas Israel", ubicacion: "La Vega Central · Santiago", ultimo_numero: 0, created_at: now },
+    usuarios: [
+      { id: uid(), tenant_id: tenant, nombre: "Israel", rol: "DUENO" },
+      { id: uid(), tenant_id: tenant, nombre: "Caja", rol: "CAJA" },
+    ],
+    clientes: [],
+    productos: PRODUCTOS.map((p) => ({
+      id: uid(), tenant_id: tenant, nombre: p.nombre, codigo: p.codigo, unidad_default: p.unidad, color: p.color, activo: true,
+    })),
+    movimientos: [],
+    lineas: [],
+    cierres: [],
+    cierres_semana: [],
+    trabajadores: [],
+    asistencias: [],
+    pagos_sueldo: [],
+    eventos: [{ id: uid(), tenant_id: tenant, at: now, usuario: "Sistema", accion: "IMPORTAR_CSV", entidad_id: null, detalle: "Base de datos creada" }],
     config: { dias_amarillo: 15, dias_rojo: 30, dias_sin_compra: 21, usuario_actual: "Caja" },
   };
 }

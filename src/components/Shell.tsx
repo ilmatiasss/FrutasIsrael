@@ -2,11 +2,12 @@
 import Link from "next/link";
 import { usePathname, useRouter } from "next/navigation";
 import { createContext, useCallback, useContext, useEffect, useRef, useState, type ReactNode } from "react";
-import { useData } from "@/lib/store";
+import { reintentarAhora, useData, useSync } from "@/lib/store";
 import { fechaLarga, hoy } from "@/lib/format";
 import { Autocompletar } from "./Autocompletar";
 import { filtrarClientes, OpcionCliente, useEstados } from "./clientes";
-import { Modal, Tecla } from "./ui";
+import { Modal } from "./ui";
+import { Casa, Manzana, SECCIONES } from "./Iconos";
 
 /* --------------------------------- avisos --------------------------------- */
 
@@ -21,68 +22,26 @@ export const useAviso = () => useContext(AvisoCtx);
 
 /* -------------------------------- secciones -------------------------------- */
 
-const SECCIONES = [
-  { href: "/", label: "Vale", corto: "Vale", tecla: "F1", icono: "vale" },
-  { href: "/abono", label: "Abono", corto: "Abono", tecla: "F2", icono: "abono" },
-  { href: "/clientes", label: "Clientes", corto: "Clientes", tecla: "F3", icono: "clientes" },
-  { href: "/caja", label: "Cierre de caja", corto: "Caja", tecla: "F4", icono: "caja" },
-  { href: "/resumen", label: "Resumen", corto: "Resumen", tecla: "F6", icono: "resumen" },
-] as const;
-
-const ATAJOS: Record<string, string> = { F1: "/", F2: "/abono", F3: "/clientes", F4: "/caja", F6: "/resumen" };
+const ATAJOS: Record<string, string> = Object.fromEntries(SECCIONES.map((x) => [x.tecla, x.href]));
 
 const MAS = [
   { href: "/importar", label: "Importar planilla" },
-  { href: "/bitacora", label: "Bitácora" },
+  { href: "/bitacora", label: "Bitácora (historial)" },
   { href: "/ajustes", label: "Ajustes" },
 ];
 
 function activa(path: string, href: string) {
-  if (href === "/") return path === "/";
   return path === href || path.startsWith(href + "/");
-}
-
-function Icono({ n }: { n: string }) {
-  const p = { fill: "none", stroke: "currentColor", strokeWidth: 1.7, strokeLinecap: "round" as const, strokeLinejoin: "round" as const };
-  return (
-    <svg viewBox="0 0 24 24" width="22" height="22" aria-hidden>
-      {n === "vale" && (
-        <>
-          <path {...p} d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z" />
-          <path {...p} d="M9 8h6M9 11.5h6M9 15h3" />
-        </>
-      )}
-      {n === "abono" && (
-        <>
-          <rect {...p} x="3" y="6" width="18" height="12" rx="2" />
-          <circle {...p} cx="12" cy="12" r="2.5" />
-        </>
-      )}
-      {n === "clientes" && (
-        <>
-          <circle {...p} cx="9" cy="8.5" r="3.2" />
-          <path {...p} d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5M15.5 5.6a3 3 0 0 1 0 5.8M17 14.2c1.9.6 3.2 2.2 3.5 4.8" />
-        </>
-      )}
-      {n === "caja" && (
-        <>
-          <path {...p} d="M3 9h18l-1.5 11h-15z" />
-          <path {...p} d="M3 9l2.5-4.5h13L21 9M9 13h6" />
-        </>
-      )}
-      {n === "resumen" && <path {...p} d="M4 20V10M10 20V4M16 20v-7M21 20H3" />}
-    </svg>
-  );
 }
 
 function Marca() {
   return (
     <Link href="/" className="flex shrink-0 items-center gap-2" aria-label="Frutas Israel — inicio">
-      <svg viewBox="0 0 24 24" className="size-6 text-fuji" aria-hidden>
-        <path d="M12 7.5C8.7 5.6 5 7.6 5.4 12c.4 4.6 3.5 8.2 6.6 6.8 3.1 1.4 6.2-2.2 6.6-6.8.4-4.4-3.3-6.4-6.6-4.5z" fill="currentColor" />
-        <path d="M12 7.5c0-2 .8-3.4 2.5-4.4" stroke="currentColor" strokeWidth="1.6" fill="none" strokeLinecap="round" />
-      </svg>
-      <span className="marca text-[22px] font-black text-grafito">Frutas Israel</span>
+      <Manzana size={30} />
+      <span className="leading-none">
+        <span className="marca block text-[21px] text-grafito">Frutas Israel</span>
+        <span className="hidden text-[11px] font-bold text-gris sm:block">La Vega Central</span>
+      </span>
     </Link>
   );
 }
@@ -149,7 +108,7 @@ export function Shell({ children }: { children: ReactNode }) {
         router.push(ATAJOS[e.key]);
         return;
       }
-      if (e.altKey && /^[1-5]$/.test(e.key)) {
+      if (e.altKey && /^[1-6]$/.test(e.key)) {
         e.preventDefault();
         router.push(SECCIONES[Number(e.key) - 1].href);
         return;
@@ -165,12 +124,24 @@ export function Shell({ children }: { children: ReactNode }) {
 
   useEffect(() => setMas(false), [path]);
 
+  // si otro PC usó el mismo N° de vale, el servidor asigna el siguiente: se avisa
+  useEffect(() => {
+    const k = (e: Event) => {
+      const xs = (e as CustomEvent<{ id: string; numero: number }[]>).detail;
+      avisar({ titulo: "N° de vale ajustado", detalle: `Otro computador usó el número. Quedó como N°${xs.map((x) => x.numero).join(", N°")}.`, tono: "tinta" });
+    };
+    window.addEventListener("frutas:renumerado", k);
+    return () => window.removeEventListener("frutas:renumerado", k);
+  }, [avisar]);
+
+  const sinDatos = path === "/instalar" || path === "/entrar";
+
   return (
     <AvisoCtx.Provider value={avisar}>
-      <header className="no-print sticky top-0 z-30 border-b border-linea bg-hoja/95 backdrop-blur">
-        <div className="mx-auto flex h-14 max-w-[1400px] items-center gap-6 px-4 lg:px-6">
+      <header className="no-print sticky top-0 z-30 border-b border-linea bg-papel/90 backdrop-blur">
+        <div className="mx-auto flex h-16 max-w-[1400px] items-center gap-4 px-4 lg:px-6">
           <Marca />
-          <nav className="hidden h-full flex-1 items-stretch gap-1 md:flex" aria-label="Secciones">
+          <nav className="hidden flex-1 items-center justify-center gap-1 md:flex" aria-label="Secciones">
             {SECCIONES.map((t) => {
               const on = activa(path, t.href);
               return (
@@ -179,8 +150,10 @@ export function Shell({ children }: { children: ReactNode }) {
                   href={t.href}
                   aria-current={on ? "page" : undefined}
                   title={`${t.label} (${t.tecla})`}
-                  className={`flex items-center border-b-2 px-3 text-[15px] font-semibold transition-colors ${on ? "border-tinta text-grafito" : "border-transparent text-gris hover:text-grafito"}`}
+                  className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[15px] font-bold transition-colors ${on ? "text-grafito" : "text-gris hover:bg-carton hover:text-grafito"}`}
+                  style={on ? { background: t.suave, boxShadow: `inset 0 0 0 1.5px ${t.color}55` } : undefined}
                 >
+                  <t.Fruta size={20} />
                   <span className="lg:hidden">{t.corto}</span>
                   <span className="hidden lg:inline">{t.label}</span>
                 </Link>
@@ -188,75 +161,92 @@ export function Shell({ children }: { children: ReactNode }) {
             })}
           </nav>
           <div className="ml-auto flex items-center gap-2 md:ml-0">
-            {fecha && <span className="hidden text-sm text-gris first-letter:uppercase xl:inline">{fechaLarga(fecha)}</span>}
+            <EstadoConexion />
+            {fecha && <span className="hidden text-sm font-semibold text-gris first-letter:uppercase 2xl:inline">{fechaLarga(fecha)}</span>}
             <button
               type="button"
               onClick={() => setBuscar(true)}
-              className="flex h-9 items-center gap-2 rounded-md border border-linea bg-hoja px-3 text-sm text-gris hover:text-grafito"
+              className="flex h-10 items-center gap-2 rounded-full border-[1.5px] border-kraft bg-hoja px-3.5 text-sm font-bold text-gris hover:text-grafito"
               aria-label="Buscar cliente"
             >
-              <svg width="15" height="15" viewBox="0 0 20 20" aria-hidden>
-                <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="2" fill="none" />
-                <path d="M13 13l4.5 4.5" stroke="currentColor" strokeWidth="2" strokeLinecap="round" />
+              <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden>
+                <circle cx="8.5" cy="8.5" r="5.5" stroke="currentColor" strokeWidth="2.2" fill="none" />
+                <path d="M13 13l4.5 4.5" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" />
               </svg>
-              <span className="hidden lg:inline">Buscar</span>
-              <span className="hidden lg:inline">
-                <Tecla>Ctrl K</Tecla>
-              </span>
+              <span className="hidden xl:inline">Buscar cliente</span>
             </button>
-            <div className="relative">
+            <div className="relative hidden md:block">
               <button
                 type="button"
                 onClick={() => setMas((m) => !m)}
                 aria-expanded={mas}
-                className="flex size-9 items-center justify-center rounded-md border border-linea bg-hoja text-gris hover:text-grafito"
+                className="flex size-10 items-center justify-center rounded-full border-[1.5px] border-kraft bg-hoja text-gris hover:text-grafito"
                 aria-label="Más opciones"
               >
                 <svg width="16" height="16" viewBox="0 0 20 20" aria-hidden>
-                  <circle cx="4" cy="10" r="1.7" fill="currentColor" />
-                  <circle cx="10" cy="10" r="1.7" fill="currentColor" />
-                  <circle cx="16" cy="10" r="1.7" fill="currentColor" />
+                  <circle cx="4" cy="10" r="1.8" fill="currentColor" />
+                  <circle cx="10" cy="10" r="1.8" fill="currentColor" />
+                  <circle cx="16" cy="10" r="1.8" fill="currentColor" />
                 </svg>
               </button>
-              {mas && (
-                <div className="hoja animate-entra absolute right-0 top-11 z-40 w-56 rounded-md py-2">
-                  <p className="px-4 pb-1 text-xs text-gris">
-                    Atiende: <b className="text-grafito">{data?.db.config.usuario_actual ?? "…"}</b>
-                  </p>
-                  {MAS.map((m) => (
-                    <Link key={m.href} href={m.href} className="block px-4 py-2 hover:bg-carton">
-                      {m.label}
-                    </Link>
-                  ))}
-                </div>
-              )}
+              {mas && <MenuMas usuario={data?.db.config.usuario_actual} />}
             </div>
           </div>
         </div>
       </header>
 
-      <main className="mx-auto max-w-[1400px] px-3 pb-28 pt-4 sm:px-5 md:pb-12 lg:px-6 lg:pt-6">{data ? children : <Cargando />}</main>
+      <main className="mx-auto max-w-[1400px] px-3 pb-28 pt-4 sm:px-5 md:pb-12 lg:px-6 lg:pt-6">{data || sinDatos ? children : <Cargando />}</main>
 
-      {/* navegación celular */}
+      {/* navegación celular: lo de todos los días a un toque, el resto en "Más" */}
       <nav
         className="no-print fixed inset-x-0 bottom-0 z-30 grid grid-cols-5 border-t border-linea bg-hoja/95 pb-[env(safe-area-inset-bottom)] backdrop-blur md:hidden"
         aria-label="Secciones"
       >
-        {SECCIONES.map((t) => {
-          const on = activa(path, t.href);
+        {[{ href: "/", corto: "Inicio", Fruta: Casa }, ...SECCIONES.slice(0, 3)].map((t) => {
+          const on = t.href === "/" ? path === "/" : activa(path, t.href);
           return (
-            <Link
-              key={t.href}
-              href={t.href}
-              aria-current={on ? "page" : undefined}
-              className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-semibold ${on ? "text-tinta" : "text-gris"}`}
-            >
-              <Icono n={t.icono} />
+            <Link key={t.href} href={t.href} aria-current={on ? "page" : undefined} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold ${on ? "text-grafito" : "text-gris"}`}>
+              <span className={`flex size-8 items-center justify-center rounded-full ${on ? "bg-verde-suave" : ""}`}>
+                <t.Fruta size={22} />
+              </span>
               {t.corto}
             </Link>
           );
         })}
+        <button type="button" onClick={() => setMas((m) => !m)} className={`flex flex-col items-center gap-0.5 py-2 text-[11px] font-bold ${mas ? "text-grafito" : "text-gris"}`}>
+          <span className="flex size-8 items-center justify-center rounded-full">
+            <svg width="20" height="20" viewBox="0 0 20 20" aria-hidden>
+              <circle cx="4" cy="10" r="2" fill="currentColor" />
+              <circle cx="10" cy="10" r="2" fill="currentColor" />
+              <circle cx="16" cy="10" r="2" fill="currentColor" />
+            </svg>
+          </span>
+          Más
+        </button>
       </nav>
+      {mas && (
+        <div className="fixed inset-0 z-40 bg-grafito/30 md:hidden" onClick={() => setMas(false)}>
+          <div className="hoja animate-entra absolute inset-x-2 bottom-20 rounded-2xl p-2" onClick={(e) => e.stopPropagation()}>
+            {SECCIONES.slice(3).map((t) => (
+              <Link key={t.href} href={t.href} className="flex items-center gap-3 rounded-xl px-3 py-3 font-bold hover:bg-carton">
+                <span className="flex size-10 items-center justify-center rounded-xl" style={{ background: t.suave }}>
+                  <t.Fruta size={24} />
+                </span>
+                <span>
+                  {t.label}
+                  <span className="block text-xs font-semibold text-gris">{t.que}</span>
+                </span>
+              </Link>
+            ))}
+            <div className="my-1 border-t border-linea" />
+            {MAS.map((m) => (
+              <Link key={m.href} href={m.href} className="block rounded-xl px-3 py-2.5 font-semibold text-gris hover:bg-carton">
+                {m.label}
+              </Link>
+            ))}
+          </div>
+        </div>
+      )}
 
       <Buscador abierto={buscar} cerrar={() => setBuscar(false)} />
 
@@ -273,6 +263,47 @@ export function Shell({ children }: { children: ReactNode }) {
         ))}
       </div>
     </AvisoCtx.Provider>
+  );
+}
+
+function MenuMas({ usuario }: { usuario?: string }) {
+  return (
+    <div className="hoja animate-entra absolute right-0 top-12 z-40 w-60 rounded-2xl p-2">
+      <p className="px-3 pb-1 pt-1 text-xs font-semibold text-gris">
+        Atiende: <b className="text-grafito">{usuario ?? "…"}</b>
+      </p>
+      {MAS.map((m) => (
+        <Link key={m.href} href={m.href} className="block rounded-xl px-3 py-2 font-semibold hover:bg-carton">
+          {m.label}
+        </Link>
+      ))}
+    </div>
+  );
+}
+
+/** Pastilla que dice si los datos están guardados en la base, en espera o solo en este PC */
+function EstadoConexion() {
+  const s = useSync();
+  if (s.modo === "cargando" || s.modo === "instalar") return null;
+  const cfg =
+    s.modo === "local"
+      ? { color: "#c99611", bg: "#fcf3d6", txt: "Modo prueba", det: "Los datos se guardan solo en este computador. Conecta la base de datos para usarlo de verdad." }
+      : s.modo === "sin-conexion"
+        ? { color: "#d0402e", bg: "#fce9e4", txt: s.pendientes ? `Sin internet · ${s.pendientes} por enviar` : "Sin internet", det: "Puedes seguir trabajando: los cambios se guardan en este PC y se envían solos cuando vuelva internet." }
+        : s.pendientes
+          ? { color: "#c99611", bg: "#fcf3d6", txt: "Guardando…", det: "Enviando cambios a la base de datos." }
+          : { color: "#2f7d45", bg: "#e8f3e6", txt: "Guardado", det: "Todo está guardado en la base de datos." };
+  return (
+    <button
+      type="button"
+      onClick={() => reintentarAhora()}
+      title={s.error ? `${cfg.det} Último error: ${s.error}` : cfg.det}
+      className="flex h-10 items-center gap-1.5 rounded-full px-3 text-xs font-extrabold"
+      style={{ background: cfg.bg, color: cfg.color }}
+    >
+      <span className="size-2 rounded-full" style={{ background: cfg.color }} />
+      <span className="hidden sm:inline">{cfg.txt}</span>
+    </button>
   );
 }
 

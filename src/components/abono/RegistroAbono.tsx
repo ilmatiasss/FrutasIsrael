@@ -11,6 +11,15 @@ import { useAviso } from "../Shell";
 import { FORMA, MontoGrande, Numeradora, StickerSemaforo, useCuenta } from "../ui";
 import { Colillas } from "../vale/Colillas";
 
+import { Encabezado } from "../Encabezado";
+
+const PASOS = [
+  { titulo: "¿Quién paga?", texto: "Escribe el nombre o apodo del cliente y presiona Enter. Verás cuánto debe." },
+  { titulo: "¿Cuánto paga?", texto: "Escribe el monto (sirve 50k o 50 lucas). Enter con el campo vacío = paga todo." },
+  { titulo: "¿Cómo paga?", texto: "Efectivo o Transferencia (teclas E o T). Puedes anotar el banco en la nota." },
+  { titulo: "Registra", texto: "Botón «Registrar abono». Se descuentan primero los vales más antiguos." },
+];
+
 type Forma = "EFECTIVO" | "TRANSFERENCIA";
 
 export function RegistroAbono() {
@@ -126,11 +135,13 @@ export function RegistroAbono() {
   });
 
   return (
+    <>
+    <Encabezado href="/abono" bajada="Recibe un pago de alguien que debe: total o una parte." pasos={PASOS} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="hoja perforado mx-auto w-full max-w-[880px] rounded-b-lg px-4 pb-6 pt-5 sm:px-7 sm:pt-6" aria-label="Abono">
-        <header className="flex items-start justify-between gap-4 border-b border-grafito/80 pb-3">
+      <section className="hoja mx-auto w-full max-w-[880px] px-4 pb-6 pt-5 sm:px-7 sm:pt-6" aria-label="Abono">
+        <header className="flex items-start justify-between gap-4 border-b border-linea pb-3">
           <div>
-            <h1 className="stencil text-[28px] sm:text-[32px]">Abono</h1>
+            <p className="stencil text-[22px]">Abono nuevo</p>
             <p className="text-sm text-gris">Pago total o parcial de una deuda</p>
           </div>
           <p className="text-right">
@@ -296,5 +307,6 @@ export function RegistroAbono() {
         <Colillas data={data} tipos={["ABONO"]} ultimoId={ultimoId} titulo="Abonos de hoy" />
       </aside>
     </div>
+    </>
   );
 }

@@ -7,28 +7,39 @@
    ========================================================================== */
 
 @theme {
-  --color-papel: #f4f2ed;
-  --color-hoja: #fcfbf8;
-  --color-carton: #ebe7df;
-  --color-kraft: #d8d0c1;
-  --color-kraft-osc: #7a6c58;
-  --color-linea: #e4dfd5;
-  --color-grafito: #23211d;
-  --color-gris: #6c665d;
-  --color-tinta: #2f5d8f;
-  --color-tinta-clara: #3a6ea5;
-  --color-fuji: #b4412f;
-  --color-fuji-osc: #8f3123;
-  --color-pera: #4b7a37;
-  --color-limon: #b8890f;
-  --color-naranjo: #9a6b3f;
+  /* Huerto: crema, verde hoja, tomate para la deuda, plátano para avisos */
+  --color-papel: #fbf7ee;
+  --color-hoja: #ffffff;
+  --color-carton: #f4eddf;
+  --color-kraft: #e3d8c3;
+  --color-kraft-osc: #8a7350;
+  --color-linea: #eee6d6;
+  --color-grafito: #2b2620;
+  --color-gris: #6f665a;
+  --color-tinta: #2f7d45;
+  --color-tinta-clara: #3f9657;
+  --color-verde-suave: #e8f3e6;
+  --color-fuji: #d0402e;
+  --color-fuji-osc: #a5301f;
+  --color-tomate-suave: #fce9e4;
+  --color-pera: #2f7d45;
+  --color-limon: #d9a514;
+  --color-platano-suave: #fcf3d6;
+  --color-naranjo: #ef8a24;
+  --color-naranja-suave: #fdeedc;
+  --color-uva: #6d4f9c;
+  --color-uva-suave: #efe9f7;
   --color-pizarra: #2b2f2c;
   --color-tiza: #efebdd;
-  --color-resaltador: #f4e9b3;
+  --color-resaltador: #fff1b8;
 
-  --font-stencil: var(--f-stencil), "Arial Narrow", sans-serif;
-  --font-sans: var(--f-sans), "Arial Narrow", system-ui, sans-serif;
-  --font-mono: var(--f-mono), ui-monospace, monospace;
+  --radius-md: 0.7rem;
+  --radius-lg: 1.1rem;
+  --radius-xl: 1.5rem;
+
+  --font-stencil: var(--f-titulo), Georgia, serif;
+  --font-sans: var(--f-sans), system-ui, sans-serif;
+  --font-mono: var(--f-sans), system-ui, sans-serif;
   --font-mano: var(--f-sans), system-ui, sans-serif;
 
   --animate-entra: entra 220ms ease-out both;
@@ -44,7 +55,7 @@
     background-color: var(--color-papel);
     color: var(--color-grafito);
     font-family: var(--font-sans);
-    font-size: 15px;
+    font-size: 16px;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "tnum" 1;
     min-height: 100dvh;
@@ -59,24 +70,26 @@
   /* ------------------------------ tipografía ------------------------------ */
 
   /* títulos: condensada y firme, en tipo oración (la stencil queda solo en la marca) */
+  /* títulos: serif suave, como letrero pintado de verdulería */
   .stencil {
-    font-family: var(--font-sans);
-    font-weight: 700;
-    letter-spacing: -0.01em;
+    font-family: var(--font-stencil);
+    font-weight: 650;
+    font-variation-settings: "SOFT" 100, "opsz" 72;
+    letter-spacing: -0.015em;
     line-height: 1.05;
   }
   .marca {
     font-family: var(--font-stencil);
-    font-variation-settings: "opsz" 72;
-    text-transform: uppercase;
-    letter-spacing: 0.03em;
-    line-height: 0.9;
+    font-weight: 750;
+    font-variation-settings: "SOFT" 100, "opsz" 72;
+    letter-spacing: -0.02em;
+    line-height: 1;
   }
 
   .cifra {
-    font-family: var(--font-mono);
     font-variant-numeric: tabular-nums;
-    letter-spacing: -0.02em;
+    font-feature-settings: "tnum" 1;
+    letter-spacing: -0.01em;
   }
   .deuda {
     color: var(--color-fuji);
@@ -86,9 +99,8 @@
     padding-bottom: 1px;
   }
   .rotulo {
-    font-size: 11px;
-    text-transform: uppercase;
-    letter-spacing: 0.14em;
+    font-size: 13px;
+    font-weight: 700;
     color: var(--color-gris);
   }
 
@@ -98,12 +110,13 @@
     position: relative;
     background-color: var(--color-hoja);
     border: 1px solid var(--color-linea);
-    box-shadow: 0 1px 2px rgba(40, 30, 10, 0.04);
+    border-radius: var(--radius-lg);
+    box-shadow: 0 1px 2px rgba(60, 45, 20, 0.04), 0 8px 24px -16px rgba(60, 45, 20, 0.18);
   }
 
   /* la perforación del talonario: solo en la hoja del vale y del abono */
   .perforado::before {
-    content: "";
+    content: none;
     position: absolute;
     left: 0;
     right: 0;
@@ -130,40 +143,43 @@
 
   /* ---------------------------------- campos ---------------------------------- */
 
+  /* un campo es una caja clara: se ve dónde escribir */
   .campo {
-    background: transparent;
-    border: 0;
-    border-bottom: 1.5px solid var(--color-kraft);
-    border-radius: 0;
+    background: #fffdf8;
+    border: 1.5px solid var(--color-kraft);
+    border-radius: var(--radius-md);
     outline: none;
-    padding: 5px 6px;
-    color: var(--color-tinta);
-    font-family: var(--font-mono);
+    padding: 0.5rem 0.75rem;
+    color: var(--color-grafito);
     width: 100%;
-    transition: background-color 120ms, border-color 120ms;
+    transition: border-color 120ms, box-shadow 120ms, background-color 120ms;
   }
   .campo::placeholder {
-    color: #aaa297;
-    font-family: var(--font-sans);
+    color: #b0a593;
+    font-weight: 400;
+  }
+  .campo:hover {
+    border-color: #cfc1a6;
   }
   .campo:focus {
-    background-color: rgba(244, 233, 179, 0.55);
-    border-bottom-color: var(--color-tinta);
+    background: #fff;
+    border-color: var(--color-tinta);
+    box-shadow: 0 0 0 4px rgba(47, 125, 69, 0.15);
   }
   .campo:disabled {
-    opacity: 0.45;
+    opacity: 0.5;
   }
   .campo-error {
-    border-bottom-color: var(--color-fuji) !important;
+    border-color: var(--color-fuji) !important;
+    box-shadow: 0 0 0 4px rgba(208, 64, 46, 0.12) !important;
   }
 
   .foco:focus-visible,
   button:focus-visible,
   a:focus-visible,
   [tabindex="0"]:focus-visible {
-    outline: 2px solid var(--color-tinta);
+    outline: 3px solid rgba(47, 125, 69, 0.45);
     outline-offset: 2px;
-    border-radius: 4px;
   }
 
   /* --------------------------------- botones --------------------------------- */
@@ -173,29 +189,34 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 6px;
-    padding: 0.55rem 1rem;
-    font-weight: 600;
+    border-radius: 999px;
+    padding: 0.6rem 1.15rem;
+    font-weight: 700;
     line-height: 1.1;
-    transition: background-color 120ms, transform 80ms;
+    transition: background-color 120ms, transform 80ms, box-shadow 120ms;
   }
   .btn:active {
     transform: translateY(1px);
   }
   .btn-primario {
-    background: var(--color-grafito);
-    color: var(--color-hoja);
+    background: var(--color-tinta);
+    color: #fff;
+    box-shadow: 0 2px 0 #1f5a31;
   }
   .btn-primario:hover {
-    background: #000;
+    background: #286c3b;
   }
   .btn-secundario {
-    border: 1px solid var(--color-kraft);
-    background: var(--color-hoja);
+    border: 1.5px solid var(--color-kraft);
+    background: #fff;
     color: var(--color-grafito);
   }
   .btn-secundario:hover {
     background: var(--color-carton);
+  }
+  .btn-peligro {
+    background: var(--color-fuji);
+    color: #fff;
   }
 
   /* opción de un grupo (forma de pago, filtros) */
@@ -203,34 +224,35 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    border: 1px solid var(--color-kraft);
-    border-radius: 6px;
-    padding: 0.4rem 0.8rem;
-    font-weight: 600;
+    border: 1.5px solid var(--color-kraft);
+    border-radius: 999px;
+    padding: 0.45rem 0.95rem;
+    font-weight: 700;
     color: var(--color-gris);
-    background: var(--color-hoja);
+    background: #fff;
     transition: all 120ms;
   }
   .opcion:hover {
     color: var(--color-grafito);
+    border-color: #cfc1a6;
   }
   .opcion[aria-checked="true"],
   .opcion[aria-pressed="true"] {
-    background: var(--color-grafito);
-    border-color: var(--color-grafito);
-    color: var(--color-hoja);
+    background: var(--color-tinta);
+    border-color: var(--color-tinta);
+    color: #fff;
   }
 
   /* ---------------------------------- teclas ---------------------------------- */
 
   .tecla {
+    font-family: ui-monospace, monospace;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     min-width: 1.4em;
     height: 1.4em;
     padding: 0 0.3em;
-    font-family: var(--font-mono);
     font-size: 0.7em;
     font-weight: 600;
     line-height: 1;
@@ -267,8 +289,8 @@
     align-items: center;
     gap: 0.4em;
     border-radius: 999px;
-    padding: 0.15em 0.65em;
-    font-weight: 600;
+    padding: 0.2em 0.7em;
+    font-weight: 700;
     font-size: 0.82em;
     line-height: 1.35;
     white-space: nowrap;
@@ -276,10 +298,8 @@
 
   /* tipo / forma de pago: texto chico, sin caja */
   .cajon {
-    font-size: 0.78em;
-    font-weight: 600;
-    letter-spacing: 0.06em;
-    text-transform: uppercase;
+    font-size: 0.8em;
+    font-weight: 700;
     line-height: 1.2;
   }
 
@@ -359,9 +379,31 @@
     scrollbar-color: var(--color-kraft) transparent;
   }
 
+  /* hoja A4 para imprimir / guardar PDF */
+  .hoja-a4 {
+    width: 210mm;
+    max-width: 100%;
+    min-height: 297mm;
+    padding: 10mm;
+    color: #000;
+  }
+  @page {
+    size: A4;
+    margin: 10mm;
+  }
   @media print {
     body {
       background: #fff;
+    }
+    main {
+      padding: 0 !important;
+      max-width: none !important;
+    }
+    .hoja-a4 {
+      width: auto;
+      min-height: 0;
+      padding: 0;
+      box-shadow: none !important;
     }
     .no-print {
       display: none !important;
@@ -376,10 +418,10 @@
 
   .fila-vale {
     display: grid;
-    align-items: end;
+    align-items: center;
     column-gap: 0.5rem;
-    row-gap: 0.15rem;
-    grid-template-columns: 3.6rem 5.2rem minmax(0, 1fr) 1.6rem;
+    row-gap: 0.4rem;
+    grid-template-columns: 4.2rem 6rem minmax(0, 1fr) 1.6rem;
     grid-template-areas:
       "c u p x"
       "pr pr st st";
@@ -387,7 +429,7 @@
   @media (min-width: 640px) {
     .fila-vale {
       column-gap: 0.75rem;
-      grid-template-columns: 1.4rem 4.4rem 5.6rem minmax(0, 1fr) 8rem 8rem 1.6rem;
+      grid-template-columns: 1.4rem 5rem 6.4rem minmax(0, 1fr) 8.5rem 8rem 1.6rem;
       grid-template-areas: "n c u p pr st x";
     }
   }

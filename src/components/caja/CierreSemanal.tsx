@@ -43,7 +43,6 @@ export function CierreSemanal({ pestanas }: { pestanas?: ReactNode }) {
   return (
     <div className="mx-auto max-w-3xl space-y-5">
       <section>
-        <h1 className="stencil text-[28px] sm:text-[32px]">Cierre de caja</h1>
         {pestanas}
         <div className="no-print mt-4 flex flex-wrap items-center gap-2">
           <button type="button" onClick={() => setLunes(sumarDias(lunes, -7))} className="btn btn-secundario px-2.5 py-1" aria-label="Semana anterior">
@@ -137,9 +136,9 @@ export function CierreSemanal({ pestanas }: { pestanas?: ReactNode }) {
 
       <p className="no-print flex flex-wrap justify-between gap-2 text-sm text-gris">
         <span>La semana va de lunes a domingo. ← → cambia de semana.</span>
-        <button type="button" onClick={() => window.print()} className="text-tinta underline underline-offset-4">
-          Imprimir
-        </button>
+        <Link href={`/imprimir/caja?vista=semana&lunes=${lunes}`} target="_blank" className="btn btn-primario py-1.5 text-sm">
+          Imprimir o guardar PDF
+        </Link>
       </p>
     </div>
   );

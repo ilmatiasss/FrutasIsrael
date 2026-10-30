@@ -1,33 +1,77 @@
 "use client";
 /**
- * Store local (localStorage). Todas las escrituras pasan por acá, así que
- * migrar a Supabase es reemplazar estas funciones por inserts/rpc.
+ * Store de la app. Todas las escrituras pasan por `set()`.
+ *
+ * Dos modos:
+ *  - "local" (modo prueba): sin base de datos configurada; todo vive en el navegador.
+ *  - "nube": con Neon. Cada cambio se calcula como diferencia (filas nuevas o
+ *    modificadas) y se manda a /api/cambios. Si se corta internet, los cambios
+ *    esperan en una cola guardada en el PC y se envían solos al volver.
+ *
  * Regla de oro: nunca se borra un movimiento — se anula y queda en la bitácora.
  */
 import { useMemo, useSyncExternalStore } from "react";
 import type {
-  Cliente, Config, Db, Evento, FormaPago, LineaVale, Movimiento, TipoMovimiento, Unidad,
+  Cliente, Config, Db, Evento, FormaPago, LineaVale, Movimiento, PagoSueldo, TipoMovimiento, TipoPagoSueldo, Trabajador, Unidad,
 } from "./types";
-import { crearSeed } from "./seed";
+import { baseVacia, crearSeed } from "./seed";
 import { hoy, lunesDe, sumarDias, uid } from "./format";
 import { indexar, resumenCaja, saldosAl, type Indice } from "./calc";
 
-const KEY = "frutas-israel:db:v1";
+const KEY = "frutas-israel:db:v1"; // modo prueba
+const KEY_NUBE = "frutas-israel:nube:v1"; // copia de lo que hay en la base (para trabajar sin internet)
+const KEY_COLA = "frutas-israel:cola:v1"; // cambios que faltan por enviar
+const KEY_USUARIO = "frutas-israel:usuario"; // quién atiende en ESTE PC
+
+export type Modo = "cargando" | "local" | "nube" | "sin-conexion" | "instalar";
 
 let db: Db | null = null;
+let modo: Modo = "cargando";
+let errorSync: string | null = null;
 const listeners = new Set<() => void>();
+const avisar = () => listeners.forEach((l) => l());
 
-function cargar(): Db {
+const CONFIG_BASE: Config = { dias_amarillo: 15, dias_rojo: 30, dias_sin_compra: 21, usuario_actual: "Caja" };
+
+/** Completa lo que falte (datos guardados por versiones anteriores de la app) */
+function normalizar(parsed: Db): Db {
+  return {
+    ...parsed,
+    version: 1,
+    config: { ...CONFIG_BASE, ...(parsed.config ?? {}) },
+    usuarios: parsed.usuarios ?? [],
+    clientes: parsed.clientes ?? [],
+    productos: parsed.productos ?? [],
+    movimientos: parsed.movimientos ?? [],
+    lineas: parsed.lineas ?? [],
+    cierres: parsed.cierres ?? [],
+    cierres_semana: parsed.cierres_semana ?? [],
+    trabajadores: parsed.trabajadores ?? [],
+    asistencias: parsed.asistencias ?? [],
+    pagos_sueldo: parsed.pagos_sueldo ?? [],
+    eventos: parsed.eventos ?? [],
+  };
+}
+
+function leer<T>(k: string): T | null {
   try {
-    const raw = localStorage.getItem(KEY);
-    if (raw) {
-      const parsed = JSON.parse(raw) as Db;
-      if (parsed.version === 1) return { ...parsed, cierres_semana: parsed.cierres_semana ?? [] };
-    }
+    const raw = localStorage.getItem(k);
+    return raw ? (JSON.parse(raw) as T) : null;
   } catch {
-    /* almacenamiento bloqueado o corrupto: partimos de cero */
+    return null;
   }
-  return sembrar();
+}
+function escribir(k: string, v: unknown) {
+  try {
+    localStorage.setItem(k, JSON.stringify(v));
+  } catch {
+    /* sin almacenamiento: la app sigue en memoria */
+  }
+}
+
+function cargarLocal(): Db {
+  const d = leer<Db>(KEY);
+  return d && d.version === 1 ? normalizar(d) : sembrar();
 }
 
 function sembrar(): Db {
@@ -69,19 +113,210 @@ function sembrar(): Db {
   return nueva;
 }
 
-function guardar() {
+/** Datos de partida para instalar la base: vacía, de ejemplo o lo que hay en este PC */
+export function datosParaInstalar(opcion: "vacia" | "ejemplo" | "este-pc", nombre: string, ubicacion: string, ultimoNumero: number): Db {
+  const d = opcion === "vacia" ? baseVacia() : opcion === "ejemplo" ? sembrar() : cargarLocal();
+  return {
+    ...d,
+    tenant: { ...d.tenant, nombre, ubicacion, ultimo_numero: opcion === "vacia" ? ultimoNumero : Math.max(ultimoNumero, d.tenant.ultimo_numero) },
+  };
+}
+
+/* ------------------------------ sincronización ------------------------------ */
+
+const TABLAS_SYNC = [
+  "usuarios", "clientes", "productos", "trabajadores", "movimientos", "lineas",
+  "cierres", "cierres_semana", "asistencias", "pagos_sueldo", "eventos",
+] as const;
+type TablaSync = (typeof TABLAS_SYNC)[number];
+
+interface Cambio {
+  tabla: TablaSync;
+  op: "put" | "del";
+  fila: { id: string } & Record<string, unknown>;
+}
+interface Lote {
+  cambios: Cambio[];
+  tenant: { ultimo_numero?: number; config?: Omit<Config, "usuario_actual"> };
+}
+
+function diferencias(a: Db, b: Db): Lote {
+  const cambios: Cambio[] = [];
+  for (const t of TABLAS_SYNC) {
+    const xa = a[t] as unknown as { id: string }[];
+    const xb = b[t] as unknown as { id: string }[];
+    if (xa === xb) continue;
+    const previos = new Map(xa.map((r) => [r.id, r]));
+    for (const r of xb) if (previos.get(r.id) !== r) cambios.push({ tabla: t, op: "put", fila: r as Cambio["fila"] });
+    const actuales = new Set(xb.map((r) => r.id));
+    for (const r of xa) if (!actuales.has(r.id)) cambios.push({ tabla: t, op: "del", fila: { id: r.id } });
+  }
+  const tenant: Lote["tenant"] = {};
+  if (a.tenant.ultimo_numero !== b.tenant.ultimo_numero) tenant.ultimo_numero = b.tenant.ultimo_numero;
+  const { usuario_actual: ua, ...ca } = a.config;
+  const { usuario_actual: ub, ...cb } = b.config;
+  if (JSON.stringify(ca) !== JSON.stringify(cb)) tenant.config = cb;
+  if (ua !== ub) escribir(KEY_USUARIO, ub);
+  return { cambios, tenant };
+}
+
+let cola: Lote[] = [];
+let enviando = false;
+let reintento: ReturnType<typeof setTimeout> | null = null;
+
+function encolar(l: Lote) {
+  if (!l.cambios.length && l.tenant.ultimo_numero === undefined && !l.tenant.config) return;
+  cola.push(l);
+  escribir(KEY_COLA, cola);
+}
+
+async function enviar() {
+  if (enviando || !cola.length || modo === "local") return;
+  enviando = true;
+  const lote = cola.slice();
+  const cuerpo: Lote = {
+    cambios: lote.flatMap((l) => l.cambios),
+    tenant: lote.reduce<Lote["tenant"]>((acc, l) => ({ ...acc, ...l.tenant }), {}),
+  };
   try {
-    if (db) localStorage.setItem(KEY, JSON.stringify(db));
+    const r = await fetch("/api/cambios", { method: "POST", headers: { "content-type": "application/json" }, body: JSON.stringify(cuerpo) });
+    if (r.status === 401) {
+      location.assign(`/entrar?volver=${encodeURIComponent(location.pathname)}`);
+      return;
+    }
+    const j = await r.json().catch(() => ({}));
+    if (r.ok) {
+      cola = cola.slice(lote.length);
+      escribir(KEY_COLA, cola);
+      errorSync = null;
+      modo = "nube";
+      if (j.renumerados?.length && db) {
+        const m = new Map<string, number>(j.renumerados.map((x: { id: string; numero: number }) => [x.id, x.numero]));
+        db = { ...db, movimientos: db.movimientos.map((x) => (m.has(x.id) ? { ...x, numero: m.get(x.id)! } : x)) };
+        window.dispatchEvent(new CustomEvent("frutas:renumerado", { detail: j.renumerados }));
+      }
+      if (db && j.ultimo_numero > db.tenant.ultimo_numero) db = { ...db, tenant: { ...db.tenant, ultimo_numero: j.ultimo_numero } };
+      if (db) escribir(KEY_NUBE, db);
+    } else if (r.status === 422) {
+      // la base rechazó el cambio (regla de negocio): se descarta y se vuelve a lo que hay en la base
+      cola = cola.slice(lote.length);
+      escribir(KEY_COLA, cola);
+      errorSync = j.error ?? "La base de datos rechazó un cambio";
+      await refrescar(true);
+    } else throw new Error(j.error ?? `HTTP ${r.status}`);
   } catch {
-    /* sin almacenamiento: la app sigue funcionando en memoria */
+    modo = "sin-conexion";
+    if (reintento) clearTimeout(reintento);
+    reintento = setTimeout(() => void enviar(), 10_000);
+  } finally {
+    enviando = false;
+    avisar();
+    if (cola.length && modo === "nube") void enviar();
   }
 }
 
+/** Trae lo último de la base (lo que hicieron otros PCs). Nunca pisa cambios sin enviar. */
+async function refrescar(forzar = false) {
+  if (modo === "local" || (!forzar && cola.length)) return;
+  try {
+    const r = await fetch("/api/datos", { cache: "no-store" });
+    if (!r.ok) return;
+    const j = await r.json();
+    if (cola.length && !forzar) return;
+    db = conUsuarioLocal(normalizar(j.db));
+    escribir(KEY_NUBE, db);
+    modo = "nube";
+    avisar();
+  } catch {
+    /* sin internet: se reintenta después */
+  }
+}
+
+function conUsuarioLocal(d: Db): Db {
+  const u = leer<string>(KEY_USUARIO);
+  return { ...d, config: { ...d.config, usuario_actual: u ?? d.config.usuario_actual ?? "Caja" } };
+}
+
+/** Aplica sobre la base los cambios que todavía no llegan al servidor */
+function conPendientes(d: Db): Db {
+  if (!cola.length) return d;
+  const out = { ...d } as Db;
+  for (const t of TABLAS_SYNC) {
+    const cambios = cola.flatMap((l) => l.cambios).filter((c) => c.tabla === t);
+    if (!cambios.length) continue;
+    const m = new Map((out[t] as unknown as { id: string }[]).map((r) => [r.id, r]));
+    for (const c of cambios) {
+      if (c.op === "del") m.delete(c.fila.id);
+      else m.set(c.fila.id, c.fila);
+    }
+    (out as unknown as Record<string, unknown>)[t] = [...m.values()];
+  }
+  const n = Math.max(...cola.map((l) => l.tenant.ultimo_numero ?? 0));
+  if (n > out.tenant.ultimo_numero) out.tenant = { ...out.tenant, ultimo_numero: n };
+  return out;
+}
+
+let iniciado = false;
+async function iniciar() {
+  if (iniciado) return;
+  if (location.pathname === "/entrar") return; // sin sesión todavía: no hay nada que cargar
+  iniciado = true;
+  cola = leer<Lote[]>(KEY_COLA) ?? [];
+  let r: Response | null = null;
+  try {
+    r = await fetch("/api/datos", { cache: "no-store" });
+  } catch {
+    r = null;
+  }
+  if (r && r.status === 404) {
+    modo = "local";
+    db = cargarLocal();
+    escribir(KEY, db);
+  } else if (r && r.status === 409) {
+    modo = "instalar";
+    if (!location.pathname.startsWith("/instalar")) location.assign("/instalar");
+  } else if (r && r.status === 401) {
+    location.assign(`/entrar?volver=${encodeURIComponent(location.pathname)}`);
+    return;
+  } else if (r && r.ok) {
+    const j = await r.json();
+    db = conUsuarioLocal(conPendientes(normalizar(j.db)));
+    escribir(KEY_NUBE, db);
+    modo = "nube";
+    void enviar();
+  } else {
+    // sin internet o la base no responde: se trabaja con la última copia
+    const cache = leer<Db>(KEY_NUBE);
+    if (cache) {
+      db = conUsuarioLocal(conPendientes(normalizar(cache)));
+      modo = "sin-conexion";
+      reintento = setTimeout(() => void enviar(), 10_000);
+    } else {
+      modo = "local";
+      db = cargarLocal();
+    }
+  }
+  avisar();
+  setInterval(() => {
+    if (document.hidden) return;
+    if (cola.length) void enviar();
+    else void refrescar();
+  }, 30_000);
+  window.addEventListener("focus", () => (cola.length ? void enviar() : void refrescar()));
+  window.addEventListener("online", () => void enviar());
+}
+
 function set(fn: (d: Db) => Db) {
-  if (!db) db = cargar();
+  if (!db) return;
+  const antes = db;
   db = fn(db);
-  guardar();
-  listeners.forEach((l) => l());
+  if (modo === "local") escribir(KEY, db);
+  else {
+    encolar(diferencias(antes, db));
+    escribir(KEY_NUBE, db);
+    void enviar();
+  }
+  avisar();
 }
 
 function getSnapshot(): Db | null {
@@ -92,16 +327,12 @@ function getServerSnapshot(): Db | null {
 }
 function subscribe(l: () => void) {
   listeners.add(l);
-  if (!db && typeof window !== "undefined") {
-    db = cargar();
-    guardar();
-    queueMicrotask(() => listeners.forEach((x) => x()));
-  }
+  if (typeof window !== "undefined") void iniciar();
   const onStorage = (e: StorageEvent) => {
-    if (e.key === KEY && e.newValue) {
+    if (modo === "local" && e.key === KEY && e.newValue) {
       try {
-        db = JSON.parse(e.newValue);
-        listeners.forEach((x) => x());
+        db = normalizar(JSON.parse(e.newValue));
+        avisar();
       } catch {}
     }
   };
@@ -112,9 +343,31 @@ function subscribe(l: () => void) {
   };
 }
 
-/** Base completa (null mientras hidrata en el cliente) */
+/** Base completa (null mientras carga) */
 export function useDb(): Db | null {
   return useSyncExternalStore(subscribe, getSnapshot, getServerSnapshot);
+}
+
+export interface EstadoSync {
+  modo: Modo;
+  pendientes: number;
+  error: string | null;
+}
+let ultimoEstado: EstadoSync = { modo, pendientes: 0, error: null };
+function estadoSnapshot(): EstadoSync {
+  const pend = cola.reduce((a, l) => a + l.cambios.length, 0);
+  if (ultimoEstado.modo !== modo || ultimoEstado.pendientes !== pend || ultimoEstado.error !== errorSync)
+    ultimoEstado = { modo, pendientes: pend, error: errorSync };
+  return ultimoEstado;
+}
+const ESTADO_SERVIDOR: EstadoSync = { modo: "cargando", pendientes: 0, error: null };
+/** En qué modo está la app y si hay cambios esperando internet */
+export function useSync(): EstadoSync {
+  return useSyncExternalStore(subscribe, estadoSnapshot, () => ESTADO_SERVIDOR);
+}
+
+export function reintentarAhora() {
+  void enviar();
 }
 
 /** Base + índices memoizados */
@@ -343,6 +596,88 @@ export function cerrarSemana(lunes: string, domingo: string, saldos: { cliente_i
   });
 }
 
+/* ---------------------------------- sueldos ---------------------------------- */
+
+export function guardarTrabajador(p: Omit<Trabajador, "id" | "tenant_id" | "created_at" | "activo"> & { id?: string; activo?: boolean }): Trabajador {
+  let t!: Trabajador;
+  set((d) => {
+    const previo = p.id ? d.trabajadores.find((x) => x.id === p.id) : undefined;
+    t = previo
+      ? { ...previo, ...p, id: previo.id }
+      : { ...p, id: uid(), tenant_id: d.tenant.id, activo: p.activo ?? true, created_at: new Date().toISOString() };
+    return {
+      ...d,
+      trabajadores: previo ? d.trabajadores.map((x) => (x.id === t.id ? t : x)) : [...d.trabajadores, t],
+      eventos: [...d.eventos, evento(d, "SUELDOS", t.id, previo ? `Trabajador editado: ${t.nombre}` : `Trabajador nuevo: ${t.nombre} (${t.cargo})`)],
+    };
+  });
+  return t;
+}
+
+/** Marca o desmarca un día trabajado */
+export function marcarDia(trabajador_id: string, fecha: string, trabajo: boolean) {
+  set((d) => {
+    const ya = d.asistencias.some((a) => a.trabajador_id === trabajador_id && a.fecha === fecha);
+    if (ya === trabajo) return d;
+    return {
+      ...d,
+      asistencias: trabajo
+        ? [...d.asistencias, { id: uid(), tenant_id: d.tenant.id, trabajador_id, fecha }]
+        : d.asistencias.filter((a) => !(a.trabajador_id === trabajador_id && a.fecha === fecha)),
+    };
+  });
+}
+
+/** Pago, adelanto, bono o descuento. Si es en efectivo y sale del cajón, queda también como egreso de caja. */
+export function registrarPagoSueldo(p: {
+  trabajador_id: string; fecha: string; tipo: TipoPagoSueldo; monto: number; forma: "EFECTIVO" | "TRANSFERENCIA"; nota: string | null; desdeCaja: boolean;
+}): PagoSueldo {
+  let pago!: PagoSueldo;
+  set((d) => {
+    const t = d.trabajadores.find((x) => x.id === p.trabajador_id);
+    const mueveCaja = p.desdeCaja && p.forma === "EFECTIVO" && (p.tipo === "PAGO" || p.tipo === "ADELANTO");
+    let numero = d.tenant.ultimo_numero;
+    let mov: Movimiento | null = null;
+    if (mueveCaja) {
+      numero++;
+      mov = nuevoMov(d, numero, {
+        tipo: "EGRESO", fecha: p.fecha, cliente_id: null, forma_pago: "EFECTIVO", total: p.monto,
+        glosa: `Sueldo · ${t?.nombre ?? ""}${p.tipo === "ADELANTO" ? " (adelanto)" : ""}`,
+      });
+    }
+    pago = {
+      id: uid(), tenant_id: d.tenant.id, trabajador_id: p.trabajador_id, fecha: p.fecha, tipo: p.tipo, monto: Math.round(p.monto), forma: p.forma,
+      movimiento_id: mov?.id ?? null, nota: p.nota, creado_por: d.config.usuario_actual, created_at: new Date().toISOString(),
+      anulado_at: null, anulado_por: null, motivo_anulacion: null,
+    };
+    return {
+      ...d,
+      tenant: { ...d.tenant, ultimo_numero: numero },
+      movimientos: mov ? [...d.movimientos, mov] : d.movimientos,
+      pagos_sueldo: [...d.pagos_sueldo, pago],
+      eventos: [...d.eventos, evento(d, "SUELDOS", pago.id, `${p.tipo} a ${t?.nombre}: $${p.monto}${mov ? ` (egreso N°${mov.numero})` : ""}`)],
+    };
+  });
+  return pago;
+}
+
+export function anularPagoSueldo(id: string, motivo: string) {
+  set((d) => {
+    const p = d.pagos_sueldo.find((x) => x.id === id);
+    if (!p || p.anulado_at) return d;
+    const at = new Date().toISOString();
+    const por = d.config.usuario_actual;
+    return {
+      ...d,
+      pagos_sueldo: d.pagos_sueldo.map((x) => (x.id === id ? { ...x, anulado_at: at, anulado_por: por, motivo_anulacion: motivo } : x)),
+      movimientos: d.movimientos.map((m) =>
+        m.id === p.movimiento_id && !m.anulado_at ? { ...m, anulado_at: at, anulado_por: por, motivo_anulacion: `${motivo} (pago de sueldo anulado)` } : m,
+      ),
+      eventos: [...d.eventos, evento(d, "SUELDOS", id, `Pago de sueldo anulado: ${motivo}`)],
+    };
+  });
+}
+
 export function setConfig(patch: Partial<Config>) {
   set((d) => ({ ...d, config: { ...d.config, ...patch } }));
 }
@@ -407,6 +742,7 @@ export function importar(filas: ImportFila[], resolverCliente: (nombre: string) 
 }
 
 export function reiniciarDemo() {
+  if (modo !== "local") return; // en la base real nunca se regeneran datos
   set(() => {
     const d = sembrar();
     return { ...d, eventos: [...d.eventos, evento(d, "REINICIAR_DEMO", null, "Datos de ejemplo regenerados")] };

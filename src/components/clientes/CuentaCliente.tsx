@@ -53,7 +53,7 @@ export function CuentaCliente({ id }: { id: string }) {
   useEffect(() => {
     const k = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]') || (e.target as HTMLElement).tagName === "INPUT") return;
-      if (e.key.toLowerCase() === "v" && !e.ctrlKey && !e.metaKey) router.push(`/?cliente=${id}`);
+      if (e.key.toLowerCase() === "v" && !e.ctrlKey && !e.metaKey) router.push(`/vale?cliente=${id}`);
       if (e.key.toLowerCase() === "a" && !e.ctrlKey && !e.metaKey) router.push(`/abono?cliente=${id}`);
       if (e.key.toLowerCase() === "d" && !e.ctrlKey && !e.metaKey) {
         e.preventDefault();
@@ -156,13 +156,13 @@ export function CuentaCliente({ id }: { id: string }) {
             </p>
             {est.saldo <= 0 && <p className="mt-2 font-semibold text-pera">Al día</p>}
             <div className="mt-5 flex w-full flex-wrap gap-2 lg:w-auto lg:justify-end">
-              <Link href={`/?cliente=${c.id}`} className="btn btn-primario flex-1 sm:flex-none">
+              <Link href={`/vale?cliente=${c.id}`} className="btn btn-primario flex-1 whitespace-nowrap px-3 text-sm sm:flex-none sm:px-5 sm:text-base">
                 Nuevo vale <span className="tecla hidden md:inline-flex">V</span>
               </Link>
-              <Link href={`/abono?cliente=${c.id}`} className="btn btn-secundario flex-1 sm:flex-none">
+              <Link href={`/abono?cliente=${c.id}`} className="btn btn-secundario flex-1 whitespace-nowrap px-3 text-sm sm:flex-none sm:px-5 sm:text-base">
                 Abonar <span className="tecla hidden md:inline-flex">A</span>
               </Link>
-              <button type="button" onClick={() => setDeuda(true)} className="btn btn-secundario flex-1 sm:flex-none">
+              <button type="button" onClick={() => setDeuda(true)} className="btn btn-secundario flex-1 whitespace-nowrap px-3 text-sm sm:flex-none sm:px-5 sm:text-base">
                 Agregar deuda <span className="tecla hidden md:inline-flex">D</span>
               </button>
             </div>
@@ -188,7 +188,7 @@ export function CuentaCliente({ id }: { id: string }) {
               type="button"
               onClick={() => setPeriodo(k)}
               aria-pressed={periodo === k}
-              className={`px-3 py-1 capitalize ${periodo === k ? "bg-grafito text-hoja" : "hover:bg-carton"}`}
+              className={`px-3 py-1 capitalize ${periodo === k ? "bg-tinta text-white" : "hover:bg-carton"}`}
             >
               {l}
             </button>

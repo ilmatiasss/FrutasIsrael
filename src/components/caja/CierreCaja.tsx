@@ -6,6 +6,7 @@ import { cerrarCaja, registrarCaja, useData } from "@/lib/store";
 import { resumenCaja, vivo } from "@/lib/calc";
 import { clp, fechaLarga, hora, hoy, miles, parseMonto, sumarDias } from "@/lib/format";
 import { COLOR_TIPO, DetalleMovimiento } from "../DetalleMovimiento";
+import { MODULOS, type Modulo } from "../imprimir/ImprimirCaja";
 import { useAviso } from "../Shell";
 import { FormaChip, MontoGrande, Tecla, Vacio } from "../ui";
 
@@ -16,6 +17,33 @@ const SECCIONES: { tipo: TipoMovimiento; titulo: string; nota: string }[] = [
   { tipo: "INGRESO", titulo: "Ingresos de caja", nota: "fondo, otros" },
   { tipo: "EGRESO", titulo: "Egresos de caja", nota: "gastos pagados del cajón" },
 ];
+
+const MODULO_DE: Record<TipoMovimiento, Modulo> = {
+  VALE_VENTA: "ventas", VALE_CREDITO: "creditos", ABONO: "abonos", INGRESO: "gastos", EGRESO: "gastos",
+};
+
+function IconoImpresora() {
+  return (
+    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden>
+      <path d="M7 8V3h10v5M7 17H4v-7h16v7h-3" />
+      <path d="M7 14h10v7H7z" />
+    </svg>
+  );
+}
+
+/** Abre la hoja de impresión de una sola parte del cierre */
+function BotonImprimir({ fecha, modulo }: { fecha: string; modulo: Modulo }) {
+  return (
+    <Link
+      href={`/imprimir/caja?fecha=${fecha}&modulo=${modulo}`}
+      target="_blank"
+      className="no-print inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-kraft bg-hoja px-3 py-1 text-sm font-bold text-gris hover:text-grafito"
+      title={`Imprimir o guardar en PDF: ${MODULOS[modulo]}`}
+    >
+      <IconoImpresora /> Imprimir
+    </Link>
+  );
+}
 
 const CORTO: Record<TipoMovimiento, string> = {
   VALE_VENTA: "Venta", VALE_CREDITO: "Crédito", ABONO: "Abonos", INGRESO: "Ingresos", EGRESO: "Egresos",
@@ -76,7 +104,6 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
       {/* ------------------------------ cabecera ------------------------------ */}
       <section className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="stencil text-[28px] sm:text-[32px]">Cierre de caja</h1>
           {pestanas}
           <div className="no-print mt-3 flex items-center gap-2">
             <button type="button" onClick={() => setFecha(sumarDias(fecha, -1))} className="btn btn-secundario px-2.5 py-1" aria-label="Día anterior">
@@ -114,15 +141,19 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
           <button type="button" onClick={() => setForm("INGRESO")} className="btn btn-secundario">
             + Ingreso <span className="tecla">I</span>
           </button>
-          <button type="button" onClick={() => window.print()} className="btn btn-secundario hidden sm:inline-flex">
-            Imprimir
-          </button>
+          <Link href={`/imprimir/caja?fecha=${fecha}&modulo=todo`} target="_blank" className="btn btn-primario">
+            <IconoImpresora /> Imprimir todo en una hoja
+          </Link>
         </div>
       </section>
 
       {form && <FormCaja tipo={form} fecha={fecha} onCerrar={() => setForm(null)} />}
 
       {/* ------------------------- totales por tipo (franja) ------------------------- */}
+      <div className="flex items-center justify-between">
+        <h2 className="stencil text-xl">Totales del día</h2>
+        <BotonImprimir fecha={fecha} modulo="resumen" />
+      </div>
       <section className="grid grid-cols-2 border-y-2 border-grafito sm:grid-cols-3 lg:grid-cols-5" aria-label="Totales por tipo">
         {SECCIONES.map(({ tipo, titulo }) => {
           const xs = movs.filter((m) => m.tipo === tipo && vivo(m));
@@ -161,7 +192,10 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                   <h2 className="font-semibold">
                     {titulo} <span className="ml-1 font-sans text-sm font-normal normal-case tracking-normal text-gris">{nota}</span>
                   </h2>
-                  <span className="cifra doble-raya text-xl font-bold" style={{ color: COLOR_TIPO[tipo] }}>{clp(total)}</span>
+                  <span className="flex items-center gap-3">
+                    <BotonImprimir fecha={fecha} modulo={MODULO_DE[tipo]} />
+                    <span className="cifra doble-raya text-xl font-bold" style={{ color: COLOR_TIPO[tipo] }}>{clp(total)}</span>
+                  </span>
                 </header>
                 <table className="w-full text-[15px]">
                   <tbody>
@@ -177,7 +211,11 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
 
         {/* ------------------------------ la boleta ------------------------------ */}
         <aside className="xl:sticky xl:top-24 xl:self-start">
-          <div className="relative bg-[#fffdf7] px-6 pb-10 pt-6 font-mono text-grafito shadow-[0_18px_30px_-18px_rgba(60,40,10,.45)]" >
+          <div className="mb-2 flex items-center justify-between">
+            <h2 className="stencil text-xl">Efectivo en caja</h2>
+            <BotonImprimir fecha={fecha} modulo="efectivo" />
+          </div>
+          <div className="relative rounded-t-2xl bg-[#fffdf7] px-6 pb-10 pt-6 text-grafito shadow-[0_18px_30px_-18px_rgba(60,40,10,.45)]" >
             {/* borde dentado de boleta */}
             <div
               aria-hidden

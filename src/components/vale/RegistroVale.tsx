@@ -12,6 +12,14 @@ import { NuevoCliente } from "../NuevoCliente";
 import { useAviso } from "../Shell";
 import { FORMA, MontoGrande, Numeradora, StickerSemaforo } from "../ui";
 import { Colillas } from "./Colillas";
+import { Encabezado } from "../Encabezado";
+
+const PASOS = [
+  { titulo: "Elige el cliente", texto: "Escribe su nombre o apodo y presiona Enter. Si es nuevo, elige «+ Cliente nuevo»." },
+  { titulo: "Anota lo que lleva", texto: "Cantidad, unidad (C caja, E envase, K kilo), producto y precio; el precio se sugiere solo. ¿Solo plata? Usa «Solo monto»." },
+  { titulo: "¿Cómo paga?", texto: "Efectivo, Transferencia o Crédito (fiado). Si deja una parte, anótala en «Abona ahora»." },
+  { titulo: "Guarda", texto: "Botón verde «Guardar vale» o Ctrl + Enter. El número del vale avanza solo." },
+];
 
 interface Fila {
   k: string;
@@ -373,12 +381,14 @@ export function RegistroVale() {
 
 
   return (
+    <>
+    <Encabezado href="/vale" bajada="Anota una venta: al contado o fiada. Todo se puede hacer con el teclado." pasos={PASOS} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
-      <section className="hoja perforado mx-auto w-full max-w-[880px] rounded-b-lg px-4 pb-5 pt-5 sm:px-7 sm:pb-7 sm:pt-6" aria-label="Vale">
+      <section className="hoja mx-auto w-full max-w-[880px] px-4 pb-5 pt-5 sm:px-7 sm:pb-7 sm:pt-6" aria-label="Vale">
         {/* encabezado */}
-        <header className="flex items-start justify-between gap-4 border-b border-grafito/80 pb-3">
+        <header className="flex items-start justify-between gap-4 border-b border-linea pb-3">
           <div>
-            <h1 className="stencil text-[28px] sm:text-[32px]">Vale</h1>
+            <p className="stencil text-[22px]">Vale nuevo</p>
             <label className="mt-1 flex items-center gap-2 text-sm text-gris">
               <input
                 type="date"
@@ -440,7 +450,7 @@ export function RegistroVale() {
 
         {/* modo: con productos o solo monto */}
         <div className="mt-6 flex flex-wrap items-center justify-between gap-2">
-          <div className="inline-flex rounded-md border border-kraft p-0.5" role="tablist" aria-label="Tipo de vale">
+          <div className="inline-flex rounded-full border-[1.5px] border-kraft bg-hoja p-1" role="tablist" aria-label="Tipo de vale">
             {[
               { v: false, label: "Con productos" },
               { v: true, label: "Solo monto" },
@@ -452,7 +462,7 @@ export function RegistroVale() {
                 tabIndex={-1}
                 aria-selected={soloMonto === t.v}
                 onClick={() => soloMonto !== t.v && cambiarModo(t.v)}
-                className={`rounded px-3 py-1 text-sm font-semibold ${soloMonto === t.v ? "bg-grafito text-hoja" : "text-gris hover:text-grafito"}`}
+                className={`rounded-full px-4 py-1 text-sm font-bold ${soloMonto === t.v ? "bg-tinta text-white" : "text-gris hover:text-grafito"}`}
               >
                 {t.label}
               </button>
@@ -758,5 +768,6 @@ export function RegistroVale() {
         }}
       />
     </div>
+    </>
   );
 }

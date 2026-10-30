@@ -1,7 +1,7 @@
 /**
  * Cálculos de negocio puros (sin React). Todo lo derivado se calcula,
  * no se guarda: saldo, semáforo, "sigue comprando", último precio, cierre.
- * En Supabase esto mismo vive como vistas (ver supabase/schema.sql).
+ * En Postgres hay vistas equivalentes (ver db/schema.sql).
  */
 import type {
   Cliente, Config, Db, Fecha, LineaVale, Movimiento, Producto, ResumenCaja, Semaforo,

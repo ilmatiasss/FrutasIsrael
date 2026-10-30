@@ -5,6 +5,7 @@ import { useData } from "@/lib/store";
 import { antiguedad, porProducto, porSemana } from "@/lib/resumen";
 import { cant, clp, diasEntre, fechaCorta, hoy, sumarDias } from "@/lib/format";
 import { useEstados } from "../clientes";
+import { Encabezado } from "../Encabezado";
 import { BarraFila, ColumnasApiladas, Leyenda, Linea, SERIE } from "./Graficos";
 
 // antigüedad: un solo tono, más oscuro = más viejo
@@ -93,12 +94,7 @@ export function Resumen() {
 
   return (
     <div className="space-y-5">
-      <header>
-        <h1 className="stencil text-[28px] sm:text-[32px]">Resumen</h1>
-        <p className="text-sm text-gris">
-          Semana N°{actual.semana} · {fechaCorta(actual.lunes)} a hoy ({diasSemana} {diasSemana === 1 ? "día" : "días"})
-        </p>
-      </header>
+      <Encabezado href="/resumen" bajada={`Semana N°${actual.semana} · ${fechaCorta(actual.lunes)} a hoy (${diasSemana} ${diasSemana === 1 ? "día" : "días"}). Pasa el mouse o toca los gráficos para ver el detalle.`} />
 
       {/* la semana contada en palabras: lo primero que se lee */}
       <section className="hoja rounded-lg px-5 py-5 sm:px-7 sm:py-6">
