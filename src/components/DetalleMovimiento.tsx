@@ -3,7 +3,7 @@ import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Movimiento } from "@/lib/types";
 import { anular, useData } from "@/lib/store";
-import { ETIQUETA_TIPO } from "@/lib/calc";
+import { efectoDeuda, ETIQUETA_TIPO } from "@/lib/calc";
 import { cant, clp, fechaLarga, hora } from "@/lib/format";
 import { FormaChip, Modal, Timbre } from "./ui";
 import { useAviso } from "./Shell";
@@ -50,6 +50,13 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
   const cli = mov.cliente_id ? data.idx.cliente.get(mov.cliente_id) : null;
   const lineas = data.idx.lineasMov.get(mov.id) ?? [];
   const ligados = data.db.movimientos.filter((m) => m.origen_id === mov.id || m.id === mov.origen_id);
+  // cruce: cómo queda la cuenta del cliente si se anula este movimiento
+  const saldoTras = (() => {
+    if (!mov.cliente_id || mov.anulado_at) return null;
+    const actual = (data.idx.movsCliente.get(mov.cliente_id) ?? []).reduce((a, m) => a + efectoDeuda(m), 0);
+    const quita = efectoDeuda(mov) + ligados.filter((l) => l.origen_id === mov.id).reduce((a, l) => a + efectoDeuda(l), 0);
+    return actual - quita;
+  })();
 
   const confirmar = () => {
     if (motivo.trim().length < 4) return;
@@ -176,6 +183,11 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
             />
             {ligados.some((l) => l.origen_id === mov.id && !l.anulado_at) && (
               <p className="mt-2 text-sm text-naranjo">También se anulará el abono hecho en este mismo vale.</p>
+            )}
+            {saldoTras !== null && saldoTras < 0 && (
+              <p className="mt-2 text-sm text-fuji">
+                Ojo: este vale ya está pagado. Al anularlo, {cli?.alias ?? cli?.nombre} quedará con {clp(-saldoTras)} a favor.
+              </p>
             )}
             <div className="mt-3 flex justify-end gap-2">
               <button type="button" onClick={() => setAnulando(false)} className="btn btn-secundario">

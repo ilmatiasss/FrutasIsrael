@@ -188,6 +188,7 @@ export interface Evento {
     | "CERRAR_SEMANA"
     | "IMPORTAR_CSV"
     | "SUELDOS"
+    | "SEGURIDAD"
     | "REINICIAR_DEMO";
   entidad_id: UUID | null;
   detalle: string;

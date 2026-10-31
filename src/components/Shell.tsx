@@ -25,6 +25,7 @@ export const useAviso = () => useContext(AvisoCtx);
 const ATAJOS: Record<string, string> = Object.fromEntries(SECCIONES.map((x) => [x.tecla, x.href]));
 
 const MAS = [
+  { href: "/admin", label: "Cuentas y accesos" },
   { href: "/importar", label: "Importar planilla" },
   { href: "/bitacora", label: "Bitácora (historial)" },
   { href: "/ajustes", label: "Ajustes" },

@@ -294,7 +294,7 @@ export function crearSeed(anclaje: string = hoy()): Db {
           break;
       }
       if (monto > 0) {
-        const total = monto >= s ? s : round(monto, 5000);
+        const total = monto >= s ? s : Math.min(s, round(monto, 5000));
         const transf = rnd() < c.transf;
         borradores.push({
           ...base(uid(), fecha, entre(6, 13), entre(0, 59)),
@@ -336,7 +336,7 @@ export function crearSeed(anclaje: string = hoy()): Db {
 
   // Algunas anulaciones (auditables) — solo vales sin abono asociado
   const conAbono = new Set(movimientos.map((m) => m.origen_id).filter(Boolean));
-  const vales = movimientos.filter((m) => (m.tipo === "VALE_CREDITO" || m.tipo === "VALE_VENTA") && !m.importado && !conAbono.has(m.id));
+  const vales = movimientos.filter((m) => m.tipo === "VALE_VENTA" && !m.importado && !conAbono.has(m.id));
   for (let k = 0; k < 7; k++) {
     const m = vales[Math.floor(rnd() * vales.length)];
     if (m.anulado_at) continue;

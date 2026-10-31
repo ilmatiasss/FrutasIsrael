@@ -62,7 +62,8 @@ c ↵             → CRÉDITO y guarda   (e = efectivo, t = transferencia; Ctrl
 - `src/lib/store.ts` es la única puerta de escritura. Cada cambio se calcula como diferencia (filas nuevas o modificadas) y se envía a `POST /api/cambios`.
 - Si no hay internet, los cambios esperan en una cola guardada en el PC y se envían solos al volver.
 - El **N° de vale** lo confirma el servidor: si dos cajas usan el mismo, a una se le asigna el siguiente y se avisa en pantalla.
-- Acceso con una **clave del local** (`CLAVE_ACCESO`). La sesión dura 60 días por equipo.
+- Acceso: **clave del portal** para el personal y **cuentas de administrador** (usuario + contraseña) que crean cuentas y cambian la clave. Todo cifrado en la base; ver [`docs/seguridad.md`](docs/seguridad.md).
+- **Verificación de datos**: cruces automáticos entre vales, abonos, clientes, caja y remuneraciones (en Cuentas y accesos).
 
 ```
 db/schema.sql           tablas Postgres (Neon), triggers de inmutabilidad, vistas

@@ -259,7 +259,7 @@ function conPendientes(d: Db): Db {
 let iniciado = false;
 async function iniciar() {
   if (iniciado) return;
-  if (location.pathname === "/entrar") return; // sin sesión todavía: no hay nada que cargar
+  if (location.pathname === "/entrar" || location.pathname === "/instalar") return; // sin sesión todavía: no hay nada que cargar
   iniciado = true;
   cola = leer<Lote[]>(KEY_COLA) ?? [];
   let r: Response | null = null;
@@ -272,7 +272,7 @@ async function iniciar() {
     modo = "local";
     db = cargarLocal();
     escribir(KEY, db);
-  } else if (r && r.status === 409) {
+  } else if (r && (r.status === 409 || r.status === 428)) {
     modo = "instalar";
     if (!location.pathname.startsWith("/instalar")) location.assign("/instalar");
   } else if (r && r.status === 401) {
@@ -368,6 +368,29 @@ export function useSync(): EstadoSync {
 
 export function reintentarAhora() {
   void enviar();
+}
+
+/**
+ * Cierra la sesión en este equipo y borra la copia local de los datos, para
+ * que no queden en el navegador. Si hay cambios sin enviar, no cierra.
+ */
+export async function cerrarSesion(): Promise<{ ok: boolean; pendientes: number }> {
+  const pendientes = cola.reduce((a, l) => a + l.cambios.length, 0);
+  if (pendientes) {
+    void enviar();
+    return { ok: false, pendientes };
+  }
+  await fetch("/api/sesion", { method: "DELETE" }).catch(() => null);
+  try {
+    localStorage.removeItem(KEY_NUBE);
+    localStorage.removeItem(KEY_COLA);
+  } catch {}
+  location.assign("/entrar");
+  return { ok: true, pendientes: 0 };
+}
+
+export function modoActual(): Modo {
+  return modo;
 }
 
 /** Base + índices memoizados */

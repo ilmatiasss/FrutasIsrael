@@ -13,6 +13,7 @@ const COLOR: Record<Evento["accion"], string> = {
   CERRAR_SEMANA: "#26221d",
   IMPORTAR_CSV: "#dd7420",
   SUELDOS: "#c99611",
+  SEGURIDAD: "#111827",
   REINICIAR_DEMO: "#6b6255",
 };
 const ETIQUETA: Record<Evento["accion"], string> = {
@@ -24,6 +25,7 @@ const ETIQUETA: Record<Evento["accion"], string> = {
   CERRAR_SEMANA: "Cierre semanal",
   IMPORTAR_CSV: "Importación",
   SUELDOS: "Sueldos",
+  SEGURIDAD: "Seguridad",
   REINICIAR_DEMO: "Demo",
 };
 

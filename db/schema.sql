@@ -225,3 +225,41 @@ select tenant_id, fecha,
 from movimientos
 where anulado_at is null
 group by tenant_id, fecha;
+
+-- -----------------------------------------------------------------------------
+-- Acceso: clave del portal (para todo el personal) y cuentas de administrador
+-- Las claves se guardan como hash scrypt; nunca en texto. El secreto que firma
+-- las sesiones se genera al instalar y vive solo en la base (no en Vercel).
+-- -----------------------------------------------------------------------------
+create table if not exists seguridad (
+  tenant_id        text primary key references tenants(id),
+  clave_hash       text not null,          -- clave global del portal
+  clave_version    int not null default 1, -- sube al cambiarla: cierra todas las sesiones
+  secreto          text not null,          -- firma de sesiones
+  actualizado_por  text,
+  updated_at       timestamptz not null default now()
+);
+
+create table if not exists admins (
+  id            text primary key,
+  tenant_id     text not null references tenants(id),
+  usuario       text not null,
+  nombre        text not null,
+  hash          text not null,
+  activo        boolean not null default true,
+  creado_por    text,
+  created_at    timestamptz not null default now(),
+  ultimo_acceso timestamptz,
+  unique (tenant_id, usuario)
+);
+
+create table if not exists intentos_acceso (
+  id      bigserial primary key,
+  tenant_id text,
+  ip      text not null,
+  tipo    text not null check (tipo in ('PORTAL', 'ADMIN')),
+  usuario text,
+  ok      boolean not null,
+  at      timestamptz not null default now()
+);
+create index if not exists intentos_ip_idx on intentos_acceso (ip, at desc);

@@ -50,6 +50,8 @@ export async function enTransaccion<T>(fn: (c: PoolClient) => Promise<T>): Promi
 /** El locatario de esta instalación (piloto: uno solo). */
 export async function tenantId(): Promise<string | null> {
   if (process.env.TENANT_ID) return process.env.TENANT_ID;
+  const t = await pool().query("select to_regclass('public.tenants') is not null as ok");
+  if (!t.rows[0]?.ok) return null;
   const r = await pool().query("select id from tenants order by created_at limit 1");
   return r.rows[0]?.id ?? null;
 }

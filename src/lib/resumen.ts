@@ -22,19 +22,21 @@ export function porSemana(db: Db, hoy: Fecha, n = 13): Semana[] {
   }
   const primero = semanas[0].lunes;
   const movs = [...db.movimientos].sort((a, b) => a.fecha.localeCompare(b.fecha));
-  let calle = 0;
+  // "en la calle" = lo que deben los clientes con deuda (los saldos a favor no restan),
+  // igual que en Clientes, Inicio y el cierre semanal
+  const saldo = new Map<string, number>();
   let k = 0;
   for (const s of semanas) {
     const domingo = sumarDias(s.lunes, 6);
     while (k < movs.length && movs[k].fecha <= domingo) {
       const m = movs[k++];
-      calle += efectoDeuda(m);
+      if (m.cliente_id) saldo.set(m.cliente_id, (saldo.get(m.cliente_id) ?? 0) + efectoDeuda(m));
       if (m.fecha < primero || !vivo(m) || m.importado) continue;
       if (m.tipo === "VALE_VENTA") { s.contado += m.total; s.vales++; }
       if (m.tipo === "VALE_CREDITO") { s.credito += m.total; s.vales++; }
       if (m.tipo === "ABONO") s.abonos += m.total;
     }
-    s.calle = calle;
+    s.calle = [...saldo.values()].reduce((a, v) => a + Math.max(0, v), 0);
   }
   return semanas;
 }

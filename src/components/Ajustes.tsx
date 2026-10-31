@@ -1,6 +1,6 @@
 "use client";
 import { useState } from "react";
-import { reiniciarDemo, setConfig, useData, useSync } from "@/lib/store";
+import { cerrarSesion, reiniciarDemo, setConfig, useData, useSync } from "@/lib/store";
 import { useAviso } from "./Shell";
 import { COLOR_SEMAFORO } from "./ui";
 
@@ -84,8 +84,8 @@ export function Ajustes() {
             <button
               type="button"
               onClick={async () => {
-                await fetch("/api/sesion", { method: "DELETE" });
-                location.assign("/entrar");
+                const r = await cerrarSesion();
+                if (!r.ok) avisar({ titulo: "Hay cambios sin enviar", detalle: `Espere a que se guarden (${r.pendientes}) antes de cerrar sesión.`, tono: "rojo" });
               }}
               className="btn btn-secundario mt-3"
             >
