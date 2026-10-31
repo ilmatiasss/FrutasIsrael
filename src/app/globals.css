@@ -7,43 +7,45 @@
    ========================================================================== */
 
 @theme {
-  /* Huerto: crema, verde hoja, tomate para la deuda, plátano para avisos */
-  --color-papel: #fbf7ee;
+  /* Corporativo: grises fríos, verde oscuro de marca, rojo solo para deuda */
+  --color-papel: #f4f5f7;
   --color-hoja: #ffffff;
-  --color-carton: #f4eddf;
-  --color-kraft: #e3d8c3;
-  --color-kraft-osc: #8a7350;
-  --color-linea: #eee6d6;
-  --color-grafito: #2b2620;
-  --color-gris: #6f665a;
-  --color-tinta: #2f7d45;
-  --color-tinta-clara: #3f9657;
-  --color-verde-suave: #e8f3e6;
-  --color-fuji: #d0402e;
-  --color-fuji-osc: #a5301f;
-  --color-tomate-suave: #fce9e4;
-  --color-pera: #2f7d45;
-  --color-limon: #d9a514;
-  --color-platano-suave: #fcf3d6;
-  --color-naranjo: #ef8a24;
-  --color-naranja-suave: #fdeedc;
-  --color-uva: #6d4f9c;
-  --color-uva-suave: #efe9f7;
-  --color-pizarra: #2b2f2c;
+  --color-carton: #f0f2f5;
+  --color-kraft: #d4d8df;
+  --color-kraft-osc: #5b6472;
+  --color-linea: #e5e7eb;
+  --color-grafito: #111827;
+  --color-gris: #6b7280;
+  --color-tinta: #166534;
+  --color-tinta-clara: #15803d;
+  --color-verde-suave: #ecf5ef;
+  --color-fuji: #b42318;
+  --color-fuji-osc: #912018;
+  --color-tomate-suave: #fdecea;
+  --color-pera: #15803d;
+  --color-limon: #b45309;
+  --color-platano-suave: #fef6e7;
+  --color-naranjo: #c2410c;
+  --color-naranja-suave: #fff1e6;
+  --color-uva: #4f46e5;
+  --color-uva-suave: #eef2ff;
+  --color-marca: #14532d;
+  --color-pizarra: #0f1a14;
   --color-tiza: #efebdd;
-  --color-resaltador: #fff1b8;
+  --color-resaltador: #fff4c2;
 
-  --radius-md: 0.7rem;
-  --radius-lg: 1.1rem;
-  --radius-xl: 1.5rem;
+  --radius-md: 0.375rem;
+  --radius-lg: 0.5rem;
+  --radius-xl: 0.625rem;
+  --radius-2xl: 0.75rem;
 
-  --font-stencil: var(--f-titulo), Georgia, serif;
+  --font-stencil: var(--f-sans), system-ui, sans-serif;
   --font-sans: var(--f-sans), system-ui, sans-serif;
   --font-mono: var(--f-sans), system-ui, sans-serif;
   --font-mano: var(--f-sans), system-ui, sans-serif;
 
-  --animate-entra: entra 220ms ease-out both;
-  --animate-timbre: timbre 260ms ease-out both;
+  --animate-entra: entra 180ms ease-out both;
+  --animate-timbre: timbre 220ms ease-out both;
   --animate-resalta: resalta 1800ms ease-out both;
 }
 
@@ -55,7 +57,7 @@
     background-color: var(--color-papel);
     color: var(--color-grafito);
     font-family: var(--font-sans);
-    font-size: 16px;
+    font-size: 15px;
     -webkit-font-smoothing: antialiased;
     font-feature-settings: "tnum" 1;
     min-height: 100dvh;
@@ -70,20 +72,17 @@
   /* ------------------------------ tipografía ------------------------------ */
 
   /* títulos: condensada y firme, en tipo oración (la stencil queda solo en la marca) */
-  /* títulos: serif suave, como letrero pintado de verdulería */
   .stencil {
-    font-family: var(--font-stencil);
+    font-family: var(--font-sans);
     font-weight: 650;
-    font-variation-settings: "SOFT" 100, "opsz" 72;
     letter-spacing: -0.015em;
-    line-height: 1.05;
+    line-height: 1.15;
   }
   .marca {
-    font-family: var(--font-stencil);
-    font-weight: 750;
-    font-variation-settings: "SOFT" 100, "opsz" 72;
-    letter-spacing: -0.02em;
-    line-height: 1;
+    font-family: var(--font-sans);
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    line-height: 1.1;
   }
 
   .cifra {
@@ -99,8 +98,9 @@
     padding-bottom: 1px;
   }
   .rotulo {
-    font-size: 13px;
-    font-weight: 700;
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.02em;
     color: var(--color-gris);
   }
 
@@ -111,7 +111,7 @@
     background-color: var(--color-hoja);
     border: 1px solid var(--color-linea);
     border-radius: var(--radius-lg);
-    box-shadow: 0 1px 2px rgba(60, 45, 20, 0.04), 0 8px 24px -16px rgba(60, 45, 20, 0.18);
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.05);
   }
 
   /* la perforación del talonario: solo en la hoja del vale y del abono */
@@ -145,8 +145,8 @@
 
   /* un campo es una caja clara: se ve dónde escribir */
   .campo {
-    background: #fffdf8;
-    border: 1.5px solid var(--color-kraft);
+    background: #fff;
+    border: 1px solid var(--color-kraft);
     border-radius: var(--radius-md);
     outline: none;
     padding: 0.5rem 0.75rem;
@@ -155,30 +155,30 @@
     transition: border-color 120ms, box-shadow 120ms, background-color 120ms;
   }
   .campo::placeholder {
-    color: #b0a593;
+    color: #9ca3af;
     font-weight: 400;
   }
   .campo:hover {
-    border-color: #cfc1a6;
+    border-color: #b8bec8;
   }
   .campo:focus {
     background: #fff;
     border-color: var(--color-tinta);
-    box-shadow: 0 0 0 4px rgba(47, 125, 69, 0.15);
+    box-shadow: 0 0 0 3px rgba(22, 101, 52, 0.15);
   }
   .campo:disabled {
     opacity: 0.5;
   }
   .campo-error {
     border-color: var(--color-fuji) !important;
-    box-shadow: 0 0 0 4px rgba(208, 64, 46, 0.12) !important;
+    box-shadow: 0 0 0 3px rgba(180, 35, 24, 0.12) !important;
   }
 
   .foco:focus-visible,
   button:focus-visible,
   a:focus-visible,
   [tabindex="0"]:focus-visible {
-    outline: 3px solid rgba(47, 125, 69, 0.45);
+    outline: 2px solid rgba(22, 101, 52, 0.55);
     outline-offset: 2px;
   }
 
@@ -189,9 +189,9 @@
     align-items: center;
     justify-content: center;
     gap: 0.5rem;
-    border-radius: 999px;
-    padding: 0.6rem 1.15rem;
-    font-weight: 700;
+    border-radius: var(--radius-md);
+    padding: 0.55rem 1rem;
+    font-weight: 600;
     line-height: 1.1;
     transition: background-color 120ms, transform 80ms, box-shadow 120ms;
   }
@@ -201,13 +201,13 @@
   .btn-primario {
     background: var(--color-tinta);
     color: #fff;
-    box-shadow: 0 2px 0 #1f5a31;
+    box-shadow: 0 1px 2px rgba(16, 24, 40, 0.1);
   }
   .btn-primario:hover {
-    background: #286c3b;
+    background: var(--color-marca);
   }
   .btn-secundario {
-    border: 1.5px solid var(--color-kraft);
+    border: 1px solid var(--color-kraft);
     background: #fff;
     color: var(--color-grafito);
   }
@@ -224,17 +224,17 @@
     display: inline-flex;
     align-items: center;
     gap: 0.45rem;
-    border: 1.5px solid var(--color-kraft);
-    border-radius: 999px;
-    padding: 0.45rem 0.95rem;
-    font-weight: 700;
+    border: 1px solid var(--color-kraft);
+    border-radius: var(--radius-md);
+    padding: 0.4rem 0.85rem;
+    font-weight: 600;
     color: var(--color-gris);
     background: #fff;
     transition: all 120ms;
   }
   .opcion:hover {
     color: var(--color-grafito);
-    border-color: #cfc1a6;
+    border-color: #b8bec8;
   }
   .opcion[aria-checked="true"],
   .opcion[aria-pressed="true"] {
@@ -288,9 +288,9 @@
     display: inline-flex;
     align-items: center;
     gap: 0.4em;
-    border-radius: 999px;
-    padding: 0.2em 0.7em;
-    font-weight: 700;
+    border-radius: 4px;
+    padding: 0.15em 0.55em;
+    font-weight: 600;
     font-size: 0.82em;
     line-height: 1.35;
     white-space: nowrap;
@@ -399,8 +399,9 @@
     margin: 10mm;
   }
   @media print {
+    html,
     body {
-      background: #fff;
+      background: #fff !important;
     }
     main {
       padding: 0 !important;

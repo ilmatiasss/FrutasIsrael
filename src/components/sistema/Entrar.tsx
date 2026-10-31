@@ -1,7 +1,7 @@
 "use client";
 import { useSearchParams } from "next/navigation";
 import { useState, type FormEvent } from "react";
-import { Manzana } from "../Iconos";
+import { Logo } from "../Iconos";
 
 export function Entrar() {
   const params = useSearchParams();
@@ -22,12 +22,12 @@ export function Entrar() {
   return (
     <div className="mx-auto mt-[8vh] max-w-sm">
       <form onSubmit={enviar} className="hoja space-y-4 p-6 text-center">
-        <div className="mx-auto flex size-16 items-center justify-center rounded-2xl bg-tomate-suave">
-          <Manzana size={40} />
+        <div className="mx-auto flex justify-center">
+          <Logo size={120} />
         </div>
         <div>
-          <h1 className="stencil text-3xl">Frutas Israel</h1>
-          <p className="text-gris">Escribe la clave del local para entrar.</p>
+          <h1 className="stencil text-2xl">Frutas Israel</h1>
+          <p className="text-gris">Gestión comercial · Ingresa la clave de acceso.</p>
         </div>
         <input
           autoFocus
@@ -35,12 +35,12 @@ export function Entrar() {
           value={clave}
           onChange={(e) => setClave(e.target.value)}
           className="campo text-center text-xl"
-          placeholder="Clave"
+          placeholder="Clave de acceso"
           aria-label="Clave del local"
         />
-        {error && <p className="font-bold text-fuji">{error}</p>}
-        <button type="submit" disabled={!clave || cargando} className="btn btn-primario w-full py-3 text-lg disabled:opacity-50">
-          {cargando ? "Entrando…" : "Entrar"}
+        {error && <p className="font-semibold text-fuji">{error}</p>}
+        <button type="submit" disabled={!clave || cargando} className="btn btn-primario w-full py-2.5 disabled:opacity-50">
+          {cargando ? "Ingresando…" : "Ingresar"}
         </button>
         <p className="text-xs text-gris">Este computador queda con la sesión abierta por 60 días.</p>
       </form>

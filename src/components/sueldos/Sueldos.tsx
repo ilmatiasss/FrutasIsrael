@@ -9,10 +9,10 @@ import { useAviso } from "../Shell";
 import { Modal } from "../ui";
 
 const PASOS = [
-  { titulo: "Agrega al equipo", texto: "Con «+ Trabajador»: nombre, qué hace y cómo se le paga (por día, semanal o mensual)." },
-  { titulo: "Marca los días", texto: "A los que se pagan por día, toca los días que vinieron. El total se calcula solo." },
-  { titulo: "Adelantos y pagos", texto: "Anota cada adelanto y el pago final. Si sale plata del cajón, queda también en el cierre de caja." },
-  { titulo: "Revisa lo que falta", texto: "Cada tarjeta dice cuánto le corresponde, cuánto se le pagó y cuánto falta." },
+  { titulo: "Personal", texto: "Con «+ Trabajador» registre nombre, cargo y modalidad de pago (diaria, semanal o mensual)." },
+  { titulo: "Asistencia", texto: "Para pago diario, marque los días trabajados. El monto se calcula automáticamente." },
+  { titulo: "Anticipos y pagos", texto: "Registre anticipos y pagos. Los pagos en efectivo desde caja se reflejan como egreso en el cierre." },
+  { titulo: "Saldo", texto: "Cada ficha indica el monto devengado, lo pagado y el saldo por pagar." },
 ];
 
 const DIAS_CORTOS = ["L", "M", "M", "J", "V", "S", "D"];
@@ -54,7 +54,7 @@ export function Sueldos() {
     <div>
       <Encabezado
         href="/sueldos"
-        bajada="Días trabajados, adelantos y pagos al equipo. Todo queda anotado."
+        bajada="Asistencia, anticipos, bonos, descuentos y pagos del personal."
         pasos={PASOS}
         derecha={
           <button type="button" onClick={() => setEditando("nuevo")} className="btn btn-primario">
@@ -68,7 +68,7 @@ export function Sueldos() {
         <button type="button" onClick={() => setLunes(sumarDias(lunes, -7))} className="btn btn-secundario px-3 py-1.5" aria-label="Semana anterior">
           ←
         </button>
-        <p className="px-1 font-bold">
+        <p className="px-1 font-semibold">
           Semana N°{semanaISO(lunes).semana}{" "}
           <span className="font-semibold text-gris">
             <span className="sm:hidden">· {ddmm(lunes)} al {ddmm(semana.hasta)}</span>
@@ -85,7 +85,7 @@ export function Sueldos() {
           →
         </button>
         {lunes !== lunesHoy && (
-          <button type="button" onClick={() => setLunes(lunesHoy)} className="text-sm font-bold text-tinta underline underline-offset-4">
+          <button type="button" onClick={() => setLunes(lunesHoy)} className="text-sm font-semibold text-tinta underline underline-offset-4">
             esta semana
           </button>
         )}
@@ -101,13 +101,13 @@ export function Sueldos() {
 
       {data.db.trabajadores.length === 0 ? (
         <div className="hoja p-10 text-center">
-          <p className="stencil text-2xl">Todavía no hay trabajadores</p>
+          <p className="stencil text-xl">Sin personal registrado</p>
           <p className="mt-2 text-gris">Agrega al primero con el botón «+ Trabajador».</p>
         </div>
       ) : (
         <div className="space-y-8">
           <Grupo
-            titulo="Pago semanal y por día"
+            titulo="Pago semanal y diario"
             nota={`Semana del ${ddmm(semana.desde)} al ${ddmm(semana.hasta)}`}
             cuentas={semanales}
             totales={{ corresponde: sum(semanales, "corresponde"), pagado: sum(semanales, "pagado"), falta: sum(semanales, "falta") }}
@@ -151,7 +151,7 @@ function Grupo({
     <section>
       <header className="mb-3 flex flex-wrap items-end justify-between gap-2">
         <div>
-          <h2 className="stencil text-2xl">{titulo}</h2>
+          <h2 className="stencil text-lg">{titulo}</h2>
           <p className="text-sm text-gris first-letter:uppercase">{nota}</p>
         </div>
         <p className="text-sm text-gris">
@@ -186,15 +186,15 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
   return (
     <article className={`hoja p-4 sm:p-5 ${t.activo ? "" : "opacity-60"}`}>
       <header className="flex items-start gap-3">
-        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-platano-suave text-lg font-black text-[#8a6a0c]">{iniciales(t.nombre)}</span>
+        <span className="flex size-12 shrink-0 items-center justify-center rounded-full bg-verde-suave text-base font-semibold text-tinta">{iniciales(t.nombre)}</span>
         <div className="min-w-0 flex-1">
-          <p className="truncate text-lg font-extrabold">{t.nombre}</p>
+          <p className="truncate text-lg font-semibold">{t.nombre}</p>
           <p className="text-sm text-gris">
             {t.cargo} · <span className="cifra">{clp(t.monto)}</span> {MODALIDAD[t.modalidad].por}
             {!t.activo && " · inactivo"}
           </p>
         </div>
-        <button type="button" onClick={() => onEditar(t)} className="no-print text-sm font-bold text-tinta underline underline-offset-4">
+        <button type="button" onClick={() => onEditar(t)} className="no-print text-sm font-semibold text-tinta underline underline-offset-4">
           Editar
         </button>
       </header>
@@ -202,7 +202,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
       {/* días trabajados */}
       {t.modalidad === "DIA" && (
         <div className="mt-4">
-          <p className="mb-1.5 text-sm font-bold text-gris">Días trabajados · toca para marcar</p>
+          <p className="mb-1.5 text-sm font-semibold text-gris">Asistencia de la semana</p>
           <div className="grid grid-cols-7 gap-1.5">
             {DIAS_CORTOS.map((d, i) => {
               const f = sumarDias(c.periodo.desde, i);
@@ -215,7 +215,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
                   disabled={futuro}
                   aria-pressed={on}
                   onClick={() => marcarDia(t.id, f, !on)}
-                  className={`flex flex-col items-center rounded-xl border-[1.5px] py-1.5 text-sm font-extrabold transition disabled:opacity-30 ${on ? "border-tinta bg-tinta text-white" : "border-kraft bg-hoja text-gris hover:border-tinta"}`}
+                  className={`flex flex-col items-center rounded-md border py-1.5 text-sm font-semibold transition disabled:opacity-30 ${on ? "border-tinta bg-tinta text-white" : "border-kraft bg-hoja text-gris hover:border-tinta"}`}
                   title={on ? "Trabajó (toca para quitar)" : "No trabajó (toca para marcar)"}
                 >
                   {d}
@@ -231,27 +231,27 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
       <dl className="mt-4 space-y-1 text-[15px]">
         <div className="flex justify-between gap-3">
           <dt className="text-gris">{t.modalidad === "DIA" ? `${c.dias.length} ${c.dias.length === 1 ? "día" : "días"} × ${clp(t.monto)}` : t.modalidad === "SEMANA" ? "Sueldo de la semana" : "Sueldo del mes"}</dt>
-          <dd className="cifra font-bold">{clp(c.base)}</dd>
+          <dd className="cifra font-semibold">{clp(c.base)}</dd>
         </div>
         {c.bonos > 0 && (
           <div className="flex justify-between gap-3">
             <dt className="text-gris">+ Bonos</dt>
-            <dd className="cifra font-bold">{clp(c.bonos)}</dd>
+            <dd className="cifra font-semibold">{clp(c.bonos)}</dd>
           </div>
         )}
         {c.descuentos > 0 && (
           <div className="flex justify-between gap-3">
             <dt className="text-gris">− Descuentos</dt>
-            <dd className="cifra font-bold">−{clp(c.descuentos)}</dd>
+            <dd className="cifra font-semibold">−{clp(c.descuentos)}</dd>
           </div>
         )}
         <div className="flex justify-between gap-3 border-t border-linea pt-1">
-          <dt className="font-bold">Le corresponde</dt>
-          <dd className="cifra font-extrabold">{clp(c.corresponde)}</dd>
+          <dt className="font-semibold">Devengado</dt>
+          <dd className="cifra font-semibold">{clp(c.corresponde)}</dd>
         </div>
         <div className="flex justify-between gap-3">
-          <dt className="text-gris">Ya pagado{c.adelantos > 0 ? ` (incluye ${clp(c.adelantos)} en adelantos)` : ""}</dt>
-          <dd className="cifra font-bold">{clp(c.pagado)}</dd>
+          <dt className="text-gris">Pagado{c.adelantos > 0 ? ` (incluye ${clp(c.adelantos)} en anticipos)` : ""}</dt>
+          <dd className="cifra font-semibold">{clp(c.pagado)}</dd>
         </div>
       </dl>
       <div className="mt-2 h-2.5 overflow-hidden rounded-full bg-linea">
@@ -260,16 +260,16 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
       <p className="mt-3 flex items-baseline justify-between gap-3">
         {c.falta > 0 ? (
           <>
-            <span className="font-bold">Falta pagar</span>
-            <span className="cifra text-2xl font-black text-fuji">{clp(c.falta)}</span>
+            <span className="font-semibold">Saldo por pagar</span>
+            <span className="cifra text-2xl font-semibold text-fuji">{clp(c.falta)}</span>
           </>
         ) : c.falta < 0 ? (
           <>
-            <span className="font-bold text-limon">Se le pagó de más</span>
-            <span className="cifra text-2xl font-black text-limon">{clp(-c.falta)}</span>
+            <span className="font-semibold text-limon">Se le pagó de más</span>
+            <span className="cifra text-2xl font-semibold text-limon">{clp(-c.falta)}</span>
           </>
         ) : (
-          <span className="font-extrabold text-tinta">✓ Pagado completo</span>
+          <span className="font-semibold text-tinta">Pagado</span>
         )}
       </p>
 
@@ -280,7 +280,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
           </button>
         )}
         <button type="button" onClick={() => onPagar(c, "ADELANTO")} className="btn btn-secundario flex-1 sm:flex-none">
-          Adelanto
+          Anticipo
         </button>
         <button type="button" onClick={() => onPagar(c, "BONO")} className="btn btn-secundario">
           Bono / descuento
@@ -289,7 +289,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
 
       {c.pagos.length > 0 && (
         <div className="mt-3 border-t border-linea pt-2">
-          <button type="button" onClick={() => setVerPagos((v) => !v)} className="no-print text-sm font-bold text-tinta" aria-expanded={verPagos}>
+          <button type="button" onClick={() => setVerPagos((v) => !v)} className="no-print text-sm font-semibold text-tinta" aria-expanded={verPagos}>
             {verPagos ? "▾" : "▸"} Movimientos de este período ({c.pagos.length})
           </button>
           {verPagos && (
@@ -302,7 +302,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
                       {p.movimiento_id && " · salió del cajón"}
                       {p.nota && <span className="text-gris"> · {p.nota}</span>}
                     </span>
-                    <span className="cifra font-bold">
+                    <span className="cifra font-semibold">
                       {p.tipo === "DESCUENTO" ? "−" : ""}
                       {clp(p.monto)}
                     </span>
@@ -327,7 +327,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
                       </button>
                     </form>
                   ) : (
-                    <button type="button" onClick={() => setAnulando(p.id)} className="no-print text-xs font-bold text-fuji">
+                    <button type="button" onClick={() => setAnulando(p.id)} className="no-print text-xs font-semibold text-fuji">
                       anular
                     </button>
                   )}
@@ -400,7 +400,7 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
         </div>
         <label className="block">
           <span className="rotulo">Monto</span>
-          <input ref={ref} value={monto} onChange={(e) => setMonto(e.target.value)} onBlur={() => m && setMonto(miles(m))} inputMode="numeric" placeholder="$" className="campo text-right text-2xl font-extrabold" />
+          <input ref={ref} value={monto} onChange={(e) => setMonto(e.target.value)} onBlur={() => m && setMonto(miles(m))} inputMode="numeric" placeholder="$" className="campo text-right text-2xl font-semibold" />
         </label>
         {tipo !== "BONO" && tipo !== "DESCUENTO" && (
           <div>
@@ -434,7 +434,7 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
           </label>
         </div>
         {m > 0 && (
-          <p className="rounded-xl bg-carton/60 px-3 py-2 text-sm">
+          <p className="rounded-md bg-carton/60 px-3 py-2 text-sm">
             Después de esto {despues > 0 ? <>faltará pagar <b className="cifra">{clp(despues)}</b></> : despues === 0 ? <b className="text-tinta">queda pagado completo</b> : <>quedará pagado de más <b className="cifra">{clp(-despues)}</b></>}.
           </p>
         )}
@@ -509,7 +509,7 @@ function EditarTrabajador({ t, onCerrar }: { t: Trabajador | "nuevo" | null; onC
                 role="radio"
                 aria-checked={f.modalidad === k}
                 onClick={() => setF({ ...f, modalidad: k })}
-                className={`rounded-xl border-[1.5px] px-3 py-2 text-left text-sm font-bold ${f.modalidad === k ? "border-tinta bg-verde-suave" : "border-kraft"}`}
+                className={`rounded-md border px-3 py-2 text-left text-sm font-semibold ${f.modalidad === k ? "border-tinta bg-verde-suave" : "border-kraft"}`}
               >
                 {MODALIDAD[k].label}
               </button>
@@ -519,7 +519,7 @@ function EditarTrabajador({ t, onCerrar }: { t: Trabajador | "nuevo" | null; onC
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="rotulo">Monto {MODALIDAD[f.modalidad].por}</span>
-            <input value={f.monto} onChange={(e) => setF({ ...f, monto: e.target.value })} onBlur={() => m && setF({ ...f, monto: miles(m) })} inputMode="numeric" className="campo text-right text-lg font-bold" placeholder="$" />
+            <input value={f.monto} onChange={(e) => setF({ ...f, monto: e.target.value })} onBlur={() => m && setF({ ...f, monto: miles(m) })} inputMode="numeric" className="campo text-right text-lg font-semibold" placeholder="$" />
           </label>
           <label className="block">
             <span className="rotulo">Teléfono (opcional)</span>

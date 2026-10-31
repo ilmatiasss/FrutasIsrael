@@ -14,10 +14,10 @@ import { Colillas } from "../vale/Colillas";
 import { Encabezado } from "../Encabezado";
 
 const PASOS = [
-  { titulo: "¿Quién paga?", texto: "Escribe el nombre o apodo del cliente y presiona Enter. Verás cuánto debe." },
-  { titulo: "¿Cuánto paga?", texto: "Escribe el monto (sirve 50k o 50 lucas). Enter con el campo vacío = paga todo." },
-  { titulo: "¿Cómo paga?", texto: "Efectivo o Transferencia (teclas E o T). Puedes anotar el banco en la nota." },
-  { titulo: "Registra", texto: "Botón «Registrar abono». Se descuentan primero los vales más antiguos." },
+  { titulo: "Cliente", texto: "Escriba nombre o alias y presione Enter. Se muestra la deuda vigente." },
+  { titulo: "Monto", texto: "Ingrese el monto (acepta 50k). Enter con el campo vacío registra el pago total." },
+  { titulo: "Forma de pago", texto: "Efectivo o Transferencia (teclas E o T). El banco puede indicarse en la nota." },
+  { titulo: "Registrar", texto: "El abono se aplica primero a los vales más antiguos." },
 ];
 
 type Forma = "EFECTIVO" | "TRANSFERENCIA";
@@ -136,12 +136,12 @@ export function RegistroAbono() {
 
   return (
     <>
-    <Encabezado href="/abono" bajada="Recibe un pago de alguien que debe: total o una parte." pasos={PASOS} />
+    <Encabezado href="/abono" bajada="Registro de pagos totales o parciales de deuda." pasos={PASOS} />
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_360px]">
       <section className="hoja mx-auto w-full max-w-[880px] px-4 pb-6 pt-5 sm:px-7 sm:pt-6" aria-label="Abono">
         <header className="flex items-start justify-between gap-4 border-b border-linea pb-3">
           <div>
-            <p className="stencil text-[22px]">Abono nuevo</p>
+            <p className="stencil text-[18px]">Nuevo abono</p>
             <p className="text-sm text-gris">Pago total o parcial de una deuda</p>
           </div>
           <p className="text-right">

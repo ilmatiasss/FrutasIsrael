@@ -99,7 +99,7 @@ export function CuentaCliente({ id }: { id: string }) {
             <p className="text-sm text-gris">
               <Link href="/clientes" className="hover:text-tinta">Clientes</Link> / Cuenta cliente
             </p>
-            <h1 className="stencil mt-1 break-words text-[30px] sm:text-[38px]">{c.alias ?? c.nombre}</h1>
+            <h1 className="stencil mt-1 break-words text-[24px] sm:text-[28px]">{c.alias ?? c.nombre}</h1>
             {c.alias && <p className="text-gris">{c.nombre}</p>}
             <div className="mt-3 flex flex-wrap items-center gap-x-4 gap-y-2 text-sm">
               <StickerSemaforo
@@ -173,7 +173,7 @@ export function CuentaCliente({ id }: { id: string }) {
       {/* ------------------------------ período ------------------------------ */}
       <section className="no-print flex flex-wrap items-center gap-x-4 gap-y-3 border-y border-linea py-3">
         <span className="text-[11px] uppercase tracking-[0.2em] text-gris">Período</span>
-        <div className="flex max-w-full overflow-x-auto rounded-full border-[1.5px] border-kraft bg-hoja p-0.5 text-sm" role="group" aria-label="Período">
+        <div className="flex max-w-full overflow-x-auto rounded-md border border-kraft bg-hoja p-0.5 text-sm" role="group" aria-label="Período">
           {(
             [
               ["mes", MESES[Number(hoy().slice(5, 7)) - 1]],
@@ -188,7 +188,7 @@ export function CuentaCliente({ id }: { id: string }) {
               type="button"
               onClick={() => setPeriodo(k)}
               aria-pressed={periodo === k}
-              className={`whitespace-nowrap rounded-full px-3 py-1 font-semibold first-letter:uppercase ${periodo === k ? "bg-tinta text-white" : "hover:bg-carton"}`}
+              className={`whitespace-nowrap rounded px-3 py-1 font-medium first-letter:uppercase ${periodo === k ? "bg-tinta text-white" : "hover:bg-carton"}`}
             >
               {l}
             </button>
@@ -256,7 +256,7 @@ export function CuentaCliente({ id }: { id: string }) {
                     <td className="cifra px-2 text-right font-semibold text-fuji">{mes.credito ? clp(mes.credito) : ""}</td>
                     <td className="cifra px-2 text-right font-semibold text-tinta">{mes.pago ? clp(mes.pago) : ""}</td>
                     <td className="cifra px-2 text-right font-semibold text-pera">{mes.venta ? clp(mes.venta) : ""}</td>
-                    <td className={`cifra px-3 text-right font-bold ${mes.saldoFinal > 0 ? "text-fuji" : "text-pera"}`}>{clp(mes.saldoFinal)}</td>
+                    <td className={`cifra px-3 text-right font-semibold ${mes.saldoFinal > 0 ? "text-fuji" : "text-pera"}`}>{clp(mes.saldoFinal)}</td>
                   </tr>
                   {semanas.map((s) => {
                     const filas = nuevoArriba ? [...s.filas].reverse() : s.filas;
@@ -311,11 +311,11 @@ export function CuentaCliente({ id }: { id: string }) {
                   <td colSpan={3} className="px-3 py-3 font-semibold">
                     Total del período
                   </td>
-                  <td className="cifra px-2 text-right font-bold text-fuji">{clp(totalPeriodo.credito)}</td>
-                  <td className="cifra px-2 text-right font-bold text-tinta">{clp(totalPeriodo.pago)}</td>
-                  <td className="cifra px-2 text-right font-bold text-pera">{clp(totalPeriodo.venta)}</td>
+                  <td className="cifra px-2 text-right font-semibold text-fuji">{clp(totalPeriodo.credito)}</td>
+                  <td className="cifra px-2 text-right font-semibold text-tinta">{clp(totalPeriodo.pago)}</td>
+                  <td className="cifra px-2 text-right font-semibold text-pera">{clp(totalPeriodo.venta)}</td>
                   <td className="px-3 text-right">
-                    <span className={`cifra doble-raya font-bold ${est.saldo > 0 ? "text-fuji" : "text-pera"}`}>
+                    <span className={`cifra doble-raya font-semibold ${est.saldo > 0 ? "text-fuji" : "text-pera"}`}>
                       {clp(libro.meses[libro.meses.length - 1].saldoFinal)}
                     </span>
                   </td>

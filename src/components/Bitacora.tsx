@@ -45,7 +45,7 @@ export function Bitacora() {
     <div className="space-y-6">
       <header className="flex flex-wrap items-end justify-between gap-4">
         <div>
-          <h1 className="stencil text-[28px] sm:text-[32px]">Bitácora</h1>
+          <h1 className="stencil text-[24px]">Bitácora</h1>
           <p className="mt-2 max-w-xl text-gris">
             Todo lo que pasa en el sistema queda escrito acá y no se puede borrar. Los movimientos nunca se eliminan: se anulan con motivo, usuario y hora.
           </p>

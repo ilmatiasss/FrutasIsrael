@@ -14,10 +14,10 @@ import { COLOR_SEMAFORO, MontoGrande, Punto, StickerSemaforo } from "../ui";
 import { Encabezado } from "../Encabezado";
 
 const PASOS = [
-  { titulo: "Busca", texto: "Escribe parte del nombre o apodo. También puedes filtrar por color." },
-  { titulo: "Los colores", texto: "Verde: al día. Amarillo: atrasado (15+ días sin pagar). Rojo: moroso (30+ días)." },
-  { titulo: "Abre la cuenta", texto: "Toca un cliente para ver todo su historial, cobrarle o agregarle deuda." },
-  { titulo: "¿Sigue comprando?", texto: "Se calcula solo por su última compra. Tócalo si quieres marcarlo a mano." },
+  { titulo: "Búsqueda", texto: "Escriba parte del nombre o alias, o filtre por estado." },
+  { titulo: "Estados", texto: "Al día; Atrasado (15+ días sin pago); Moroso (30+ días). Umbrales editables en Ajustes." },
+  { titulo: "Cuenta corriente", texto: "Seleccione un cliente para ver su historial, registrar abonos o cargar deuda." },
+  { titulo: "Actividad", texto: "«¿Compra?» se calcula por la última compra; puede fijarse manualmente." },
 ];
 
 type Orden = "cliente" | "deuda" | "dias" | "pago" | "compra" | "c30";
@@ -130,7 +130,7 @@ export function ListaClientes() {
     <div className="space-y-5">
       <Encabezado href="/clientes" bajada={`${todos.length} clientes · ${conDeudaN} con deuda`} pasos={PASOS} />
       <section className="hoja flex flex-wrap items-center justify-between gap-3 px-5 py-4">
-        <span className="font-bold text-gris">Fiado en la calle a la fecha</span>
+        <span className="font-semibold text-gris">Fiado en la calle a la fecha</span>
         <span className="text-[32px] leading-none sm:text-[40px]">
           <MontoGrande valor={enLaCalle} />
         </span>
@@ -175,7 +175,19 @@ export function ListaClientes() {
             Ya no compran
           </button>
         </div>
-        <button type="button" onClick={() => setNuevo(true)} className="btn btn-primario ml-auto py-1.5 text-sm">
+        <Link
+          href={`/imprimir/deudores?orden=${orden.k === "cliente" ? "nombre" : orden.k === "dias" ? "dias" : "deuda"}${sem.size ? `&estado=${[...sem].join(",")}` : ""}`}
+          target="_blank"
+          className="btn btn-secundario ml-auto py-1.5 text-sm"
+          title="Todos los clientes con deuda, con el filtro de estado elegido"
+        >
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinejoin="round" aria-hidden>
+            <path d="M7 8V3h10v5M7 17H4v-7h16v7h-3" />
+            <path d="M7 14h10v7H7z" />
+          </svg>
+          Imprimir deudores
+        </Link>
+        <button type="button" onClick={() => setNuevo(true)} className="btn btn-primario py-1.5 text-sm">
           + Cliente
         </button>
       </section>

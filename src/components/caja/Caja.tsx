@@ -5,10 +5,10 @@ import { CierreSemanal } from "./CierreSemanal";
 import { Encabezado } from "../Encabezado";
 
 const PASOS = [
-  { titulo: "Día o semana", texto: "«Diario» muestra toda la plata del día. «Semanal» (lunes a domingo) muestra solo con cuánta deuda quedó cada cliente." },
-  { titulo: "Cuenta la plata", texto: "Compara el efectivo del cajón con «Debe haber en caja». Las transferencias se revisan en el banco." },
-  { titulo: "Gastos e ingresos", texto: "Si salió plata del cajón (flete, colación, sueldo) anótala como Egreso." },
-  { titulo: "Imprime y cierra", texto: "Cada parte tiene su botón Imprimir, o imprime todo en una hoja. Al final, «Cerrar la caja»." },
+  { titulo: "Diario o semanal", texto: "«Diario» detalla los movimientos del día. «Semanal» (lunes a domingo) muestra el saldo de cada cliente al cierre." },
+  { titulo: "Arqueo", texto: "Compare el efectivo contado con «Debe haber en caja». Las transferencias se concilian con el banco." },
+  { titulo: "Egresos e ingresos", texto: "Registre como Egreso todo dinero que salga de caja (fletes, colaciones, remuneraciones)." },
+  { titulo: "Imprimir y cerrar", texto: "Imprima por sección o todo en una hoja; finalice con «Cerrar la caja»." },
 ];
 
 /** Cierre de caja con dos vistas: el día (detalle) y la semana (solo deuda). */
@@ -19,7 +19,7 @@ export function Caja() {
   const semanal = params.get("vista") === "semanal";
 
   const pestanas = (
-    <div className="no-print inline-flex rounded-full border-[1.5px] border-kraft bg-hoja p-1" role="tablist" aria-label="Tipo de cierre">
+    <div className="no-print inline-flex rounded-md border border-kraft bg-hoja p-0.5" role="tablist" aria-label="Tipo de cierre">
       {[
         { k: false, label: "Diario" },
         { k: true, label: "Semanal" },
@@ -30,7 +30,7 @@ export function Caja() {
           role="tab"
           aria-selected={semanal === t.k}
           onClick={() => router.replace(t.k ? `${path}?vista=semanal` : path)}
-          className={`rounded-full px-5 py-1.5 text-sm font-bold ${semanal === t.k ? "bg-tinta text-white" : "text-gris hover:text-grafito"}`}
+          className={`rounded px-4 py-1.5 text-sm font-medium ${semanal === t.k ? "bg-tinta text-white" : "text-gris hover:text-grafito"}`}
         >
           {t.label}
         </button>
@@ -40,7 +40,7 @@ export function Caja() {
 
   return (
     <>
-      <Encabezado href="/caja" bajada="Cuadra la plata del día o revisa con cuánta deuda cerró la semana." pasos={PASOS} />
+      <Encabezado href="/caja" bajada="Cuadratura diaria de caja y saldos de cartera al cierre de cada semana." pasos={PASOS} />
       {semanal ? <CierreSemanal pestanas={pestanas} /> : <CierreCaja pestanas={pestanas} />}
     </>
   );

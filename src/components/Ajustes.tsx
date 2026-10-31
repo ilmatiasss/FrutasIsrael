@@ -37,7 +37,7 @@ export function Ajustes() {
 
   return (
     <div className="mx-auto max-w-2xl space-y-8">
-      <h1 className="stencil text-[28px] sm:text-[32px]">Ajustes</h1>
+      <h1 className="stencil text-[24px]">Ajustes</h1>
 
       <section className="hoja rounded-lg px-6 py-5">
         <h2 className="text-lg font-semibold">Quién atiende la caja</h2>
@@ -95,7 +95,7 @@ export function Ajustes() {
         ) : (
           <p className="mt-1 text-gris">
             <b className="text-limon">Modo prueba:</b> los datos se guardan solo en este navegador. Para conectar la base de datos ve a{" "}
-            <a href="/instalar" className="font-bold text-tinta underline underline-offset-4">
+            <a href="/instalar" className="font-semibold text-tinta underline underline-offset-4">
               Conectar con Neon
             </a>
             .

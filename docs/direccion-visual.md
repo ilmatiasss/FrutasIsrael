@@ -1,6 +1,21 @@
 # Dirección visual
 
-## Versión 3: Huerto (la actual)
+## Versión 4: Corporativo (la actual)
+
+Pedido: un diseño más empresarial, menos "familiar".
+
+| Regla | Cómo se aplica |
+|---|---|
+| Estructura de sistema de gestión | Barra lateral verde oscuro (`#14532D`) con el logo, los módulos y sus atajos; barra superior con búsqueda y estado de conexión. En celular: barra inferior y menú «Más». |
+| Logo oficial | El círculo de la imagen del local (`public/logo.png`), también como ícono de la pestaña y en los encabezados impresos. |
+| Tipografía | *Inter* en todo, pesos 400–650, cifras tabulares. |
+| Colores | Grises fríos (`#F4F5F7` fondo, tarjetas blancas, bordes `#E5E7EB`), verde de marca para acciones, rojo `#B42318` solo para deuda, ámbar para atrasado. |
+| Formas | Bordes de 6–8 px, botones rectangulares, etiquetas de estado tipo badge. |
+| Íconos | De línea, monocromos, mismo grosor. Se quitaron las frutas ilustradas. |
+| Lenguaje | Términos de gestión: Abonos, Remuneraciones, Reportes, Anticipo, Devengado, Saldo por pagar, Cartera. |
+| Ayuda | Se mantiene la guía de 4 pasos por pantalla, en un panel sobrio («Ayuda»). |
+
+## Versión 3: Huerto
 
 Pedido: más intuitivo y didáctico, con el ambiente de las frutas y verduras.
 

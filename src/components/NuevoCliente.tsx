@@ -59,11 +59,11 @@ export function NuevoCliente({
         <p className="-mt-2 text-sm text-gris">Solo el nombre es obligatorio. Lo demás se puede completar después.</p>
         {campo("nombre", "Nombre", "Nombre y apellido o razón social", { ref, required: true })}
         <div className="grid grid-cols-2 gap-3">
-          {campo("alias", "Cómo le dicen", "EL FLACO")}
+          {campo("alias", "Alias", "EL FLACO")}
           {campo("telefono", "Teléfono", "+56 9 …", { inputMode: "tel" })}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          {campo("deuda", "Deuda que ya tiene", "ej: 350k", { inputMode: "numeric" })}
+          {campo("deuda", "Saldo inicial", "ej: 350k", { inputMode: "numeric" })}
           {campo("limite", "Tope de crédito", "opcional", { inputMode: "numeric" })}
         </div>
         <div className="flex justify-end gap-2 pt-2">

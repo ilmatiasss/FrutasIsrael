@@ -1,7 +1,7 @@
 "use client";
 import { useEffect, useState } from "react";
 import { datosParaInstalar } from "@/lib/store";
-import { Hoja } from "../Iconos";
+import { IconoAbono } from "../Iconos";
 
 type Estado = { hayBase: boolean; instalada: boolean; clave: boolean; error?: string } | null;
 type Opcion = "vacia" | "este-pc" | "ejemplo";
@@ -53,8 +53,8 @@ export function Instalar() {
   return (
     <div className="mx-auto max-w-2xl space-y-5">
       <header>
-        <p className="flex items-center gap-1.5 font-bold text-tinta">
-          <Hoja size={18} /> Base de datos
+        <p className="flex items-center gap-1.5 text-sm font-semibold text-tinta">
+          <IconoAbono size={16} /> Base de datos
         </p>
         <h1 className="stencil text-[32px]">Conectar con Neon</h1>
       </header>
@@ -108,7 +108,7 @@ export function Instalar() {
           </div>
           <label className="block">
             <span className="rotulo">N° del próximo vale del talonario</span>
-            <input value={numero} onChange={(e) => setNumero(e.target.value)} inputMode="numeric" className="campo max-w-[12rem] text-lg font-bold" placeholder="ej: 20308" />
+            <input value={numero} onChange={(e) => setNumero(e.target.value)} inputMode="numeric" className="campo max-w-[12rem] text-lg font-semibold" placeholder="ej: 20308" />
             <span className="mt-1 block text-sm text-gris">Para seguir la numeración que ya usan. Si lo dejas vacío parte en 1.</span>
           </label>
           <div>
@@ -121,7 +121,7 @@ export function Instalar() {
                   role="radio"
                   aria-checked={opcion === o.k}
                   onClick={() => setOpcion(o.k)}
-                  className={`rounded-xl border-[1.5px] p-3 text-left ${opcion === o.k ? "border-tinta bg-verde-suave" : "border-kraft"}`}
+                  className={`rounded-md border p-3 text-left ${opcion === o.k ? "border-tinta bg-verde-suave" : "border-kraft"}`}
                 >
                   <b>{o.t}</b>
                   <span className="block text-sm text-gris">{o.d}</span>
@@ -130,11 +130,11 @@ export function Instalar() {
             </div>
           </div>
           {!estado.clave && (
-            <p className="rounded-xl bg-platano-suave p-3 text-sm">
+            <p className="rounded-md bg-platano-suave p-3 text-sm">
               <b>Ojo:</b> no hay <code>CLAVE_ACCESO</code> configurada. Cualquiera con el link podría entrar. Agrégala en Vercel antes de usarla con clientes reales.
             </p>
           )}
-          {error && <p className="font-bold text-fuji">{error}</p>}
+          {error && <p className="font-semibold text-fuji">{error}</p>}
           <button type="button" onClick={instalar} disabled={trabajando} className="btn btn-primario px-6 py-3 text-lg disabled:opacity-50">
             {trabajando ? "Creando…" : "Crear la base"}
           </button>

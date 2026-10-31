@@ -9,10 +9,10 @@ export const MODALIDAD: Record<Modalidad, { label: string; por: string; periodo:
 };
 
 export const TIPO_PAGO: Record<PagoSueldo["tipo"], { label: string; signo: 1 | -1; ayuda: string }> = {
-  PAGO: { label: "Pago", signo: 1, ayuda: "Pago del sueldo (total o parte)" },
-  ADELANTO: { label: "Adelanto", signo: 1, ayuda: "Plata que se le pasa antes del día de pago" },
-  BONO: { label: "Bono", signo: 1, ayuda: "Plata extra que se suma a lo que le corresponde" },
-  DESCUENTO: { label: "Descuento", signo: -1, ayuda: "Se resta de lo que le corresponde (ej: faltante)" },
+  PAGO: { label: "Pago", signo: 1, ayuda: "Pago de remuneración (total o parcial)" },
+  ADELANTO: { label: "Anticipo", signo: 1, ayuda: "Pago a cuenta antes de la fecha de pago" },
+  BONO: { label: "Bono", signo: 1, ayuda: "Monto adicional que se suma a lo devengado" },
+  DESCUENTO: { label: "Descuento", signo: -1, ayuda: "Monto que se resta de lo devengado (ej.: faltante de caja)" },
 };
 
 export interface Periodo {

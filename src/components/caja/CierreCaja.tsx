@@ -37,7 +37,7 @@ function BotonImprimir({ fecha, modulo }: { fecha: string; modulo: Modulo }) {
     <Link
       href={`/imprimir/caja?fecha=${fecha}&modulo=${modulo}`}
       target="_blank"
-      className="no-print inline-flex items-center gap-1.5 rounded-full border-[1.5px] border-kraft bg-hoja px-3 py-1 text-sm font-bold text-gris hover:text-grafito"
+      className="no-print inline-flex items-center gap-1.5 rounded-md border border-kraft bg-hoja px-2.5 py-1 text-sm font-medium text-gris hover:text-grafito"
       title={`Imprimir o guardar en PDF: ${MODULOS[modulo]}`}
     >
       <IconoImpresora /> Imprimir
@@ -52,7 +52,7 @@ const CORTO: Record<TipoMovimiento, string> = {
 /** Línea de boleta térmica con puntos guía */
 function Renglon({ label, valor, signo, fuerte = false, color }: { label: string; valor: number; signo?: string; fuerte?: boolean; color?: string }) {
   return (
-    <p className={`flex items-baseline gap-1 ${fuerte ? "text-[17px] font-bold" : "text-[14px]"}`}>
+    <p className={`flex items-baseline gap-1 ${fuerte ? "text-[17px] font-semibold" : "text-[14px]"}`}>
       <span className="w-3 shrink-0 text-gris">{signo}</span>
       <span className="shrink-0">{label}</span>
       <span className="mx-1 flex-1 translate-y-[-3px] border-b-2 border-dotted border-grafito/25" />
@@ -194,7 +194,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                   </h2>
                   <span className="flex items-center gap-3">
                     <BotonImprimir fecha={fecha} modulo={MODULO_DE[tipo]} />
-                    <span className="cifra doble-raya text-xl font-bold" style={{ color: COLOR_TIPO[tipo] }}>{clp(total)}</span>
+                    <span className="cifra doble-raya text-xl font-semibold" style={{ color: COLOR_TIPO[tipo] }}>{clp(total)}</span>
                   </span>
                 </header>
                 <table className="w-full text-[15px]">
@@ -233,12 +233,12 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
             <Renglon signo="−" label="Egresos" valor={r.egresos_efectivo} />
             <p className="my-2 border-t border-grafito/50" />
             <p className="flex items-baseline justify-between">
-              <span className="text-[12px] font-bold uppercase leading-tight tracking-wider">
+              <span className="text-[12px] font-semibold uppercase leading-tight tracking-wider">
                 Debe haber
                 <br />
                 en caja
               </span>
-              <span className="cifra doble-raya text-[28px] font-bold">{clp(r.efectivo_esperado)}</span>
+              <span className="cifra doble-raya text-[28px] font-semibold">{clp(r.efectivo_esperado)}</span>
             </p>
 
             <p className="my-3 border-t-2 border-dashed border-grafito/40" />
@@ -261,7 +261,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                     <td className="cifra text-right">{x.cr ? miles(x.cr) : "·"}</td>
                   </tr>
                 ))}
-                <tr className="border-t-2 border-grafito/60 font-bold">
+                <tr className="border-t-2 border-grafito/60 font-semibold">
                   <td className="py-1 font-sans">Total</td>
                   <td className="cifra text-right">{miles(r.efectivo - r.egresos_efectivo)}</td>
                   <td className="cifra text-right">{miles(r.transferencia)}</td>

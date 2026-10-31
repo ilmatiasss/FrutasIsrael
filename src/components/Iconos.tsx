@@ -1,94 +1,84 @@
-/* Íconos planos de frutas: cada sección del sistema tiene su fruta y su color,
-   así se reconoce de un vistazo dónde se está. */
+/* Íconos de línea, sobrios y del mismo grosor, para el menú y los encabezados. */
 
 type P = { className?: string; size?: number };
 
-export function Manzana({ className, size = 28 }: P) {
+function Base({ size = 20, className, children }: P & { children: React.ReactNode }) {
   return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      <path d="M16 9.5c-4.6-2.8-10 .2-9.4 6.6.6 6.8 5 11.8 9.4 9.7 4.4 2.1 8.8-2.9 9.4-9.7.6-6.4-4.8-9.4-9.4-6.6z" fill="#d84a36" />
-      <path d="M11 12.5c-1.6.8-2.3 2.6-2.1 4.4" stroke="#f3a08f" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-      <path d="M16 9.5c0-2.6 1-4.6 3-5.8" stroke="#6b4a2b" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-      <path d="M17.2 6.8c2.2-2.2 5.2-2.2 6.6-1.4-1 2.4-3.8 3.6-6.6 1.4z" fill="#4c9a4f" />
+    <svg
+      viewBox="0 0 24 24"
+      width={size}
+      height={size}
+      className={className}
+      fill="none"
+      stroke="currentColor"
+      strokeWidth={1.75}
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      aria-hidden
+    >
+      {children}
     </svg>
   );
 }
 
-export function Pera({ className, size = 28 }: P) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      <path d="M16 6.5c-2.6 0-3.6 2.4-3.6 4.6 0 2-3.9 4.6-3.9 9 0 4.6 3.4 7.4 7.5 7.4s7.5-2.8 7.5-7.4c0-4.4-3.9-7-3.9-9 0-2.2-1-4.6-3.6-4.6z" fill="#8cbf4a" />
-      <path d="M12.5 18.5c-.4 1.8.2 3.6 1.6 4.6" stroke="#c6e39a" strokeWidth="1.6" strokeLinecap="round" fill="none" />
-      <path d="M16 6.5c.2-1.8.9-3 2.2-3.8" stroke="#6b4a2b" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
+export const IconoInicio = (p: P) => (
+  <Base {...p}>
+    <path d="M3 10.5 12 3l9 7.5" />
+    <path d="M5 9.5V20h14V9.5" />
+    <path d="M10 20v-6h4v6" />
+  </Base>
+);
+export const IconoVale = (p: P) => (
+  <Base {...p}>
+    <path d="M6 3h12v18l-2-1.4-2 1.4-2-1.4-2 1.4-2-1.4L6 21z" />
+    <path d="M9 8h6M9 11.5h6M9 15h3" />
+  </Base>
+);
+export const IconoAbono = (p: P) => (
+  <Base {...p}>
+    <rect x="2.5" y="6" width="19" height="12" rx="1.5" />
+    <circle cx="12" cy="12" r="2.6" />
+    <path d="M6 9.5v5M18 9.5v5" />
+  </Base>
+);
+export const IconoClientes = (p: P) => (
+  <Base {...p}>
+    <circle cx="9" cy="8.5" r="3.2" />
+    <path d="M3.5 19c.6-3.2 2.8-5 5.5-5s4.9 1.8 5.5 5" />
+    <path d="M15.5 5.6a3 3 0 0 1 0 5.8M17 14.2c1.9.6 3.2 2.2 3.5 4.8" />
+  </Base>
+);
+export const IconoCaja = (p: P) => (
+  <Base {...p}>
+    <rect x="3" y="10" width="18" height="10" rx="1.5" />
+    <path d="M7 10V5h10v5M7 14h2M11 14h2M15 14h2M7 17h10" />
+  </Base>
+);
+export const IconoSueldos = (p: P) => (
+  <Base {...p}>
+    <rect x="3" y="4" width="18" height="16" rx="1.5" />
+    <circle cx="9" cy="10" r="2.2" />
+    <path d="M5.8 16.5c.5-1.8 1.7-2.8 3.2-2.8s2.7 1 3.2 2.8M14.5 9h4M14.5 12.5h4" />
+  </Base>
+);
+export const IconoResumen = (p: P) => (
+  <Base {...p}>
+    <path d="M4 20V11M10 20V5M16 20v-6M21 20H3" />
+  </Base>
+);
 
-export function Naranja({ className, size = 28 }: P) {
+/** Logo del local (el círculo de la imagen oficial) */
+export function Logo({ size = 32 }: { size?: number }) {
   return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      <circle cx="16" cy="17.5" r="10" fill="#f08a24" />
-      <circle cx="12.5" cy="14" r="1" fill="#f7b46a" />
-      <circle cx="18.5" cy="21" r="1" fill="#d97614" />
-      <circle cx="20" cy="15" r=".8" fill="#d97614" />
-      <path d="M16 7.5c1.6-2.6 4.6-3.2 6.6-2.2-1.4 2.6-4.2 3.4-6.6 2.2z" fill="#4c9a4f" />
-    </svg>
-  );
-}
-
-export function Cajon({ className, size = 28 }: P) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      <circle cx="11" cy="11.5" r="4" fill="#d84a36" />
-      <circle cx="17.5" cy="10.5" r="4" fill="#f08a24" />
-      <circle cx="23" cy="12" r="3.6" fill="#8cbf4a" />
-      <rect x="4" y="13.5" width="24" height="13" rx="2" fill="#c8955a" />
-      <rect x="4" y="13.5" width="24" height="3.4" rx="1.5" fill="#a87640" />
-      <path d="M8 20.5h16M8 24h16" stroke="#a87640" strokeWidth="1.6" strokeLinecap="round" />
-    </svg>
-  );
-}
-
-export function Platano({ className, size = 28 }: P) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      <path d="M6.5 13.5c1.6 8.6 9.6 13.2 18.6 10.4 1.4-.4 1.2-1.6-.2-1.8-7.2-.8-12.8-5-14.6-11.4-.4-1.4-4-.2-3.8 2.8z" fill="#f2c230" />
-      <path d="M9.4 13.8c1.6 4.6 5.6 8 11.2 9.2" stroke="#d9a514" strokeWidth="1.4" strokeLinecap="round" fill="none" />
-      <path d="M7 11.5l-.8-2.6 2.2-.6.6 2.4" fill="#7a5a22" />
-    </svg>
-  );
-}
-
-export function Uvas({ className, size = 28 }: P) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      {[
-        [11, 12], [16.5, 11.5], [22, 12.5], [13.5, 17], [19, 17], [16, 22], [11, 21.5], [21.5, 22],
-      ].map(([x, y], i) => (
-        <circle key={i} cx={x} cy={y} r="3.3" fill={i % 2 ? "#7d5bb0" : "#6a4a9a"} />
-      ))}
-      <path d="M16.5 8c0-2 .6-3.4 2-4.4" stroke="#6b4a2b" strokeWidth="1.8" strokeLinecap="round" fill="none" />
-      <path d="M17.6 6.4c2-1.6 4.6-1.4 5.8-.4-1.2 2-3.6 2.6-5.8.4z" fill="#4c9a4f" />
-    </svg>
-  );
-}
-
-export function Hoja({ className, size = 20 }: P) {
-  return (
-    <svg viewBox="0 0 24 24" width={size} height={size} className={className} aria-hidden>
-      <path d="M5 19C4 10 10 4 20 4c0 10-6 16-15 15z" fill="#4c9a4f" />
-      <path d="M5 19c4-5 8-8 12-11" stroke="#2f7d45" strokeWidth="1.5" strokeLinecap="round" fill="none" />
-    </svg>
-  );
-}
-
-export function Casa({ className, size = 28 }: P) {
-  return (
-    <svg viewBox="0 0 32 32" width={size} height={size} className={className} aria-hidden>
-      <path d="M5 15L16 6l11 9" stroke="#2f7d45" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" fill="none" />
-      <path d="M8 13.5V26h16V13.5" fill="#e8f3e6" stroke="#2f7d45" strokeWidth="2.2" strokeLinejoin="round" />
-      <rect x="13.5" y="18" width="5" height="8" rx="1" fill="#2f7d45" />
-    </svg>
+    // eslint-disable-next-line @next/next/no-img-element
+    <img
+      src={size > 96 ? "/logo.png" : "/logo-128.png"}
+      width={size}
+      height={size}
+      alt=""
+      className="shrink-0 rounded-full ring-1 ring-black/10"
+      style={{ width: size, height: size }}
+    />
   );
 }
 
@@ -99,21 +89,20 @@ export interface Seccion {
   label: string;
   corto: string;
   tecla: string;
-  Fruta: (p: P) => React.JSX.Element;
+  Fruta: (p: P) => React.JSX.Element; // ícono de la sección
   color: string;
   suave: string;
   que: string; // qué se hace acá, en palabras simples
 }
 
-export const SECCIONES: Seccion[] = [
-  { href: "/vale", label: "Vale", corto: "Vale", tecla: "F1", Fruta: Manzana, color: "#d84a36", suave: "#fce9e4", que: "Anotar una venta: al contado o fiada." },
-  { href: "/abono", label: "Abono", corto: "Abono", tecla: "F2", Fruta: Pera, color: "#5e9a2c", suave: "#eef6e2", que: "Recibir un pago de alguien que debe." },
-  { href: "/clientes", label: "Clientes", corto: "Clientes", tecla: "F3", Fruta: Naranja, color: "#e07a14", suave: "#fdeedc", que: "Ver quién debe, cuánto y desde cuándo." },
-  { href: "/caja", label: "Cierre de caja", corto: "Caja", tecla: "F4", Fruta: Cajon, color: "#a87640", suave: "#f6ecdd", que: "Cuadrar la plata del día o de la semana e imprimirlo." },
-  { href: "/sueldos", label: "Sueldos", corto: "Sueldos", tecla: "F7", Fruta: Platano, color: "#c99611", suave: "#fcf3d6", que: "Días trabajados, adelantos y pagos al equipo." },
-  { href: "/resumen", label: "Resumen", corto: "Resumen", tecla: "F6", Fruta: Uvas, color: "#6d4f9c", suave: "#efe9f7", que: "Cómo va el negocio: ventas, fiado y productos." },
-];
+const VERDE = "#166534";
+const TINTE = "#eef5f0";
 
-export function seccionDe(path: string): Seccion | null {
-  return SECCIONES.find((s) => path === s.href || path.startsWith(s.href + "/")) ?? null;
-}
+export const SECCIONES: Seccion[] = [
+  { href: "/vale", label: "Vale", corto: "Vale", tecla: "F1", Fruta: IconoVale, color: VERDE, suave: TINTE, que: "Registrar una venta al contado o a crédito." },
+  { href: "/abono", label: "Abonos", corto: "Abonos", tecla: "F2", Fruta: IconoAbono, color: VERDE, suave: TINTE, que: "Registrar el pago total o parcial de una deuda." },
+  { href: "/clientes", label: "Clientes", corto: "Clientes", tecla: "F3", Fruta: IconoClientes, color: VERDE, suave: TINTE, que: "Deuda, estado e historial de cada cliente." },
+  { href: "/caja", label: "Cierre de caja", corto: "Caja", tecla: "F4", Fruta: IconoCaja, color: VERDE, suave: TINTE, que: "Cuadratura diaria y semanal, con impresión." },
+  { href: "/sueldos", label: "Remuneraciones", corto: "Sueldos", tecla: "F7", Fruta: IconoSueldos, color: VERDE, suave: TINTE, que: "Asistencia, anticipos y pagos del personal." },
+  { href: "/resumen", label: "Reportes", corto: "Reportes", tecla: "F6", Fruta: IconoResumen, color: VERDE, suave: TINTE, que: "Ventas, cartera de crédito y productos." },
+];

@@ -45,7 +45,7 @@ export function Importador() {
   return (
     <div className="space-y-6">
       <header>
-        <h1 className="stencil text-[28px] sm:text-[32px]">Importar planilla</h1>
+        <h1 className="stencil text-[24px]">Importar planilla</h1>
         <p className="mt-2 max-w-2xl text-gris">
           Trae el historial desde Google Sheets: <b>Archivo → Descargar → Valores separados por comas (.csv)</b>. Se reconocen columnas como FECHA, N° VALE,
           CLIENTE, TIPO, MONTO o las columnas VALE CRÉDITO / PAGO CRÉDITO / VALE VENTA. Lo importado queda marcado y se puede anular como cualquier movimiento.

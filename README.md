@@ -18,17 +18,17 @@ npm run build                # build de producción
 
 ## Pantallas
 
-Cada pantalla tiene su fruta, una frase que explica para qué sirve y un botón **«¿Cómo se usa?»** con los pasos. La guía aparece abierta la primera vez.
+Diseño corporativo: barra lateral con el logo del local, íconos de línea y tipografía Inter. Cada pantalla tiene una frase que explica para qué sirve y un botón **«Ayuda»** con los pasos; la guía aparece abierta la primera vez.
 
 | Atajo | Pantalla | Qué hace |
 |---|---|---|
-| | **Inicio** (`/`) | Botones grandes para cada tarea, cómo va el día y a quién cobrarle. |
-| `F1` | 🍎 **Vale** (`/vale`) | Anotar una venta, con productos o **solo monto**: al contado o fiada. Número correlativo automático. |
-| `F2` | 🍐 **Abono** (`/abono`) | Recibir un pago total o parcial. Muestra qué vales quedan pagados. |
-| `F3` | 🍊 **Clientes** (`/clientes`) | Quién debe, cuánto y desde cuándo. Estado Al día / Atrasado / Moroso. Cada cliente tiene su **cuenta** con historial por mes y semana, **Agregar deuda**, abonar y nuevo vale. |
-| `F4` | 🧺 **Cierre de caja** (`/caja`) | Ver detalle abajo. |
-| `F7` | 🍌 **Sueldos** (`/sueldos`) | Trabajadores por día, semana o mes: días trabajados, adelantos, bonos, descuentos, pagos y lo que falta pagar. Si el pago sale del cajón, queda como egreso en el cierre. |
-| `F6` | 🍇 **Resumen** (`/resumen`) | La semana en palabras, ventas por semana, fiado en la calle, antigüedad de la deuda, los que más deben y productos. |
+| | **Inicio** (`/`) | Indicadores del día, accesos a los módulos y cobranza pendiente. |
+| `F1` | **Vale** (`/vale`) | Anotar una venta, con productos o **solo monto**: al contado o fiada. Número correlativo automático. |
+| `F2` | **Abonos** (`/abono`) | Recibir un pago total o parcial. Muestra qué vales quedan pagados. |
+| `F3` | **Clientes** (`/clientes`) | Quién debe, cuánto y desde cuándo. Estado Al día / Atrasado / Moroso. **Imprimir deudores**: listado completo de clientes con deuda (respeta el filtro de estado), con teléfono, último pago, días y saldo; también en `/imprimir/deudores`. Cada cliente tiene su **cuenta** con historial por mes y semana, **Agregar deuda**, abonar y nuevo vale. |
+| `F4` | **Cierre de caja** (`/caja`) | Ver detalle abajo. |
+| `F7` | **Remuneraciones** (`/sueldos`) | Trabajadores por día, semana o mes: asistencia, anticipos, bonos, descuentos, pagos y lo que falta pagar. Si el pago sale del cajón, queda como egreso en el cierre. |
+| `F6` | **Reportes** (`/resumen`) | La semana en palabras, ventas por semana, fiado en la calle, antigüedad de la deuda, los que más deben y productos. |
 
 **Cierre de caja (`F4`):**
 - **Diario:** totales por tipo y forma de pago, y el efectivo que debe haber en el cajón.

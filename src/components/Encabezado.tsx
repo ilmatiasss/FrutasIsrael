@@ -45,46 +45,48 @@ export function Encabezado({
 
   return (
     <div className="no-print mb-5">
-      <div className="flex flex-wrap items-center gap-x-4 gap-y-3">
+      <div className="flex flex-wrap items-center gap-x-3 gap-y-3">
         {s && (
-          <span className="flex size-12 shrink-0 items-center justify-center rounded-2xl sm:size-14" style={{ background: s.suave }}>
-            <s.Fruta size={34} />
+          <span className="flex size-10 shrink-0 items-center justify-center rounded-md bg-verde-suave text-tinta">
+            <s.Fruta size={20} />
           </span>
         )}
         <div className="min-w-0 flex-1">
-          <h1 className="stencil text-[28px] sm:text-[34px]">{titulo ?? s?.label}</h1>
-          <p className="text-[15px] text-gris">{bajada ?? s?.que}</p>
+          <h1 className="stencil text-[22px] sm:text-[24px]">{titulo ?? s?.label}</h1>
+          <p className="text-sm text-gris">{bajada ?? s?.que}</p>
         </div>
         <div className="flex basis-full flex-wrap items-center gap-2 sm:basis-auto">
           {derecha}
           {pasos && (
-            <button type="button" onClick={() => (abierta ? cerrar() : setAbierta(true))} className="btn btn-secundario py-2 text-sm" aria-expanded={abierta}>
-              <span className="flex size-5 items-center justify-center rounded-full bg-tinta text-xs text-white">?</span>
-              {abierta ? "Ocultar ayuda" : "¿Cómo se usa?"}
+            <button type="button" onClick={() => (abierta ? cerrar() : setAbierta(true))} className="btn btn-secundario py-1.5 text-sm" aria-expanded={abierta}>
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8" strokeLinecap="round" aria-hidden>
+                <circle cx="12" cy="12" r="9" />
+                <path d="M9.6 9.2a2.5 2.5 0 0 1 4.8.9c0 1.7-2.4 2.2-2.4 3.6M12 17h.01" />
+              </svg>
+              {abierta ? "Ocultar ayuda" : "Ayuda"}
             </button>
           )}
         </div>
       </div>
       {pasos && abierta && (
-        <section className="animate-entra mt-4 rounded-2xl border-[1.5px] border-dashed p-4 sm:p-5" style={{ borderColor: (s?.color ?? "#2f7d45") + "66", background: (s?.suave ?? "#e8f3e6") + "99" }}>
+        <section className="animate-entra mt-4 rounded-lg border border-linea bg-hoja p-4 sm:p-5">
+          <div className="mb-3 flex items-center justify-between">
+            <p className="text-sm font-semibold">Cómo se usa</p>
+            <button type="button" onClick={cerrar} className="text-sm font-medium text-tinta hover:underline">
+              Entendido, ocultar
+            </button>
+          </div>
           <ol className="grid gap-4 sm:grid-cols-2 lg:grid-cols-4">
             {pasos.map((p, i) => (
-              <li key={i} className="flex gap-3">
-                <span className="flex size-8 shrink-0 items-center justify-center rounded-full bg-hoja text-base font-black shadow-sm" style={{ color: s?.color }}>
-                  {i + 1}
-                </span>
+              <li key={i} className="flex gap-3 border-l-2 border-tinta/30 pl-3">
+                <span className="text-sm font-semibold text-tinta">{String(i + 1).padStart(2, "0")}</span>
                 <span>
-                  <b className="block">{p.titulo}</b>
+                  <b className="block text-sm font-semibold">{p.titulo}</b>
                   <span className="text-sm text-gris">{p.texto}</span>
                 </span>
               </li>
             ))}
           </ol>
-          <div className="mt-4 text-right">
-            <button type="button" onClick={cerrar} className="btn btn-primario py-1.5 text-sm">
-              Entendido
-            </button>
-          </div>
         </section>
       )}
     </div>

@@ -5,6 +5,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode }
 import type { Db, Movimiento, TipoMovimiento } from "@/lib/types";
 import { useData } from "@/lib/store";
 import { resumenCaja, saldosAl, vivo, type Indice } from "@/lib/calc";
+import { Logo } from "../Iconos";
 import { clp, ddmmaa, fechaCorta, fechaLarga, hora, hoy, lunesDe, semanaISO, sumarDias } from "@/lib/format";
 
 /* Hojas para imprimir o guardar como PDF: el cierre diario por partes,
@@ -39,11 +40,12 @@ function datos(db: Db, idx: Indice, fecha: string) {
 
 /* ------------------------------ piezas de la hoja ------------------------------ */
 
-function Cabecera({ titulo, sub, db }: { titulo: string; sub: string; db: Db }) {
+export function Cabecera({ titulo, sub, db }: { titulo: string; sub: string; db: Db }) {
   return (
-    <header className="mb-3 flex items-end justify-between border-b-2 border-grafito pb-2">
-      <div>
-        <p className="text-[10pt] font-bold text-gris">
+    <header className="mb-3 flex items-end justify-between gap-3 border-b-2 border-grafito pb-2">
+      <Logo size={44} />
+      <div className="flex-1">
+        <p className="text-[10pt] font-semibold text-gris">
           {db.tenant.nombre} · {db.tenant.ubicacion}
         </p>
         <h1 className="stencil text-[18pt] leading-tight">{titulo}</h1>
@@ -61,7 +63,7 @@ function Cabecera({ titulo, sub, db }: { titulo: string; sub: string; db: Db }) 
 function Bloque({ titulo, total, children }: { titulo: string; total?: number; children: ReactNode }) {
   return (
     <section className="mb-3 break-inside-avoid">
-      <h2 className="mb-1 flex items-baseline justify-between border-b border-grafito/60 text-[10.5pt] font-extrabold">
+      <h2 className="mb-1 flex items-baseline justify-between border-b border-grafito/60 text-[10.5pt] font-semibold">
         <span>{titulo}</span>
         {total !== undefined && <span className="cifra">{clp(total)}</span>}
       </h2>
@@ -84,12 +86,12 @@ function Totales({ r }: { r: ReturnType<typeof resumenCaja> }) {
         {items.map(([l, v]) => (
           <tr key={l} className="border-b border-linea">
             <td className="py-0.5">{l}</td>
-            <td className="cifra py-0.5 text-right font-bold">{clp(v)}</td>
+            <td className="cifra py-0.5 text-right font-semibold">{clp(v)}</td>
           </tr>
         ))}
         <tr>
-          <td className="pt-1 font-extrabold">Debe haber en caja (efectivo)</td>
-          <td className="cifra pt-1 text-right font-extrabold">
+          <td className="pt-1 font-semibold">Debe haber en caja (efectivo)</td>
+          <td className="cifra pt-1 text-right font-semibold">
             <span className="doble-raya">{clp(r.efectivo_esperado)}</span>
           </td>
         </tr>
@@ -117,8 +119,8 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
           {linea("−", "Egresos en efectivo", r.egresos_efectivo)}
           <tr>
             <td />
-            <td className="pt-1 font-extrabold">Debe haber en caja</td>
-            <td className="cifra pt-1 text-right font-extrabold">
+            <td className="pt-1 font-semibold">Debe haber en caja</td>
+            <td className="cifra pt-1 text-right font-semibold">
               <span className="doble-raya">{clp(r.efectivo_esperado)}</span>
             </td>
           </tr>
@@ -132,10 +134,10 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
       <table className="mt-2 w-full text-[9.5pt]">
         <thead>
           <tr className="border-b border-grafito/60 text-left">
-            <th className="py-0.5 font-bold">Por forma de pago</th>
-            <th className="text-right font-bold">Efectivo</th>
-            <th className="text-right font-bold">Transf.</th>
-            <th className="text-right font-bold">Crédito</th>
+            <th className="py-0.5 font-semibold">Por forma de pago</th>
+            <th className="text-right font-semibold">Efectivo</th>
+            <th className="text-right font-semibold">Transf.</th>
+            <th className="text-right font-semibold">Crédito</th>
           </tr>
         </thead>
         <tbody>
@@ -190,7 +192,7 @@ function Detalle({ movs, idx, compacto = false }: { movs: Movimiento[]; idx: Ind
 
 /* ------------------------------ la página ------------------------------ */
 
-function useImprimirAlCargar(listo: boolean) {
+export function useImprimirAlCargar(listo: boolean) {
   const hecho = useRef(false);
   useEffect(() => {
     if (!listo || hecho.current) return;
@@ -252,8 +254,8 @@ export function ImprimirCaja() {
             })}
             <tr>
               <td />
-              <td className="pt-2 font-extrabold">Total ({filas.length} clientes)</td>
-              <td className="cifra pt-2 text-right font-extrabold">
+              <td className="pt-2 font-semibold">Total ({filas.length} clientes)</td>
+              <td className="cifra pt-2 text-right font-semibold">
                 <span className="doble-raya">{clp(tot)}</span>
               </td>
             </tr>
