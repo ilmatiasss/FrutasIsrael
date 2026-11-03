@@ -13,9 +13,9 @@ import { useAviso } from "../Shell";
 import { Colillas } from "../vale/Colillas";
 
 const PASOS = [
-  { titulo: "Entrega o devolución", texto: "«Entrega»: el cliente se lleva envases y paga la garantía. «Devolución»: los trae de vuelta y se le paga." },
+  { titulo: "Entrega o devolución", texto: "«Entrega»: el cliente se lleva envases y paga su valor. «Devolución»: los trae de vuelta y se le devuelve esa plata." },
   { titulo: "Cliente", texto: "Escriba nombre o alias. Se muestran los envases que tiene en su poder." },
-  { titulo: "Cantidades", texto: "Indique cuántos de cada tipo. La garantía por unidad viene de «Precios de envases» y se puede ajustar en la línea." },
+  { titulo: "Cantidades", texto: "Escriba cuántos de cada tipo. El valor de cada envase se fija en la pestaña «Precios»." },
   { titulo: "Pago", texto: "Entrega: efectivo, transferencia o a crédito (suma a su deuda). Devolución: efectivo (sale de caja), transferencia o descontar de su deuda." },
 ];
 
@@ -43,10 +43,10 @@ export function Envases() {
   const porCliente = useMemo(() => envasesPorCliente(data.db, data.idx), [data]);
 
   const [tipo, setTipo] = useState<Tipo>("ENVASE_COBRO");
+  const [vista, setVista] = useState<"mov" | "precios">(() => (params.get("vista") === "precios" ? "precios" : "mov"));
   const [q, setQ] = useState("");
   const [clienteId, setClienteId] = useState<string | null>(null);
   const [cant, setCant] = useState<Record<string, string>>({});
-  const [precio, setPrecio] = useState<Record<string, string>>({});
   const [forma, setForma] = useState<FormaPago>("EFECTIVO");
   const [nota, setNota] = useState("");
   const [ultimoId, setUltimoId] = useState<string | null>(null);
@@ -65,15 +65,15 @@ export function Envases() {
 
   const est = clienteId ? estados.get(clienteId) ?? null : null;
   const tiene = new Map((clienteId ? porCliente.get(clienteId) ?? [] : []).map((s) => [s.envase_id, s]));
-  const precioDe = (e: Envase) => parseMonto(precio[e.id] ?? "") ?? e.precio;
   const lineas = activos
     .map((e) => ({ e, n: parseInt((cant[e.id] ?? "").replace(/\D/g, ""), 10) || 0 }))
     .filter((x) => x.n > 0)
-    .map((x) => ({ envase_id: x.e.id, cantidad: x.n, precio_unitario: precioDe(x.e), nombre: x.e.nombre }));
+    .map((x) => ({ envase_id: x.e.id, cantidad: x.n, precio_unitario: x.e.precio, nombre: x.e.nombre }));
   const total = lineas.reduce((a, l) => a + l.cantidad * l.precio_unitario, 0);
   const excede = tipo === "ENVASE_DEVOLUCION" ? lineas.filter((l) => l.cantidad > (tiene.get(l.envase_id)?.cantidad ?? 0)) : [];
 
   const cambiarTipo = (t: Tipo) => {
+    setVista("mov");
     setTipo(t);
     setForma("EFECTIVO");
     setError(null);
@@ -86,7 +86,7 @@ export function Envases() {
     if (!lineas.length) return setError("Indique la cantidad de al menos un tipo de envase.");
     const sinPrecio = lineas.filter((l) => l.precio_unitario <= 0);
     if (sinPrecio.length)
-      return setError(`Falta la garantía de ${sinPrecio.map((l) => l.nombre).join(", ")}: escríbala en la línea o en «Precios de envases» (abajo).`);
+      return setError(`Falta la garantía de ${sinPrecio.map((l) => l.nombre).join(", ")}: póngaselo en la pestaña «Precios».`);
     const mov = registrarEnvases({
       tipo,
       cliente_id: est.cliente.id,
@@ -103,7 +103,6 @@ export function Envases() {
       tono: tipo === "ENVASE_COBRO" ? "ok" : "tinta",
     });
     setCant({});
-    setPrecio({});
     setNota("");
   };
 
@@ -136,30 +135,47 @@ export function Envases() {
   }, [porCliente, data]);
   const garantiaTotal = enLaCalle.clientes.reduce((a, c) => a + c.garantia, 0);
 
+  const sinPrecio = activos.filter((e) => e.precio <= 0);
+  const pestanas = (
+    <div className="flex w-full rounded-md border border-kraft bg-hoja p-0.5 sm:inline-flex sm:w-auto" role="tablist" aria-label="Envases">
+      {(
+        [
+          ["ENVASE_COBRO", "Entrega", " de envases"],
+          ["ENVASE_DEVOLUCION", "Devolución", " de envases"],
+          ["PRECIOS", "Precios", " de envases"],
+        ] as const
+      ).map(([k, l, extra]) => {
+        const activa = k === "PRECIOS" ? vista === "precios" : vista === "mov" && tipo === k;
+        return (
+          <button
+            key={k}
+            type="button"
+            role="tab"
+            aria-selected={activa}
+            onClick={() => (k === "PRECIOS" ? setVista("precios") : cambiarTipo(k))}
+            className={`flex-1 rounded px-3 py-1.5 text-sm font-medium sm:flex-none sm:px-4 ${activa ? "bg-tinta text-white" : "text-gris hover:text-grafito"}`}
+          >
+            {l}
+            <span className="hidden md:inline">{extra}</span>
+            {k === "PRECIOS" && sinPrecio.length > 0 && <span className={`ml-1.5 inline-block size-2 rounded-full ${activa ? "bg-white" : "bg-limon"}`} aria-label="falta precio" />}
+          </button>
+        );
+      })}
+    </div>
+  );
+
   return (
     <>
-      <Encabezado href="/envases" bajada="Garantía de envases: se cobra al entregarlos y se paga al devolverlos." pasos={PASOS} />
+      <Encabezado href="/envases" bajada="El cliente paga los envases que se lleva y se le devuelve esa plata cuando los trae." pasos={PASOS} />
       <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_380px]">
-        <form onSubmit={guardar} className="hoja mx-auto w-full max-w-[880px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
-          <div className="inline-flex rounded-md border border-kraft bg-hoja p-0.5" role="tablist" aria-label="Tipo de movimiento">
-            {(
-              [
-                ["ENVASE_COBRO", "Entrega (cobra garantía)"],
-                ["ENVASE_DEVOLUCION", "Devolución (paga garantía)"],
-              ] as [Tipo, string][]
-            ).map(([k, l]) => (
-              <button
-                key={k}
-                type="button"
-                role="tab"
-                aria-selected={tipo === k}
-                onClick={() => cambiarTipo(k)}
-                className={`rounded px-4 py-1.5 text-sm font-medium ${tipo === k ? "bg-tinta text-white" : "text-gris hover:text-grafito"}`}
-              >
-                {l}
-              </button>
-            ))}
+        {vista === "precios" ? (
+          <div className="hoja mx-auto w-full max-w-[880px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
+            {pestanas}
+            <PreciosEnvases />
           </div>
+        ) : (
+        <form onSubmit={guardar} className="hoja mx-auto w-full max-w-[880px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
+          {pestanas}
 
           <div>
             <span className="rotulo">Cliente</span>
@@ -194,7 +210,7 @@ export function Envases() {
                         .map((s) => `${s.cantidad} ${data.db.envases.find((e) => e.id === s.envase_id)?.nombre ?? ""}`)
                         .join(" · ") || "ninguno"}
                     </b>{" "}
-                    · garantía {clp([...tiene.values()].reduce((a, s) => a + s.garantia, 0))}
+                    · pagó {clp([...tiene.values()].reduce((a, s) => a + s.garantia, 0))}
                   </>
                 ) : (
                   "No tiene envases registrados."
@@ -205,29 +221,34 @@ export function Envases() {
           </div>
 
           <div>
-            <div className="grid grid-cols-[minmax(0,1fr)_6.5rem_5.5rem_7rem] items-end gap-x-3 border-b border-linea pb-1 text-xs font-semibold text-gris">
+            <p className="mb-2 text-sm text-gris">
+              {tipo === "ENVASE_COBRO"
+                ? "Escriba cuántos envases se lleva el cliente. Se le cobra el valor de cada envase y se le devuelve cuando los traiga."
+                : "Escriba cuántos envases trae de vuelta. Se le devuelve el valor que pagó por ellos."}
+            </p>
+            <div className="grid grid-cols-[minmax(0,1fr)_5.5rem_6.5rem] items-end gap-x-3 border-b border-linea pb-1 text-xs font-semibold text-gris">
               <span>Envase</span>
-              <span className="text-right">Garantía c/u</span>
               <span className="text-right">Cantidad</span>
-              <span className="text-right">Subtotal</span>
+              <span className="text-right">{tipo === "ENVASE_COBRO" ? "A cobrar" : "A devolver"}</span>
             </div>
             {activos.map((e, i) => {
               const n = parseInt((cant[e.id] ?? "").replace(/\D/g, ""), 10) || 0;
               const t = tiene.get(e.id)?.cantidad ?? 0;
               return (
-                <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_6.5rem_5.5rem_7rem] items-center gap-x-3 border-b border-linea py-2">
+                <div key={e.id} className="grid grid-cols-[minmax(0,1fr)_5.5rem_6.5rem] items-center gap-x-3 border-b border-linea py-2">
                   <span className="min-w-0">
-                    <b className="block truncate font-medium">{e.nombre}</b>
-                    {est && <span className="text-xs text-gris">tiene {t}</span>}
-                    {e.precio <= 0 && <span className="ml-1 text-xs font-semibold text-limon">{est ? "· " : ""}sin precio</span>}
+                    <b className="block font-medium leading-tight">{e.nombre}</b>
+                    <span className="block text-xs text-gris">
+                      {e.precio > 0 ? (
+                        <>{clp(e.precio)} c/u</>
+                      ) : (
+                        <button type="button" tabIndex={-1} onClick={() => setVista("precios")} className="font-semibold text-limon hover:underline">
+                          sin precio: ponerle precio
+                        </button>
+                      )}
+                      {est && <> · tiene {t}</>}
+                    </span>
                   </span>
-                  <input
-                    value={precio[e.id] ?? miles(e.precio)}
-                    onChange={(ev) => setPrecio({ ...precio, [e.id]: ev.target.value })}
-                    inputMode="numeric"
-                    aria-label={`Garantía de ${e.nombre}`}
-                    className="campo py-1.5 text-right text-sm"
-                  />
                   <input
                     ref={i === 0 ? primerCant : undefined}
                     value={cant[e.id] ?? ""}
@@ -237,13 +258,13 @@ export function Envases() {
                     aria-label={`Cantidad de ${e.nombre}`}
                     className="campo py-1.5 text-right text-lg font-semibold"
                   />
-                  <span className="cifra text-right">{n ? clp(n * precioDe(e)) : "—"}</span>
+                  <span className="cifra text-right">{n ? clp(n * e.precio) : "—"}</span>
                 </div>
               );
             })}
-            {!activos.length && <p className="py-4 text-gris">No hay tipos de envase. Agréguelos en «Precios de envases» (abajo).</p>}
+            {!activos.length && <p className="py-4 text-gris">No hay tipos de envase. Agréguelos en la pestaña «Precios».</p>}
             <p className="mt-3 flex items-baseline justify-end gap-3">
-              <span className="rotulo">{tipo === "ENVASE_COBRO" ? "Garantía a cobrar" : "Garantía a pagar"}</span>
+              <span className="rotulo">{tipo === "ENVASE_COBRO" ? "Total a cobrar" : "Total a devolverle"}</span>
               <span className={`cifra doble-raya text-[28px] font-semibold ${tipo === "ENVASE_DEVOLUCION" ? "text-limon" : ""}`}>{clp(total)}</span>
             </p>
             {excede.length > 0 && (
@@ -254,7 +275,7 @@ export function Envases() {
           </div>
 
           <div>
-            <span className="rotulo">{tipo === "ENVASE_COBRO" ? "¿Cómo paga la garantía?" : "¿Cómo se le paga?"}</span>
+            <span className="rotulo">{tipo === "ENVASE_COBRO" ? "¿Cómo paga los envases?" : "¿Cómo se le devuelve la plata?"}</span>
             <div className="mt-1.5 flex flex-wrap gap-2" role="radiogroup">
               {FORMAS[tipo].map((f) => (
                 <button key={f.k} type="button" role="radio" aria-checked={forma === f.k} onClick={() => setForma(f.k)} className="opcion flex-col items-start py-1.5 text-left">
@@ -273,6 +294,7 @@ export function Envases() {
             </button>
           </div>
         </form>
+        )}
 
         <aside className="min-w-0 space-y-6">
           <section className="hoja" aria-label="Envases en la calle">
@@ -295,7 +317,7 @@ export function Envases() {
                 );
               })}
               <li className="flex justify-between py-2 font-semibold">
-                <span>Garantía en poder de clientes</span>
+                <span>Valor de envases en la calle</span>
                 <span className="cifra">{clp(garantiaTotal)}</span>
               </li>
             </ul>
@@ -327,7 +349,6 @@ export function Envases() {
           <Colillas data={data} tipos={["ENVASE_COBRO", "ENVASE_DEVOLUCION"]} ultimoId={ultimoId} titulo="Envases de hoy" />
         </aside>
       </div>
-      <PreciosEnvases />
     </>
   );
 }
@@ -367,13 +388,13 @@ function PreciosEnvases() {
     setError(null);
     const n = nombre.trim();
     if (!n) return setError("Escriba el nombre del envase.");
-    if (nuevoPrecio === null || nuevoPrecio <= 0) return setError("Escriba la garantía por unidad (mayor a $0).");
+    if (nuevoPrecio === null || nuevoPrecio <= 0) return setError("Escriba el precio por envase (mayor a $0).");
     const repetido = envases.find((e) => e.id !== actual?.id && normalizarNombre(e.nombre) === normalizarNombre(n));
     if (repetido) return setError(`Ya existe un envase llamado ${repetido.nombre}.`);
     const e = guardarEnvase({ id: actual?.id, nombre: n, precio: nuevoPrecio, activo: actual?.activo ?? true });
     avisar({
       titulo: actual ? "Precio guardado" : "Envase agregado",
-      detalle: `${e.nombre} · garantía ${clp(e.precio)} por unidad`,
+      detalle: `${e.nombre} · ${clp(e.precio)} por envase`,
       tono: "ok",
     });
     setSel(e.id);
@@ -382,11 +403,11 @@ function PreciosEnvases() {
   };
 
   return (
-    <section className="hoja mt-6" aria-label="Precios de envases">
-      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-linea px-5 py-3">
+    <section aria-label="Precios de envases">
+      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-linea pb-3">
         <span>
           <h2 className="font-semibold">Precios de envases</h2>
-          <span className="block text-sm text-gris">La garantía que se cobra por cada envase. Elija uno de la lista para cambiar su precio.</span>
+          <span className="block text-sm text-gris">Lo que se cobra por cada envase al entregarlo (y se devuelve cuando lo traen). Elija uno para cambiar su precio.</span>
         </span>
         {faltan.length > 0 && (
           <span className="rounded-md bg-platano-suave px-2.5 py-1 text-sm">
@@ -394,7 +415,7 @@ function PreciosEnvases() {
           </span>
         )}
       </header>
-      <div className="grid gap-6 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+      <div className="grid gap-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <form onSubmit={guardar} className="space-y-3">
           <label className="block">
             <span className="rotulo">Envase</span>
@@ -414,7 +435,7 @@ function PreciosEnvases() {
               <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="ej: Caja plástica 20 kg" className="campo mt-1 w-full" aria-label="Nombre del envase" />
             </label>
             <label className="block">
-              <span className="rotulo">Garantía por unidad</span>
+              <span className="rotulo">Precio por envase</span>
               <input
                 ref={precioRef}
                 value={precio}
@@ -423,7 +444,7 @@ function PreciosEnvases() {
                 inputMode="numeric"
                 placeholder="$"
                 className="campo mt-1 w-full text-right text-lg font-semibold"
-                aria-label="Garantía por unidad"
+                aria-label="Precio por envase"
               />
             </label>
           </div>
