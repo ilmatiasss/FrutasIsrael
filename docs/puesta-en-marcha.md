@@ -30,7 +30,7 @@ No hace falta crear tablas a mano. Si prefieres hacerlo igual, pega `db/schema.s
 
 1. Abre `https://…/instalar`. Ahí se completa:
    - la **clave de instalación** (la de `CLAVE_ACCESO`);
-   - el nombre del local y el **N° del próximo vale** del talonario (por ejemplo 20308);
+   - el nombre del local (el N° de vale se ajusta después: en el primer vale, «Escribir N° del talonario», y desde ahí sigue correlativo);
    - con qué datos parte: **de cero**, **lo que se cargó en este computador** o **datos de ejemplo**;
    - el **primer administrador** (usuario y contraseña del dueño);
    - la **clave del portal**, que usa todo el personal para entrar.

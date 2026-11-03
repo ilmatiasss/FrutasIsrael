@@ -420,7 +420,7 @@ export function RegistroVale() {
                   <Numeradora numero={siguiente} />
                 </span>
                 <button type="button" tabIndex={-1} onClick={() => setNumeroManual(String(siguiente))} className="block w-full text-right text-xs font-medium text-tinta hover:underline">
-                  Cambiar N°
+                  {data.db.tenant.ultimo_numero === 0 ? "Escribir N° del talonario" : "Cambiar N°"}
                 </button>
               </>
             ) : (

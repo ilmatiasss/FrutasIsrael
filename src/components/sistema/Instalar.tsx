@@ -27,7 +27,6 @@ export function Instalar() {
   const [estado, setEstado] = useState<Estado>(null);
   const [nombre, setNombre] = useState("Frutas Israel");
   const [ubicacion, setUbicacion] = useState("La Vega Central · Santiago");
-  const [numero, setNumero] = useState("");
   const [opcion, setOpcion] = useState<Opcion>("vacia");
   const [claveInst, setClaveInst] = useState("");
   const [adminUsuario, setAdminUsuario] = useState("");
@@ -57,7 +56,7 @@ export function Instalar() {
       admin: { usuario: adminUsuario, nombre: adminNombre, clave: adminClave },
     };
     if (!estado?.instalada) {
-      const d = datosParaInstalar(opcion, nombre.trim() || "Frutas Israel", ubicacion.trim(), Math.max(0, (parseInt(numero.replace(/\D/g, ""), 10) || 1) - 1));
+      const d = datosParaInstalar(opcion, nombre.trim() || "Frutas Israel", ubicacion.trim(), 0);
       const { tenant, config, version: _v, ...filas } = d;
       void _v;
       const { usuario_actual: _u, ...cfg } = config;
@@ -136,7 +135,6 @@ export function Instalar() {
                 <Campo label="Nombre del local" value={nombre} set={setNombre} />
                 <Campo label="Ubicación" value={ubicacion} set={setUbicacion} />
               </div>
-              <Campo label="N° del próximo vale del talonario" value={numero} set={setNumero} ayuda="Para seguir la numeración que ya usan (ej: 20308). Vacío = parte en 1." />
               <div className="grid gap-2">
                 {OPCIONES.map((o) => (
                   <button
