@@ -93,7 +93,8 @@ const ENVASES = [
   { nombre: "Caja cosechera", precio: 2500 },
   { nombre: "Bins plástico", precio: 35000 },
   { nombre: "Cajón de madera", precio: 1500 },
-  { nombre: "Pallet", precio: 8000 },
+  { nombre: "Toro", precio: 8000 },
+  { nombre: "Totem", precio: 0 }, // sin precio: lo pone el local en «Precios de envases»
 ];
 
 const EGRESOS: [string, number, number][] = [

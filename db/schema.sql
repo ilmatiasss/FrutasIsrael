@@ -318,6 +318,31 @@ begin
   end if;
 end $$;
 
+-- -----------------------------------------------------------------------------
+-- Migraciones de datos que corren una sola vez por base
+-- -----------------------------------------------------------------------------
+create table if not exists migraciones (
+  id          text primary key,
+  aplicada_at timestamptz not null default now()
+);
+
+do $$
+begin
+  perform pg_advisory_xact_lock(727001);
+  if not exists (select 1 from migraciones where id = '2026-11-envases-toro-totem') then
+    update envases e set nombre = 'Toro'
+     where e.nombre = 'Pallet'
+       and not exists (select 1 from envases x where x.tenant_id = e.tenant_id and lower(x.nombre) = 'toro');
+    insert into envases (id, tenant_id, nombre, precio, activo, orden)
+    select gen_random_uuid()::text, t.id, 'Totem', 0, true,
+           (select coalesce(max(orden), -1) + 1 from envases x where x.tenant_id = t.id)
+      from tenants t
+     where exists (select 1 from envases x where x.tenant_id = t.id)
+       and not exists (select 1 from envases x where x.tenant_id = t.id and lower(x.nombre) = 'totem');
+    insert into migraciones (id) values ('2026-11-envases-toro-totem') on conflict do nothing;
+  end if;
+end $$;
+
 -- deuda por cliente incluyendo garantías a crédito
 create or replace view v_saldos_clientes as
 select c.tenant_id, c.id as cliente_id, coalesce(c.alias, c.nombre) as cliente,

@@ -15,6 +15,7 @@ const COLOR: Record<Evento["accion"], string> = {
   SUELDOS: "#c99611",
   SEGURIDAD: "#111827",
   CORREGIR_FOLIO: "#b45309",
+  PRECIO_ENVASE: "#0f766e",
   REINICIAR_DEMO: "#6b6255",
 };
 const ETIQUETA: Record<Evento["accion"], string> = {
@@ -28,6 +29,7 @@ const ETIQUETA: Record<Evento["accion"], string> = {
   SUELDOS: "Sueldos",
   SEGURIDAD: "Seguridad",
   CORREGIR_FOLIO: "Folio corregido",
+  PRECIO_ENVASE: "Envases",
   REINICIAR_DEMO: "Demo",
 };
 

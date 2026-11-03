@@ -585,7 +585,15 @@ export function guardarEnvase(p: { id?: string; nombre: string; precio: number; 
     e = previo
       ? { ...previo, nombre: p.nombre, precio: p.precio, activo: p.activo ?? previo.activo }
       : { id: uid(), tenant_id: d.tenant.id, nombre: p.nombre, precio: p.precio, activo: true, orden: d.envases.length };
-    return { ...d, envases: previo ? d.envases.map((x) => (x.id === e.id ? e : x)) : [...d.envases, e] };
+    const cambios: string[] = [];
+    if (!previo) cambios.push(`Nuevo envase ${e.nombre} · garantía $${e.precio}`);
+    else {
+      if (previo.nombre !== e.nombre) cambios.push(`${previo.nombre} ahora se llama ${e.nombre}`);
+      if (previo.precio !== e.precio) cambios.push(`${e.nombre}: garantía $${previo.precio} → $${e.precio}`);
+      if (previo.activo !== e.activo) cambios.push(`${e.nombre}: ${e.activo ? "se vuelve a usar" : "oculto"}`);
+    }
+    const ev = cambios.length ? [evento(d, "PRECIO_ENVASE", e.id, cambios.join(" · "))] : [];
+    return { ...d, envases: previo ? d.envases.map((x) => (x.id === e.id ? e : x)) : [...d.envases, e], eventos: [...d.eventos, ...ev] };
   });
   return e;
 }

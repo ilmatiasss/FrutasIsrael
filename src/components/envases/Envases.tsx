@@ -15,7 +15,7 @@ import { Colillas } from "../vale/Colillas";
 const PASOS = [
   { titulo: "Entrega o devolución", texto: "«Entrega»: el cliente se lleva envases y paga la garantía. «Devolución»: los trae de vuelta y se le paga." },
   { titulo: "Cliente", texto: "Escriba nombre o alias. Se muestran los envases que tiene en su poder." },
-  { titulo: "Cantidades", texto: "Indique cuántos de cada tipo. La garantía por unidad viene del catálogo y se puede ajustar." },
+  { titulo: "Cantidades", texto: "Indique cuántos de cada tipo. La garantía por unidad viene de «Precios de envases» y se puede ajustar en la línea." },
   { titulo: "Pago", texto: "Entrega: efectivo, transferencia o a crédito (suma a su deuda). Devolución: efectivo (sale de caja), transferencia o descontar de su deuda." },
 ];
 
@@ -84,6 +84,9 @@ export function Envases() {
     setError(null);
     if (!est) return setError("Elija el cliente.");
     if (!lineas.length) return setError("Indique la cantidad de al menos un tipo de envase.");
+    const sinPrecio = lineas.filter((l) => l.precio_unitario <= 0);
+    if (sinPrecio.length)
+      return setError(`Falta la garantía de ${sinPrecio.map((l) => l.nombre).join(", ")}: escríbala en la línea o en «Precios de envases» (abajo).`);
     const mov = registrarEnvases({
       tipo,
       cliente_id: est.cliente.id,
@@ -216,6 +219,7 @@ export function Envases() {
                   <span className="min-w-0">
                     <b className="block truncate font-medium">{e.nombre}</b>
                     {est && <span className="text-xs text-gris">tiene {t}</span>}
+                    {e.precio <= 0 && <span className="ml-1 text-xs font-semibold text-limon">{est ? "· " : ""}sin precio</span>}
                   </span>
                   <input
                     value={precio[e.id] ?? miles(e.precio)}
@@ -237,7 +241,7 @@ export function Envases() {
                 </div>
               );
             })}
-            {!activos.length && <p className="py-4 text-gris">No hay tipos de envase. Agréguelos en el catálogo (abajo).</p>}
+            {!activos.length && <p className="py-4 text-gris">No hay tipos de envase. Agréguelos en «Precios de envases» (abajo).</p>}
             <p className="mt-3 flex items-baseline justify-end gap-3">
               <span className="rotulo">{tipo === "ENVASE_COBRO" ? "Garantía a cobrar" : "Garantía a pagar"}</span>
               <span className={`cifra doble-raya text-[28px] font-semibold ${tipo === "ENVASE_DEVOLUCION" ? "text-limon" : ""}`}>{clp(total)}</span>
@@ -323,79 +327,165 @@ export function Envases() {
           <Colillas data={data} tipos={["ENVASE_COBRO", "ENVASE_DEVOLUCION"]} ultimoId={ultimoId} titulo="Envases de hoy" />
         </aside>
       </div>
-      <Catalogo />
+      <PreciosEnvases />
     </>
   );
 }
 
-/** Tipos de envase y su garantía */
-function Catalogo() {
+const NUEVO = "__nuevo__";
+
+/** Precios (garantía) de cada tipo de envase: se elige de la lista y se cambia. */
+function PreciosEnvases() {
   const data = useData()!;
   const avisar = useAviso();
-  const [abierto, setAbierto] = useState(false);
-  const [nuevo, setNuevo] = useState({ nombre: "", precio: "" });
-  const envases = [...data.db.envases].sort((a, b) => a.orden - b.orden);
+  const envases = useMemo(
+    () => [...data.db.envases].sort((a, b) => Number(b.activo) - Number(a.activo) || a.orden - b.orden),
+    [data],
+  );
+  const [sel, setSel] = useState<string>(() => envases[0]?.id ?? NUEVO);
+  const actual = envases.find((e) => e.id === sel) ?? null;
+  const [nombre, setNombre] = useState(actual?.nombre ?? "");
+  const [precio, setPrecio] = useState(actual && actual.precio > 0 ? miles(actual.precio) : "");
+  const [error, setError] = useState<string | null>(null);
+  const precioRef = useRef<HTMLInputElement | null>(null);
+
+  const elegir = (id: string, enfocar = false) => {
+    const e = envases.find((x) => x.id === id) ?? null;
+    setSel(id);
+    setNombre(e?.nombre ?? "");
+    setPrecio(e && e.precio > 0 ? miles(e.precio) : "");
+    setError(null);
+    if (enfocar) setTimeout(() => precioRef.current?.focus(), 0);
+  };
+
+  const nuevoPrecio = parseMonto(precio);
+  const cambiado = actual ? nombre.trim() !== actual.nombre || (nuevoPrecio ?? -1) !== actual.precio : true;
+  const faltan = envases.filter((e) => e.activo && e.precio <= 0);
+
+  const guardar = (ev: FormEvent) => {
+    ev.preventDefault();
+    setError(null);
+    const n = nombre.trim();
+    if (!n) return setError("Escriba el nombre del envase.");
+    if (nuevoPrecio === null || nuevoPrecio <= 0) return setError("Escriba la garantía por unidad (mayor a $0).");
+    const repetido = envases.find((e) => e.id !== actual?.id && normalizarNombre(e.nombre) === normalizarNombre(n));
+    if (repetido) return setError(`Ya existe un envase llamado ${repetido.nombre}.`);
+    const e = guardarEnvase({ id: actual?.id, nombre: n, precio: nuevoPrecio, activo: actual?.activo ?? true });
+    avisar({
+      titulo: actual ? "Precio guardado" : "Envase agregado",
+      detalle: `${e.nombre} · garantía ${clp(e.precio)} por unidad`,
+      tono: "ok",
+    });
+    setSel(e.id);
+    setNombre(e.nombre);
+    setPrecio(miles(e.precio));
+  };
+
   return (
-    <section className="hoja mt-6">
-      <button type="button" onClick={() => setAbierto((x) => !x)} className="flex w-full items-center justify-between px-5 py-3 text-left" aria-expanded={abierto}>
+    <section className="hoja mt-6" aria-label="Precios de envases">
+      <header className="flex flex-wrap items-baseline justify-between gap-2 border-b border-linea px-5 py-3">
         <span>
-          <b className="font-semibold">Catálogo de envases</b>
-          <span className="block text-sm text-gris">Tipos de envase y la garantía que se cobra por cada uno.</span>
+          <h2 className="font-semibold">Precios de envases</h2>
+          <span className="block text-sm text-gris">La garantía que se cobra por cada envase. Elija uno de la lista para cambiar su precio.</span>
         </span>
-        <span className="text-tinta">{abierto ? "Ocultar" : "Editar"}</span>
-      </button>
-      {abierto && (
-        <div className="border-t border-linea px-5 py-4">
-          <ul className="divide-y divide-linea">
+        {faltan.length > 0 && (
+          <span className="rounded-md bg-platano-suave px-2.5 py-1 text-sm">
+            Falta precio: <b className="font-semibold">{faltan.map((e) => e.nombre).join(", ")}</b>
+          </span>
+        )}
+      </header>
+      <div className="grid gap-6 px-5 py-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
+        <form onSubmit={guardar} className="space-y-3">
+          <label className="block">
+            <span className="rotulo">Envase</span>
+            <select value={sel} onChange={(e) => elegir(e.target.value, true)} className="campo mt-1 w-full" aria-label="Elegir envase">
+              {envases.map((e) => (
+                <option key={e.id} value={e.id}>
+                  {e.nombre} — {e.precio > 0 ? clp(e.precio) : "sin precio"}
+                  {e.activo ? "" : " (oculto)"}
+                </option>
+              ))}
+              <option value={NUEVO}>＋ Agregar un envase nuevo…</option>
+            </select>
+          </label>
+          <div className="grid gap-3 sm:grid-cols-[minmax(0,1fr)_11rem]">
+            <label className="block">
+              <span className="rotulo">Nombre</span>
+              <input value={nombre} onChange={(e) => setNombre(e.target.value)} placeholder="ej: Caja plástica 20 kg" className="campo mt-1 w-full" aria-label="Nombre del envase" />
+            </label>
+            <label className="block">
+              <span className="rotulo">Garantía por unidad</span>
+              <input
+                ref={precioRef}
+                value={precio}
+                onChange={(e) => setPrecio(e.target.value)}
+                onFocus={(e) => e.target.select()}
+                inputMode="numeric"
+                placeholder="$"
+                className="campo mt-1 w-full text-right text-lg font-semibold"
+                aria-label="Garantía por unidad"
+              />
+            </label>
+          </div>
+          {actual && (
+            <p className="text-sm text-gris">
+              Precio actual: <b className="text-grafito">{actual.precio > 0 ? clp(actual.precio) : "sin precio"}</b>
+              {nuevoPrecio !== null && nuevoPrecio !== actual.precio && nuevoPrecio > 0 && (
+                <>
+                  {" "}
+                  → nuevo: <b className="text-tinta">{clp(nuevoPrecio)}</b>
+                </>
+              )}
+              . Rige para las próximas entregas; lo ya cobrado no cambia.
+            </p>
+          )}
+          {error && <p className="text-sm font-medium text-fuji">{error}</p>}
+          <div className="flex flex-wrap items-center gap-3">
+            <button type="submit" disabled={!cambiado} className="btn btn-primario px-5 disabled:opacity-50">
+              {actual ? "Guardar precio" : "Agregar envase"}
+            </button>
+            {actual && (
+              <button
+                type="button"
+                onClick={() => {
+                  guardarEnvase({ id: actual.id, nombre: actual.nombre, precio: actual.precio, activo: !actual.activo });
+                  avisar({ titulo: actual.activo ? "Envase oculto" : "Envase en uso", detalle: actual.nombre, tono: "tinta" });
+                }}
+                className="text-sm font-medium text-gris hover:text-grafito"
+              >
+                {actual.activo ? "Ocultar de la entrega" : "Volver a usar"}
+              </button>
+            )}
+          </div>
+        </form>
+
+        <div>
+          <span className="rotulo">Lista de precios</span>
+          <ul className="mt-1 divide-y divide-linea rounded-md border border-linea">
             {envases.map((e) => (
-              <FilaEnvase key={e.id} e={e} />
+              <li key={e.id}>
+                <button
+                  type="button"
+                  onClick={() => elegir(e.id, true)}
+                  aria-current={e.id === sel}
+                  className={`flex w-full items-center justify-between gap-3 px-3 py-2 text-left hover:bg-verde-suave ${e.id === sel ? "bg-verde-suave" : ""} ${e.activo ? "" : "opacity-50"}`}
+                >
+                  <span className="min-w-0 truncate font-medium">
+                    {e.nombre}
+                    {!e.activo && <span className="ml-2 text-xs font-normal text-gris">oculto</span>}
+                  </span>
+                  {e.precio > 0 ? <span className="cifra shrink-0">{clp(e.precio)}</span> : <span className="shrink-0 text-sm font-semibold text-limon">sin precio</span>}
+                </button>
+              </li>
             ))}
           </ul>
-          <form
-            className="mt-4 flex flex-wrap items-end gap-2"
-            onSubmit={(ev) => {
-              ev.preventDefault();
-              const p = parseMonto(nuevo.precio);
-              if (!nuevo.nombre.trim() || p === null) return;
-              guardarEnvase({ nombre: nuevo.nombre.trim(), precio: p });
-              avisar({ titulo: "Tipo de envase agregado", detalle: nuevo.nombre.trim(), tono: "tinta" });
-              setNuevo({ nombre: "", precio: "" });
-            }}
-          >
-            <label className="block">
-              <span className="rotulo">Nuevo tipo</span>
-              <input value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} placeholder="ej: Caja plástica 20 kg" className="campo w-64" />
-            </label>
-            <label className="block">
-              <span className="rotulo">Garantía c/u</span>
-              <input value={nuevo.precio} onChange={(e) => setNuevo({ ...nuevo, precio: e.target.value })} inputMode="numeric" placeholder="$" className="campo w-32 text-right" />
-            </label>
-            <button type="submit" className="btn btn-primario">
-              Agregar
-            </button>
-          </form>
+          <p className="mt-2 text-xs text-gris">Los cambios de precio quedan en la bitácora.</p>
         </div>
-      )}
+      </div>
     </section>
   );
 }
 
-function FilaEnvase({ e }: { e: Envase }) {
-  const [nombre, setNombre] = useState(e.nombre);
-  const [precio, setPrecio] = useState(miles(e.precio));
-  const cambiado = nombre.trim() !== e.nombre || parseMonto(precio) !== e.precio;
-  return (
-    <li className={`flex flex-wrap items-center gap-2 py-2 ${e.activo ? "" : "opacity-50"}`}>
-      <input value={nombre} onChange={(x) => setNombre(x.target.value)} className="campo w-56 py-1.5" aria-label="Nombre del envase" />
-      <input value={precio} onChange={(x) => setPrecio(x.target.value)} inputMode="numeric" className="campo w-28 py-1.5 text-right" aria-label="Garantía" />
-      {cambiado && (
-        <button type="button" onClick={() => guardarEnvase({ id: e.id, nombre: nombre.trim() || e.nombre, precio: parseMonto(precio) ?? e.precio })} className="btn btn-primario py-1.5 text-sm">
-          Guardar
-        </button>
-      )}
-      <button type="button" onClick={() => guardarEnvase({ id: e.id, nombre: e.nombre, precio: e.precio, activo: !e.activo })} className="text-sm font-medium text-gris hover:text-grafito">
-        {e.activo ? "Ocultar" : "Volver a usar"}
-      </button>
-    </li>
-  );
+function normalizarNombre(s: string) {
+  return s.normalize("NFD").replace(/[̀-ͯ]/g, "").trim().toLowerCase();
 }

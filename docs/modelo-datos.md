@@ -41,7 +41,7 @@ tenants ─┬─< usuarios
 
 **Deuda sin productos** (saldo anterior, préstamo, ajuste): es un `VALE_CREDITO` sin líneas; la `glosa` es opcional (por defecto «Crédito sin detalle»). Lo mismo un vale venta «solo monto». Toma N° del talonario y se anula igual que cualquier vale.
 
-**envases** — catálogo: `nombre` (Caja cosechera, Bins plástico, Cajón de madera, Pallet…), `precio` de garantía, `activo`, `orden`. Se edita desde la pantalla Envases.
+**envases** — catálogo: `nombre` (Caja cosechera, Bins plástico, Cajón de madera, Toro, Totem…), `precio` de garantía, `activo`, `orden`. Se edita en «Precios de envases» (pantalla Envases); cada cambio queda en la bitácora (`PRECIO_ENVASE`). La tabla `migraciones` registra los ajustes de datos que corren una sola vez (ej. Pallet → Toro).
 
 **lineas_envase** — detalle de una entrega o devolución: `envase_id`, `cantidad`, `precio_unitario`, `subtotal`. Inmutables como las líneas de vale.
 
