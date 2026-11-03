@@ -35,7 +35,8 @@ tenants ─┬─< usuarios
 |---|---|
 | `numero` | correlativo único por tenant (N° de vale); se puede escribir a mano o corregir después (bitácora `CORREGIR_FOLIO`) |
 | `tipo` | `VALE_VENTA` · `VALE_CREDITO` · `ABONO` · `INGRESO` · `EGRESO` · `ENVASE_COBRO` · `ENVASE_DEVOLUCION` |
-| `forma_pago` | `EFECTIVO` · `TRANSFERENCIA` · `CREDITO` (vale crédito y envases) |
+| `forma_pago` | `EFECTIVO` · `TRANSFERENCIA` · `TARJETA` · `CREDITO` (vale crédito y envases) |
+| `categoria` | egresos: categoría del gasto de bodega |
 | `total` | CLP enteros, siempre positivo; el signo lo da el tipo |
 | `origen_id` | abono hecho en el mismo vale crédito («abona ahora») |
 | `anulado_at / anulado_por / motivo_anulacion` | anulación auditable; nunca se borra |
@@ -48,6 +49,10 @@ tenants ─┬─< usuarios
 **lineas_envase** — detalle de una entrega o devolución: `envase_id`, `cantidad`, `precio_unitario`, `subtotal`. Inmutables como las líneas de vale.
 
 **Envases (garantía):** `ENVASE_COBRO` = el cliente se lleva envases y paga la garantía; en efectivo entra al cajón, con `CREDITO` suma a su deuda. `ENVASE_DEVOLUCION` = devuelve envases y se le paga; en efectivo sale del cajón, con `CREDITO` se descuenta de su deuda.
+
+**Pago combinado:** el vale queda como `VALE_CREDITO` por el total y cada parte pagada (efectivo, transferencia, tarjeta) es un `ABONO` con `origen_id` = el vale. Lo que va a crédito queda como deuda. En el cierre esas partes van en la fila del vale (no como cobro de deuda) y «Fiado nuevo» es solo lo que quedó debiendo.
+
+**cierres_caja.snapshot.arqueo** — `{cantidades: {denominación: n}, contado, esperado, diferencia}`.
 
 **lineas_vale** — `cantidad` (decimal para KG), `unidad`, `producto_id`, `precio_unitario`, `subtotal`.
 

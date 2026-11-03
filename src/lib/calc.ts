@@ -4,7 +4,7 @@
  * En Postgres hay vistas equivalentes (ver db/schema.sql).
  */
 import type {
-  Cliente, Config, Db, Fecha, LineaVale, Movimiento, Producto, ResumenCaja, Semaforo,
+  Cliente, Config, Db, Fecha, LineaVale, Movimiento, Producto, ResumenCaja, Semaforo, TipoMovimiento,
 } from "./types";
 import { diasEntre, lunesDe, semanaISO } from "./format";
 
@@ -90,12 +90,27 @@ export interface Pendiente {
 /** Aplica abonos FIFO sobre vales crédito: qué vales siguen impagos */
 export function pendientesFIFO(movs: Movimiento[]): Pendiente[] {
   const vales: Pendiente[] = [];
+  const porId = new Map<string, Pendiente>();
   let pozo = 0; // abonos sin aplicar
   for (const m of movs) {
     if (!vivo(m)) continue;
     const e = efectoDeuda(m);
-    if (e > 0) vales.push({ mov: m, pendiente: e });
-    if (e < 0) pozo += -e;
+    if (e > 0) {
+      const v = { mov: m, pendiente: e };
+      vales.push(v);
+      porId.set(m.id, v);
+    }
+    if (e < 0) {
+      // pagado en el mismo vale (pago combinado): rebaja primero ese vale
+      const v = m.origen_id ? porId.get(m.origen_id) : undefined;
+      let resto = -e;
+      if (v) {
+        const aplica = Math.min(resto, v.pendiente);
+        v.pendiente -= aplica;
+        resto -= aplica;
+      }
+      pozo += resto;
+    }
   }
   for (const v of vales) {
     const aplica = Math.min(pozo, v.pendiente);
@@ -131,7 +146,8 @@ export function estadoCliente(c: Cliente, idx: Indice, cfg: Config, hoy: Fecha):
   for (const m of movs) {
     saldo += efectoDeuda(m);
     if (!vivo(m)) continue;
-    if (m.tipo === "ABONO" && (!ultimoPago || m.fecha > ultimoPago)) ultimoPago = m.fecha;
+    // lo pagado en el mismo vale no cuenta como "pago de deuda"
+    if (m.tipo === "ABONO" && !m.origen_id && (!ultimoPago || m.fecha > ultimoPago)) ultimoPago = m.fecha;
     if (m.tipo === "VALE_CREDITO" || m.tipo === "VALE_VENTA") {
       if (m.importado) continue;
       if (!ultimaCompra || m.fecha > ultimaCompra) ultimaCompra = m.fecha;
@@ -216,8 +232,8 @@ export function pizarra(db: Db, idx: Indice): { producto: Producto; precio: numb
 export function resumenCaja(movs: Movimiento[]): ResumenCaja {
   const r: ResumenCaja = {
     vale_venta: 0, vale_credito: 0, abonos: 0, ingresos: 0, egresos: 0,
-    efectivo: 0, transferencia: 0, credito: 0, egresos_efectivo: 0, efectivo_esperado: 0, cantidad: 0,
-    envases_cobro: 0, envases_devolucion: 0, devolucion_efectivo: 0,
+    efectivo: 0, transferencia: 0, tarjeta: 0, credito: 0, egresos_efectivo: 0, efectivo_esperado: 0, cantidad: 0,
+    envases_cobro: 0, envases_devolucion: 0, devolucion_efectivo: 0, pagado_en_vale: 0,
   };
   for (const m of movs) {
     if (!vivo(m)) continue;
@@ -240,12 +256,52 @@ export function resumenCaja(movs: Movimiento[]): ResumenCaja {
       if (m.forma_pago === "EFECTIVO") r.egresos_efectivo += m.total;
       continue;
     }
+    if (m.tipo === "ABONO" && m.origen_id) r.pagado_en_vale! += m.total;
     if (m.forma_pago === "EFECTIVO") r.efectivo += m.total;
     else if (m.forma_pago === "TRANSFERENCIA") r.transferencia += m.total;
+    else if (m.forma_pago === "TARJETA") r.tarjeta! += m.total;
     else r.credito += m.total;
   }
   r.efectivo_esperado = r.efectivo - r.egresos_efectivo - r.devolucion_efectivo!;
   return r;
+}
+
+export interface FilaMatriz {
+  tipo: TipoMovimiento;
+  ef: number;
+  tr: number;
+  tj: number;
+  cr: number;
+}
+
+/** Orden fijo de la tabla "por forma de pago" del cierre */
+export const TIPOS_MATRIZ: TipoMovimiento[] = ["VALE_VENTA", "VALE_CREDITO", "ABONO", "INGRESO", "EGRESO", "ENVASE_COBRO", "ENVASE_DEVOLUCION"];
+
+/**
+ * Tipo × forma de pago del día. Lo pagado dentro de un vale crédito (pago
+ * combinado o «abona ahora») va en la fila del vale, no como cobro de deuda:
+ * así "Crédito" es solo lo que quedó fiado.
+ */
+export function matrizCaja(movs: Movimiento[]): FilaMatriz[] {
+  const filas = new Map<TipoMovimiento, FilaMatriz>(TIPOS_MATRIZ.map((t) => [t, { tipo: t, ef: 0, tr: 0, tj: 0, cr: 0 }]));
+  const sumar = (f: FilaMatriz, forma: string, v: number) => {
+    if (forma === "EFECTIVO") f.ef += v;
+    else if (forma === "TRANSFERENCIA") f.tr += v;
+    else if (forma === "TARJETA") f.tj += v;
+    else f.cr += v;
+  };
+  for (const m of movs) {
+    if (!vivo(m)) continue;
+    if (m.tipo === "ABONO" && m.origen_id) {
+      const f = filas.get("VALE_CREDITO")!;
+      sumar(f, m.forma_pago, m.total);
+      f.cr -= m.total;
+      continue;
+    }
+    const f = filas.get(m.tipo);
+    if (f) sumar(f, m.forma_pago, m.total);
+  }
+  return TIPOS_MATRIZ.map((t) => filas.get(t)!);
 }
 
 /* ----------------------- cuenta cliente: libro mayor ----------------------- */

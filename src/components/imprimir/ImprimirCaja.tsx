@@ -2,9 +2,9 @@
 import Link from "next/link";
 import { useSearchParams } from "next/navigation";
 import { useEffect, useLayoutEffect, useMemo, useRef, useState, type ReactNode } from "react";
-import type { Db, Movimiento, TipoMovimiento } from "@/lib/types";
+import type { Arqueo, Db, Movimiento, TipoMovimiento } from "@/lib/types";
 import { useData } from "@/lib/store";
-import { resumenCaja, saldosAl, vivo, type Indice } from "@/lib/calc";
+import { matrizCaja, resumenCaja, saldosAl, vivo, type Indice } from "@/lib/calc";
 import { Logo } from "../Iconos";
 import { clp, ddmmaa, fechaCorta, fechaLarga, hora, hoy, lunesDe, semanaISO, sumarDias } from "@/lib/format";
 
@@ -33,12 +33,11 @@ const TIPOS: Record<Exclude<Modulo, "resumen" | "efectivo">, TipoMovimiento[]> =
 function datos(db: Db, idx: Indice, fecha: string) {
   const movs = idx.movsFecha.get(fecha) ?? [];
   const r = resumenCaja(movs);
-  const suma = (tipo: TipoMovimiento, forma: string) => movs.filter((m) => vivo(m) && m.tipo === tipo && m.forma_pago === forma).reduce((a, m) => a + m.total, 0);
-  const filas: [string, TipoMovimiento][] = [
-    ["Ventas", "VALE_VENTA"], ["Créditos", "VALE_CREDITO"], ["Abonos", "ABONO"], ["Ingresos", "INGRESO"], ["Egresos", "EGRESO"],
-    ["Garantía envases", "ENVASE_COBRO"], ["Devol. envases", "ENVASE_DEVOLUCION"],
-  ];
-  const matriz = filas.map(([label, t]) => ({ label, t, ef: suma(t, "EFECTIVO"), tr: suma(t, "TRANSFERENCIA"), cr: suma(t, "CREDITO") }));
+  const etiqueta: Record<TipoMovimiento, string> = {
+    VALE_VENTA: "Ventas", VALE_CREDITO: "Créditos y combinados", ABONO: "Abonos de deuda", INGRESO: "Ingresos", EGRESO: "Egresos",
+    ENVASE_COBRO: "Garantía envases", ENVASE_DEVOLUCION: "Devol. envases",
+  };
+  const matriz = matrizCaja(movs).map((x) => ({ ...x, label: etiqueta[x.tipo], t: x.tipo }));
   const cierre = [...db.cierres].reverse().find((c) => c.fecha === fecha) ?? null;
   return { movs, r, matriz, cierre };
 }
@@ -120,7 +119,7 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
     <>
       <table className="w-full text-[10pt]">
         <tbody>
-          {linea("+", "Ventas en efectivo", matriz[0].ef)}
+          {linea("+", "Ventas en efectivo", matriz[0].ef + matriz[1].ef)}
           {linea("+", "Abonos en efectivo", matriz[2].ef)}
           {linea("+", "Ingresos en efectivo", matriz[3].ef)}
           {matriz[5].ef > 0 && linea("+", "Garantía de envases", matriz[5].ef)}
@@ -133,19 +132,16 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
               <span className="doble-raya">{clp(r.efectivo_esperado)}</span>
             </td>
           </tr>
-          <tr>
-            <td />
-            <td className="pt-2 text-gris">Contado en el cajón: ______________</td>
-            <td className="pt-2 text-right text-gris">Diferencia: ________</td>
-          </tr>
         </tbody>
       </table>
+      <ArqueoHoja arqueo={d.cierre?.snapshot.arqueo ?? null} esperado={r.efectivo_esperado} />
       <table className="mt-2 w-full text-[9.5pt]">
         <thead>
           <tr className="border-b border-grafito/60 text-left">
             <th className="py-0.5 font-semibold">Por forma de pago</th>
             <th className="text-right font-semibold">Efectivo</th>
             <th className="text-right font-semibold">Transf.</th>
+            <th className="text-right font-semibold">Tarjeta</th>
             <th className="text-right font-semibold">Crédito</th>
           </tr>
         </thead>
@@ -155,12 +151,53 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
               <td className="py-0.5">{x.label}</td>
               <td className="cifra text-right">{x.ef ? clp(x.ef) : "·"}</td>
               <td className="cifra text-right">{x.tr ? clp(x.tr) : "·"}</td>
+              <td className="cifra text-right">{x.tj ? clp(x.tj) : "·"}</td>
               <td className="cifra text-right">{x.cr ? clp(x.cr) : "·"}</td>
             </tr>
           ))}
         </tbody>
       </table>
     </>
+  );
+}
+
+const DENOMINACIONES = [20000, 10000, 5000, 2000, 1000, 500, 100, 50, 10];
+
+/** Arqueo de billetes: el guardado al cerrar, o en blanco para contar a mano */
+function ArqueoHoja({ arqueo, esperado }: { arqueo: Arqueo | null; esperado: number }) {
+  return (
+    <table className="mt-2 w-full text-[9pt]">
+      <thead>
+        <tr className="border-b border-grafito/60 text-left">
+          <th className="py-0.5 font-semibold">Arqueo</th>
+          {DENOMINACIONES.map((d) => (
+            <th key={d} className="text-right font-semibold">
+              {d >= 1000 ? `${d / 1000} mil` : `$${d}`}
+            </th>
+          ))}
+          <th className="text-right font-semibold">Contado</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr className="border-b border-linea">
+          <td className="py-1 text-gris">Cantidad</td>
+          {DENOMINACIONES.map((d) => (
+            <td key={d} className="cifra text-right">
+              {arqueo ? (arqueo.cantidades[d] ?? "·") : "____"}
+            </td>
+          ))}
+          <td className="cifra text-right font-semibold">{arqueo ? clp(arqueo.contado) : "________"}</td>
+        </tr>
+        <tr>
+          <td className="pt-1 text-gris" colSpan={DENOMINACIONES.length}>
+            Debe haber {clp(esperado)}
+          </td>
+          <td className="cifra pt-1 text-right font-semibold">
+            {arqueo ? (arqueo.diferencia === 0 ? "Cuadra" : `${arqueo.diferencia > 0 ? "Sobra" : "Falta"} ${clp(Math.abs(arqueo.diferencia))}`) : "Dif.: ______"}
+          </td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 
@@ -191,7 +228,7 @@ function Detalle({ movs, idx, compacto = false }: { movs: Movimiento[]; idx: Ind
                 {anulado && " (anulado)"}
               </td>
               <td className="pr-1">
-                {m.forma_pago === "TRANSFERENCIA" ? "Transf." : m.forma_pago === "CREDITO" ? (m.tipo === "ENVASE_DEVOLUCION" ? "A deuda" : "Crédito") : "Efectivo"}
+                {m.forma_pago === "TRANSFERENCIA" ? "Transf." : m.forma_pago === "TARJETA" ? "Tarjeta" : m.forma_pago === "CREDITO" ? (m.tipo === "ENVASE_DEVOLUCION" ? "A deuda" : "Crédito") : "Efectivo"}
               </td>
               <td className="cifra text-right">
                 {m.tipo === "ENVASE_DEVOLUCION" || m.tipo === "EGRESO" ? "−" : ""}

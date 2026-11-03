@@ -3,11 +3,13 @@ import Link from "next/link";
 import { useEffect, useMemo, useRef, useState, type FormEvent } from "react";
 import type { Movimiento, TipoMovimiento } from "@/lib/types";
 import { cerrarCaja, registrarCaja, useData } from "@/lib/store";
-import { resumenCaja, vivo } from "@/lib/calc";
+import { matrizCaja, resumenCaja, vivo } from "@/lib/calc";
 import { clp, fechaLarga, hora, hoy, miles, parseMonto, sumarDias } from "@/lib/format";
 import { COLOR_TIPO, DetalleMovimiento } from "../DetalleMovimiento";
 import { MODULOS, type Modulo } from "../imprimir/ImprimirCaja";
 import { useAviso } from "../Shell";
+import { Arqueo } from "./Arqueo";
+import type { Arqueo as TArqueo } from "@/lib/types";
 import { FormaChip, MontoGrande, Tecla, Vacio } from "../ui";
 
 const SECCIONES: { tipo: TipoMovimiento; titulo: string; nota: string }[] = [
@@ -75,6 +77,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
   const [form, setForm] = useState<null | "EGRESO" | "INGRESO">(null);
   const [cerrando, setCerrando] = useState(false);
   const [nota, setNota] = useState("");
+  const [arqueo, setArqueo] = useState<TArqueo | null>(null);
 
   const movs = useMemo(() => data.idx.movsFecha.get(fecha) ?? [], [data, fecha]);
   const r = useMemo(() => resumenCaja(movs), [movs]);
@@ -97,13 +100,13 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
   }, []);
 
   // matriz tipo × forma de pago
-  const matriz = SECCIONES.map(({ tipo, titulo }) => {
-    const xs = movs.filter((m) => m.tipo === tipo && vivo(m));
-    const s = (f: string) => xs.filter((m) => m.forma_pago === f).reduce((a, m) => a + m.total, 0);
-    return { tipo, titulo, ef: s("EFECTIVO"), tr: s("TRANSFERENCIA"), cr: s("CREDITO") };
-  });
+  const matriz = matrizCaja(movs);
+  const pagadoVale = r.pagado_en_vale ?? 0;
+  const fiadoNeto = r.vale_credito - pagadoVale;
+  const cobradoDeudas = r.abonos - pagadoVale;
 
-  const ventasEf = matriz[0].ef, abonosEf = matriz[2].ef, ingresosEf = matriz[3].ef, envasesEf = matriz[5].ef;
+  // lo pagado en efectivo dentro de un vale (combinado) es plata de venta
+  const ventasEf = matriz[0].ef + matriz[1].ef, abonosEf = matriz[2].ef, ingresosEf = matriz[3].ef, envasesEf = matriz[5].ef;
   const devolucionTr = matriz[6].tr;
 
   return (
@@ -251,6 +254,9 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
             </p>
 
             <p className="my-3 border-t-2 border-dashed border-grafito/40" />
+            <Arqueo fecha={fecha} esperado={r.efectivo_esperado} guardado={cierre?.snapshot.arqueo ?? null} onCambio={setArqueo} />
+
+            <p className="my-3 border-t-2 border-dashed border-grafito/40" />
             <p className="mb-1 text-[11px] uppercase tracking-[0.25em] text-gris">Por forma de pago</p>
             <table className="w-full text-[13px]">
               <thead>
@@ -258,6 +264,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                   <th className="py-1 text-left font-medium" />
                   <th className="text-right font-medium">Efect.</th>
                   <th className="text-right font-medium">Transf.</th>
+                  <th className="text-right font-medium">Tarj.</th>
                   <th className="text-right font-medium">Crédito</th>
                 </tr>
               </thead>
@@ -267,6 +274,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                     <td className="py-1 font-sans text-[13px]" style={{ color: COLOR_TIPO[x.tipo] }}>{CORTO[x.tipo]}</td>
                     <td className="cifra text-right">{x.ef ? (SALE.has(x.tipo) ? "−" : "") + miles(x.ef) : "·"}</td>
                     <td className="cifra text-right">{x.tr ? (SALE.has(x.tipo) ? "−" : "") + miles(x.tr) : "·"}</td>
+                    <td className="cifra text-right">{x.tj ? (SALE.has(x.tipo) ? "−" : "") + miles(x.tj) : "·"}</td>
                     <td className="cifra text-right">{x.cr ? (SALE.has(x.tipo) ? "−" : "") + miles(x.cr) : "·"}</td>
                   </tr>
                 ))}
@@ -274,17 +282,18 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                   <td className="py-1 font-sans">Total</td>
                   <td className="cifra text-right">{miles(r.efectivo_esperado)}</td>
                   <td className="cifra text-right">{miles(r.transferencia - devolucionTr)}</td>
-                  <td className="cifra text-right text-fuji">{miles(r.credito)}</td>
+                  <td className="cifra text-right">{miles(r.tarjeta ?? 0)}</td>
+                  <td className="cifra text-right text-fuji">{miles(r.credito - pagadoVale)}</td>
                 </tr>
               </tbody>
             </table>
-            <p className="mt-2 font-sans text-[11px] leading-snug text-gris">Efectivo y transferencias netos de salidas. Crédito: fiado nuevo del día. Transferencias: revisar en la cartola del banco.</p>
+            <p className="mt-2 font-sans text-[11px] leading-snug text-gris">Efectivo y transferencias netos de salidas. Crédito: lo que quedó fiado. Transferencias y tarjeta: revisar en el banco. Los vales con pago combinado van en la fila «Crédito» repartidos por forma.</p>
 
             <p className="my-3 border-t-2 border-dashed border-grafito/40" />
             <Renglon label="Vendido en el día" valor={r.vale_venta + r.vale_credito} fuerte />
-            <Renglon label="Fiado nuevo" valor={r.vale_credito} color="#c4262e" />
-            <Renglon label="Cobrado de deudas" valor={r.abonos} color="#1f3c8f" />
-            <Renglon label="Variación de la calle" valor={r.vale_credito - r.abonos} color={r.vale_credito - r.abonos > 0 ? "#c4262e" : "#4f7f2a"} />
+            <Renglon label="Fiado nuevo" valor={fiadoNeto} color="#c4262e" />
+            <Renglon label="Cobrado de deudas" valor={cobradoDeudas} color="#1f3c8f" />
+            <Renglon label="Variación de la calle" valor={fiadoNeto - cobradoDeudas} color={fiadoNeto - cobradoDeudas > 0 ? "#c4262e" : "#4f7f2a"} />
             <p className="mt-2 font-sans text-[12px] text-gris">
               {r.cantidad} movimientos válidos{anulados ? ` · ${anulados} anulados (no suman)` : ""}
             </p>
@@ -296,6 +305,20 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                   <p className="text-sm">
                     <b className="text-pera">Caja cerrada</b> por {cierre.cerrado_por} a las {hora(cierre.cerrado_at)}
                     {cierre.nota && <span className="block text-gris">Nota: {cierre.nota}</span>}
+                    {cierre.snapshot.arqueo ? (
+                      <span className="block">
+                        Arqueo: contado {clp(cierre.snapshot.arqueo.contado)} ·{" "}
+                        <b className={cierre.snapshot.arqueo.diferencia < 0 ? "text-fuji" : "text-tinta"}>
+                          {cierre.snapshot.arqueo.diferencia === 0
+                            ? "cuadró"
+                            : cierre.snapshot.arqueo.diferencia > 0
+                              ? `sobraron ${clp(cierre.snapshot.arqueo.diferencia)}`
+                              : `faltaron ${clp(-cierre.snapshot.arqueo.diferencia)}`}
+                        </b>
+                      </span>
+                    ) : (
+                      <span className="block text-gris">Sin arqueo de billetes.</span>
+                    )}
                   </p>
                   {cierre.snapshot.efectivo_esperado !== r.efectivo_esperado && (
                     <p className="mt-2 border-l-4 border-naranjo bg-naranjo/10 px-2 py-1 text-sm">
@@ -321,13 +344,25 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                 <form
                   onSubmit={(e) => {
                     e.preventDefault();
-                    cerrarCaja(fecha, nota.trim() || null);
+                    cerrarCaja(fecha, nota.trim() || null, arqueo);
                     setCerrando(false);
                     setNota("");
-                    avisar({ titulo: "Caja cerrada", detalle: `Efectivo esperado ${clp(r.efectivo_esperado)}` });
+                    avisar({
+                      titulo: "Caja cerrada",
+                      detalle: arqueo
+                        ? `Contado ${clp(arqueo.contado)} · ${arqueo.diferencia === 0 ? "cuadra" : arqueo.diferencia > 0 ? `sobra ${clp(arqueo.diferencia)}` : `falta ${clp(-arqueo.diferencia)}`}`
+                        : `Efectivo esperado ${clp(r.efectivo_esperado)} (sin arqueo)`,
+                      tono: arqueo && arqueo.diferencia < 0 ? "rojo" : "ok",
+                    });
                   }}
                   className="mt-3"
                 >
+                  {!arqueo && <p className="mb-2 text-sm text-limon">No ha contado los billetes (arqueo). Puede cerrar igual.</p>}
+                  {arqueo && arqueo.diferencia !== 0 && (
+                    <p className={`mb-2 text-sm font-medium ${arqueo.diferencia < 0 ? "text-fuji" : "text-tinta"}`}>
+                      {arqueo.diferencia < 0 ? `Faltan ${clp(-arqueo.diferencia)}` : `Sobran ${clp(arqueo.diferencia)}`}: anote el motivo en la nota.
+                    </p>
+                  )}
                   <input autoFocus value={nota} onChange={(e) => setNota(e.target.value)} placeholder="Nota del cierre (opcional)" className="campo font-sans" />
                   <div className="mt-2 flex justify-end gap-2">
                     <button type="button" onClick={() => setCerrando(false)} className="px-2 text-gris">Cancelar</button>
@@ -382,15 +417,15 @@ function FormCaja({ tipo, fecha, onCerrar }: { tipo: "EGRESO" | "INGRESO"; fecha
   const avisar = useAviso();
   const [glosa, setGlosa] = useState("");
   const [monto, setMonto] = useState("");
-  const [forma, setForma] = useState<"EFECTIVO" | "TRANSFERENCIA">("EFECTIVO");
+  const [forma, setForma] = useState<"EFECTIVO" | "TRANSFERENCIA" | "TARJETA">("EFECTIVO");
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => ref.current?.focus(), [tipo]);
-  const sugerencias = tipo === "EGRESO" ? ["Pago carretillero", "Colación equipo", "Flete", "Bolsas y cinta", "Cuidador estacionamiento"] : ["Fondo de caja", "Préstamo", "Devolución"];
+  const sugerencias = tipo === "EGRESO" ? ["Compra de envases", "Gas grúa horquilla", "Carretillero", "Colación", "Flete", "Bolsas y cinta"] : ["Fondo de caja", "Préstamo", "Devolución"];
   const enviar = (e: FormEvent) => {
     e.preventDefault();
     const m = parseMonto(monto);
     if (!glosa.trim() || !m) return;
-    const mov = registrarCaja({ tipo, monto: m, forma, glosa: glosa.trim(), fecha });
+    const mov = registrarCaja({ tipo, monto: m, forma, glosa: glosa.trim(), fecha, categoria: tipo === "EGRESO" ? glosa.trim() : null });
     avisar({ titulo: `${tipo === "EGRESO" ? "Egreso" : "Ingreso"} N°${mov.numero}`, detalle: `${glosa} · ${clp(m)}`, tono: tipo === "EGRESO" ? "rojo" : "ok" });
     onCerrar();
   };
@@ -413,8 +448,8 @@ function FormCaja({ tipo, fecha, onCerrar }: { tipo: "EGRESO" | "INGRESO"; fecha
         <span className="text-[11px] uppercase tracking-widest text-gris">Monto</span>
         <input value={monto} onChange={(e) => setMonto(e.target.value)} inputMode="numeric" className="campo text-right text-lg" placeholder="$" />
       </label>
-      <button type="button" onClick={() => setForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"))} className="mb-1.5 text-sm text-tinta underline decoration-dotted underline-offset-4">
-        {forma === "EFECTIVO" ? "Efectivo" : "Transf."}
+      <button type="button" onClick={() => setForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : f === "TRANSFERENCIA" ? "TARJETA" : "EFECTIVO"))} className="mb-1.5 text-sm text-tinta underline decoration-dotted underline-offset-4">
+        {forma === "EFECTIVO" ? "Efectivo" : forma === "TRANSFERENCIA" ? "Transf." : "Tarjeta"}
       </button>
       <button type="submit" className="btn btn-primario">
         Registrar <Tecla>↵</Tecla>

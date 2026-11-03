@@ -86,7 +86,7 @@ export function CuentaCliente({ id }: { id: string }) {
       const como = m.forma_pago === "CREDITO" ? (m.tipo === "ENVASE_COBRO" ? "a crédito" : "descontado de la deuda") : m.forma_pago === "EFECTIVO" ? "efectivo" : "transferencia";
       return m.tipo === "ENVASE_COBRO" ? `Envases entregados: ${txt} (garantía, ${como})` : `Envases devueltos: ${txt} (${como})`;
     }
-    return m.glosa ?? (m.tipo === "ABONO" ? (m.forma_pago === "TRANSFERENCIA" ? "Transferencia" : "Efectivo") : "");
+    return m.glosa ?? (m.tipo === "ABONO" ? (m.forma_pago === "TRANSFERENCIA" ? "Transferencia" : m.forma_pago === "TARJETA" ? "Tarjeta" : "Efectivo") : "");
   };
   const envasesCli = envasesPorCliente(data.db, data.idx).get(id) ?? [];
   const envasesTxt = envasesCli

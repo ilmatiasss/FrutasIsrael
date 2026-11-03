@@ -20,7 +20,7 @@ const PASOS = [
   { titulo: "Registrar", texto: "El abono se aplica primero a los vales más antiguos." },
 ];
 
-type Forma = "EFECTIVO" | "TRANSFERENCIA";
+type Forma = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA";
 
 export function RegistroAbono() {
   const data = useData()!;
@@ -108,12 +108,14 @@ export function RegistroAbono() {
   };
   const onForma = (e: KeyboardEvent<HTMLDivElement>) => {
     const k = e.key.toLowerCase();
-    if (k === "e" || k === "t") {
+    if (k === "e" || k === "t" || k === "r") {
       e.preventDefault();
-      setForma(k === "e" ? "EFECTIVO" : "TRANSFERENCIA");
+      setForma(k === "e" ? "EFECTIVO" : k === "t" ? "TRANSFERENCIA" : "TARJETA");
     } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
-      setForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"));
+      const orden: Forma[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA"];
+      const d = e.key === "ArrowRight" ? 1 : -1;
+      setForma((f) => orden[(orden.indexOf(f) + d + 3) % 3]);
     } else if (e.key === "Enter") {
       e.preventDefault();
       guardar();
@@ -236,11 +238,11 @@ export function RegistroAbono() {
               ref={r("forma")}
               tabIndex={0}
               role="radiogroup"
-              aria-label="Forma: E efectivo, T transferencia"
+              aria-label="Forma: E efectivo, T transferencia, R tarjeta"
               onKeyDown={onForma}
               className="mt-5 flex flex-wrap gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-tinta/40 focus-visible:ring-offset-4"
             >
-              {(["EFECTIVO", "TRANSFERENCIA"] as Forma[]).map((k) => (
+              {(["EFECTIVO", "TRANSFERENCIA", "TARJETA"] as Forma[]).map((k) => (
                 <button key={k} type="button" tabIndex={-1} role="radio" aria-checked={forma === k} onClick={() => setForma(k)} className="opcion">
                   {FORMA[k].label}
                   <span className="tecla hidden md:inline-flex">{FORMA[k].tecla}</span>

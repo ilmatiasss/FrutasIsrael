@@ -59,7 +59,7 @@ create table if not exists movimientos (
   tipo             text not null,
   fecha            date not null,
   cliente_id       text references clientes(id) deferrable initially deferred,
-  forma_pago       text not null check (forma_pago in ('EFECTIVO', 'TRANSFERENCIA', 'CREDITO')),
+  forma_pago       text not null,
   total            bigint not null check (total > 0),
   glosa            text,
   origen_id        text references movimientos(id) deferrable initially deferred,
@@ -334,6 +334,9 @@ begin
   end if;
 end $$;
 
+-- Gastos de bodega: categoría del egreso (compra de envases, gas grúa horquilla…)
+alter table movimientos add column if not exists categoria text;
+
 -- Reglas de movimientos con nombre fijo (se recrean igual en bases antiguas)
 do $$
 declare r record;
@@ -341,10 +344,14 @@ begin
   for r in
     select conname from pg_constraint
     where conrelid = 'movimientos'::regclass and contype = 'c'
-      and conname not in ('movimientos_tipo_chk', 'movimientos_cliente_chk', 'movimientos_credito_chk', 'movimientos_total_check', 'movimientos_forma_pago_check')
+      and conname not in ('movimientos_tipo_chk', 'movimientos_cliente_chk', 'movimientos_credito_chk', 'movimientos_total_check', 'movimientos_forma_chk')
   loop
     execute format('alter table movimientos drop constraint %I', r.conname);
   end loop;
+  if not exists (select 1 from pg_constraint where conname = 'movimientos_forma_chk') then
+    alter table movimientos add constraint movimientos_forma_chk
+      check (forma_pago in ('EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'CREDITO'));
+  end if;
   if not exists (select 1 from pg_constraint where conname = 'movimientos_tipo_chk') then
     alter table movimientos add constraint movimientos_tipo_chk
       check (tipo in ('VALE_VENTA', 'VALE_CREDITO', 'ABONO', 'INGRESO', 'EGRESO', 'ENVASE_COBRO', 'ENVASE_DEVOLUCION'));
@@ -382,6 +389,50 @@ begin
      where exists (select 1 from envases x where x.tenant_id = t.id)
        and not exists (select 1 from envases x where x.tenant_id = t.id and lower(x.nombre) = 'totem');
     insert into migraciones (id) values ('2026-11-envases-toro-totem') on conflict do nothing;
+  end if;
+end $$;
+
+-- 2026-11: catálogo de frutas del local (renombra las de antes, agrega las nuevas, oculta las que no venden)
+do $$
+begin
+  perform pg_advisory_xact_lock(727002);
+  if not exists (select 1 from migraciones where id = '2026-11-catalogo-frutas') then
+    update productos p set nombre = r.nuevo
+      from (values ('FUJI', 'MANZANA FUJI'), ('ROYAL GALA', 'MANZANA ROYAL GALA'), ('VERDE', 'MANZANA VERDE'),
+                   ('NARANJA', 'NARANJAS'), ('LIMÓN', 'LIMONES')) as r(viejo, nuevo)
+     where p.nombre = r.viejo
+       and not exists (select 1 from productos x where x.tenant_id = p.tenant_id and upper(x.nombre) = r.nuevo);
+    update productos set activo = false where nombre in ('PINK LADY', 'ROJA', 'PERA', 'KIWI', 'CAJONES 3/4');
+    insert into productos (id, tenant_id, nombre, codigo, unidad_default, color, activo)
+    select gen_random_uuid()::text, t.id, f.nombre, f.codigo, f.unidad, f.color, true
+      from tenants t
+      cross join (values
+      ('MANZANA FUJI', 'FU', 'CAJA', '#C4262E'),
+      ('MANZANA ROYAL GALA', 'RG', 'CAJA', '#B8452B'),
+      ('MANZANA VERDE', 'VE', 'CAJA', '#5E8C31'),
+      ('PERA PACKHAMS', 'PP', 'CAJA', '#9DA83A'),
+      ('PERA WINTER NELLYS', 'PW', 'CAJA', '#8A7A3A'),
+      ('PERA FORELLE', 'PF', 'CAJA', '#B5A13A'),
+      ('MEMBRILLO', 'ME', 'CAJA', '#C9A227'),
+      ('MANCAQUI', 'MQ', 'CAJA', '#E39B2D'),
+      ('DURAZNO BLANQUILLO', 'DB', 'CAJA', '#E8A27C'),
+      ('DURAZNO CURACATA', 'DC', 'CAJA', '#E08A5C'),
+      ('DURAZNO CONSERVERO', 'DCO', 'CAJA', '#D9803F'),
+      ('DURAZNO PRISCO', 'DPR', 'CAJA', '#E39467'),
+      ('NECTARIN', 'NE', 'CAJA', '#D2553A'),
+      ('NECTARIN PLÁTANO', 'NP', 'CAJA', '#D8B03A'),
+      ('CIRUELAS', 'CI', 'CAJA', '#6B2A55'),
+      ('CEREZAS', 'CE', 'CAJA', '#9E1B32'),
+      ('UVA BLANCA', 'UB', 'CAJA', '#A8B84A'),
+      ('UVA NEGRA', 'UN', 'CAJA', '#3E2A4F'),
+      ('UVA ROSADA', 'UR', 'CAJA', '#B04A6A'),
+      ('CLEMENTINAS', 'CL', 'CAJA', '#EE8A1E'),
+      ('NARANJAS', 'NA', 'KG', '#E07B24'),
+      ('POMELO', 'PO', 'CAJA', '#E86A5A'),
+      ('LIMONES', 'LI', 'KG', '#D9B638')) as f(nombre, codigo, unidad, color)
+     where exists (select 1 from productos x where x.tenant_id = t.id)
+       and not exists (select 1 from productos x where x.tenant_id = t.id and upper(x.nombre) = f.nombre);
+    insert into migraciones (id) values ('2026-11-catalogo-frutas') on conflict do nothing;
   end if;
 end $$;
 

@@ -23,9 +23,9 @@ export function Inicio() {
   );
 
   const kpis = [
-    { t: "Ventas al contado", v: r.vale_venta, sub: "efectivo y transferencia", c: "" },
-    { t: "Crédito otorgado", v: r.vale_credito, sub: "vales a crédito de hoy", c: "text-fuji" },
-    { t: "Cobranza", v: r.abonos, sub: "abonos recibidos hoy", c: "" },
+    { t: "Ventas pagadas", v: r.vale_venta + (r.pagado_en_vale ?? 0), sub: "efectivo, transferencia y tarjeta", c: "" },
+    { t: "Crédito otorgado", v: r.vale_credito - (r.pagado_en_vale ?? 0), sub: "lo que quedó fiado hoy", c: "text-fuji" },
+    { t: "Cobranza", v: r.abonos - (r.pagado_en_vale ?? 0), sub: "abonos de deuda recibidos hoy", c: "" },
     { t: "Efectivo en caja", v: r.efectivo_esperado, sub: "según movimientos", c: "" },
   ];
 

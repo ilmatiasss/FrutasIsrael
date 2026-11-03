@@ -21,7 +21,7 @@ export type TipoMovimiento =
   | "ENVASE_COBRO" // el cliente se lleva envases y paga (o queda debiendo) la garantía
   | "ENVASE_DEVOLUCION"; // el cliente devuelve envases y se le paga la garantía (o se descuenta de su deuda)
 
-export type FormaPago = "EFECTIVO" | "TRANSFERENCIA" | "CREDITO";
+export type FormaPago = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA" | "CREDITO";
 
 export type Semaforo = "VERDE" | "AMARILLO" | "ROJO";
 
@@ -94,6 +94,8 @@ export interface Movimiento {
   motivo_anulacion: string | null;
   /** si vino del importador de Google Sheets */
   importado: boolean;
+  /** egresos: categoría del gasto (compra de envases, gas grúa…) */
+  categoria?: string | null;
 }
 
 export interface LineaVale {
@@ -129,6 +131,14 @@ export interface LineaEnvase {
   subtotal: number;
 }
 
+/** Conteo de billetes y monedas al cerrar la caja */
+export interface Arqueo {
+  cantidades: Record<string, number>; // denominación → cantidad
+  contado: number;
+  esperado: number;
+  diferencia: number; // contado − esperado (positivo = sobra)
+}
+
 export interface CierreCaja {
   id: UUID;
   tenant_id: UUID;
@@ -136,7 +146,7 @@ export interface CierreCaja {
   cerrado_por: string;
   cerrado_at: Timestamp;
   /** foto de los totales al momento del cierre (para auditar diferencias) */
-  snapshot: ResumenCaja;
+  snapshot: ResumenCaja & { arqueo?: Arqueo | null };
   nota: string | null;
 }
 
@@ -238,7 +248,10 @@ export interface ResumenCaja {
   egresos: number;
   efectivo: number; // entradas en efectivo (ventas + abonos + ingresos)
   transferencia: number;
+  tarjeta?: number;
   credito: number;
+  /** pagado en el mismo vale crédito (pago combinado o «abona ahora»): no es fiado ni cobro de deuda */
+  pagado_en_vale?: number;
   egresos_efectivo: number;
   envases_cobro?: number; // garantías cobradas (cualquier forma)
   envases_devolucion?: number; // garantías devueltas (cualquier forma)

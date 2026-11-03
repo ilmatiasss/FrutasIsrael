@@ -23,16 +23,17 @@ Diseño corporativo: barra lateral con el logo del local, íconos de línea y ti
 | Atajo | Pantalla | Qué hace |
 |---|---|---|
 | | **Inicio** (`/`) | Indicadores del día, accesos a los módulos y cobranza pendiente. |
-| `F1` | **Vale** (`/vale`) | Anotar una venta, con productos o **solo monto**: al contado o fiada. Número correlativo automático; con **«Cambiar N°»** se escribe a mano para calzar con el talonario (avisa si ya está usado). Un vale guardado se corrige con **«Corregir N°»** en su detalle y queda en la bitácora. |
+| `F1` | **Vale** (`/vale`) | Anotar una venta, con productos o **solo monto**: al contado o fiada. Pago con efectivo, transferencia, **tarjeta**, crédito o **combinado** (tecla M: efectivo + transferencia, tarjeta + crédito…). Productos: escribir el comienzo del nombre («du» → todos los duraznos). Número correlativo automático; con **«Cambiar N°»** se escribe a mano para calzar con el talonario (avisa si ya está usado). Un vale guardado se corrige con **«Corregir N°»** en su detalle y queda en la bitácora. |
 | `F2` | **Abonos** (`/abono`) | Recibir un pago total o parcial. Muestra qué vales quedan pagados. |
 | `F3` | **Clientes** (`/clientes`) | Quién debe, cuánto y desde cuándo. Estado Al día / Atrasado / Moroso. **Imprimir deudores**: listado completo de clientes con deuda (respeta el filtro de estado), con teléfono, último pago, días y saldo; también en `/imprimir/deudores`. Cada cliente tiene su **cuenta** con historial por mes y semana, **Agregar deuda**, abonar y nuevo vale. |
 | `F8` | **Envases** (`/envases`) | Garantía de envases: al **entregar** se cobra (efectivo, transferencia o a la cuenta) y al **devolver** se paga (sale del cajón, transferencia o se descuenta de la deuda). Muestra cuántos envases tiene cada cliente, los envases en la calle (imprimible en `/imprimir/envases`) y **Precios de envases**: lista desplegable para elegir un envase y cambiar su garantía, agregar tipos nuevos u ocultarlos. |
+| `F9` | **Gastos** (`/gastos`) | Gastos de bodega con categoría (compra de envases, gas grúa horquilla, fletes… o una escrita a mano) y detalle libre. En efectivo salen del cajón; transferencia o tarjeta no. Resumen del mes por categoría. |
 | `F4` | **Cierre de caja** (`/caja`) | Ver detalle abajo. |
-| `F7` | **Remuneraciones** (`/sueldos`) | Trabajadores por día, semana o mes: asistencia, anticipos, bonos, descuentos, pagos y lo que falta pagar. Si el pago sale del cajón, queda como egreso en el cierre. |
+| `F7` | **Remuneraciones** (`/sueldos`) | Trabajadores por día, semana o mes: asistencia, anticipos, bonos, descuentos, pagos y lo que falta pagar. Los pagos los hace Administración: no salen del cajón ni cambian el cierre. |
 | `F6` | **Reportes** (`/resumen`) | La semana en palabras, ventas por semana, fiado en la calle, antigüedad de la deuda, los que más deben y productos. |
 
 **Cierre de caja (`F4`):**
-- **Diario:** totales por tipo y forma de pago, y el efectivo que debe haber en el cajón.
+- **Diario:** totales por tipo y forma de pago (efectivo, transferencia, tarjeta, crédito), el efectivo que debe haber en el cajón y el **arqueo de billetes**: se escribe cuántos billetes y monedas hay y dice si cuadra, sobra o falta; queda guardado con el cierre y sale en la hoja impresa.
 - **Semanal** (lunes a domingo): solo con cuánta deuda quedó cada cliente.
 - **Impresión:** cada parte tiene su botón **Imprimir** y hay uno para **imprimir todo en una hoja** (A4). En la ventana de impresión se puede elegir «Guardar como PDF».
 

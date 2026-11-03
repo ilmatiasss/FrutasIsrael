@@ -11,7 +11,7 @@
  * Regla de oro: nunca se borra un movimiento — se anula y queda en la bitácora.
  */
 import { useMemo, useSyncExternalStore } from "react";
-import type {
+import type { Arqueo,
   Cliente, Config, Db, Evento, FormaPago, LineaVale, Movimiento, PagoSueldo, TipoMovimiento, TipoPagoSueldo, Trabajador, Unidad, Envase, LineaEnvase,
 } from "./types";
 import { baseVacia, crearSeed } from "./seed";
@@ -426,7 +426,7 @@ function evento(d: Db, accion: Evento["accion"], entidad_id: string | null, deta
 
 function nuevoMov(d: Db, numero: number, p: {
   tipo: TipoMovimiento; fecha: string; cliente_id: string | null; forma_pago: FormaPago;
-  total: number; glosa?: string | null; origen_id?: string | null; importado?: boolean; created_at?: string;
+  total: number; glosa?: string | null; origen_id?: string | null; importado?: boolean; created_at?: string; categoria?: string | null;
 }): Movimiento {
   return {
     id: uid(),
@@ -445,6 +445,7 @@ function nuevoMov(d: Db, numero: number, p: {
     anulado_por: null,
     motivo_anulacion: null,
     importado: p.importado ?? false,
+    categoria: p.categoria ?? null,
   };
 }
 
@@ -464,6 +465,12 @@ export function crearVale(p: {
   monto?: number;
   glosa?: string | null;
   abono?: { monto: number; forma: Exclude<FormaPago, "CREDITO"> } | null;
+  /**
+   * Pago combinado (efectivo + transferencia, tarjeta + crédito…): el vale queda
+   * como crédito por el total y cada parte pagada es un abono del mismo vale.
+   * Lo que va a "CREDITO" queda como deuda.
+   */
+  pagos?: { monto: number; forma: FormaPago }[] | null;
   /** N° escrito a mano (para que coincida con el talonario). Sin esto, el correlativo. */
   numero?: number | null;
 }): Movimiento {
@@ -472,11 +479,13 @@ export function crearVale(p: {
     const numero = p.numero && p.numero > 0 ? p.numero : d.tenant.ultimo_numero + 1;
     const lineas: LineaVale[] = [];
     const total = p.lineas.length ? p.lineas.reduce((a, l) => a + Math.round(l.cantidad * l.precio_unitario), 0) : Math.round(p.monto ?? 0);
+    const combinado = !!p.pagos?.length;
+    const forma: FormaPago = combinado ? "CREDITO" : p.forma_pago;
     const mov = nuevoMov(d, numero, {
-      tipo: p.forma_pago === "CREDITO" ? "VALE_CREDITO" : "VALE_VENTA",
+      tipo: forma === "CREDITO" ? "VALE_CREDITO" : "VALE_VENTA",
       fecha: p.fecha,
       cliente_id: p.cliente_id,
-      forma_pago: p.forma_pago,
+      forma_pago: forma,
       total,
       glosa: p.glosa ?? null,
     });
@@ -489,7 +498,19 @@ export function crearVale(p: {
     );
     const movs = [mov];
     let ultimo = Math.max(d.tenant.ultimo_numero, numero);
-    if (p.forma_pago === "CREDITO" && p.abono && p.abono.monto > 0) {
+    if (combinado) {
+      let resto = total;
+      for (const x of p.pagos!) {
+        if (x.forma === "CREDITO" || x.monto <= 0 || resto <= 0) continue;
+        const monto = Math.min(Math.round(x.monto), resto);
+        resto -= monto;
+        ultimo = siguienteLibre(d, ultimo + 1, numero, ...movs.map((m) => m.numero));
+        movs.push(nuevoMov(d, ultimo, {
+          tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: x.forma, total: monto,
+          glosa: `Pago combinado del vale N°${numero}`, origen_id: mov.id,
+        }));
+      }
+    } else if (p.forma_pago === "CREDITO" && p.abono && p.abono.monto > 0) {
       ultimo = siguienteLibre(d, ultimo + 1, numero);
       movs.push(nuevoMov(d, ultimo, {
         tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.abono.forma,
@@ -502,7 +523,7 @@ export function crearVale(p: {
       tenant: { ...d.tenant, ultimo_numero: ultimo },
       movimientos: [...d.movimientos, ...movs],
       lineas: [...d.lineas, ...lineas],
-      eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", mov.id, `Vale N°${numero} · ${mov.tipo} · $${total}`)],
+      eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", mov.id, `Vale N°${numero} · ${combinado ? `pago combinado (${p.pagos!.map((x) => `${x.forma.toLowerCase()} $${x.monto}`).join(" + ")})` : mov.tipo} · $${total}`)],
     };
   });
   return creado;
@@ -631,13 +652,14 @@ export function registrarAbono(p: {
 }
 
 export function registrarCaja(p: {
-  tipo: "INGRESO" | "EGRESO"; monto: number; forma: Exclude<FormaPago, "CREDITO">; glosa: string; fecha: string;
+  tipo: "INGRESO" | "EGRESO"; monto: number; forma: Exclude<FormaPago, "CREDITO">; glosa: string; fecha: string; categoria?: string | null;
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
     const numero = d.tenant.ultimo_numero + 1;
     const mov = nuevoMov(d, numero, {
       tipo: p.tipo, fecha: p.fecha, cliente_id: null, forma_pago: p.forma, total: p.monto, glosa: p.glosa,
+      categoria: p.tipo === "EGRESO" ? (p.categoria ?? null) : null,
     });
     creado = mov;
     return {
@@ -694,17 +716,17 @@ export function editarCliente(id: string, patch: Partial<Cliente>, detalle?: str
   }));
 }
 
-export function cerrarCaja(fecha: string, nota: string | null) {
+export function cerrarCaja(fecha: string, nota: string | null, arqueo: Arqueo | null = null) {
   set((d) => {
     const movs = d.movimientos.filter((m) => m.fecha === fecha);
-    const snap = resumenCaja(movs);
+    const snap = { ...resumenCaja(movs), arqueo };
     return {
       ...d,
       cierres: [
         ...d.cierres,
         { id: uid(), tenant_id: d.tenant.id, fecha, cerrado_por: d.config.usuario_actual, cerrado_at: new Date().toISOString(), snapshot: snap, nota },
       ],
-      eventos: [...d.eventos, evento(d, "CERRAR_CAJA", null, `Cierre ${fecha} · efectivo esperado $${snap.efectivo_esperado}`)],
+      eventos: [...d.eventos, evento(d, "CERRAR_CAJA", null, `Cierre ${fecha} · efectivo esperado $${snap.efectivo_esperado}${arqueo ? ` · contado $${arqueo.contado} (${arqueo.diferencia === 0 ? "cuadra" : arqueo.diferencia > 0 ? `sobra $${arqueo.diferencia}` : `falta $${-arqueo.diferencia}`})` : ""}`)],
     };
   });
 }

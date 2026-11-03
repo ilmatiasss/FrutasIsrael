@@ -204,6 +204,7 @@ export function Modal({
 export const FORMA: Record<string, { label: string; tecla: string; color: string }> = {
   EFECTIVO: { label: "Efectivo", tecla: "E", color: "#4b7a37" },
   TRANSFERENCIA: { label: "Transferencia", tecla: "T", color: "#2f5d8f" },
+  TARJETA: { label: "Tarjeta", tecla: "R", color: "#6b4c9a" },
   CREDITO: { label: "Crédito", tecla: "C", color: "#b4412f" },
 };
 

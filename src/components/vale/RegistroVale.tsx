@@ -14,10 +14,43 @@ import { FORMA, MontoGrande, Numeradora, StickerSemaforo } from "../ui";
 import { Colillas } from "./Colillas";
 import { Encabezado } from "../Encabezado";
 
+const PARTES_INICIALES: { monto: string; forma: FormaPago }[] = [
+  { monto: "", forma: "EFECTIVO" },
+  { monto: "", forma: "TRANSFERENCIA" },
+];
+const COMBOS: FormaPago[][] = [
+  ["EFECTIVO", "TRANSFERENCIA"],
+  ["EFECTIVO", "TARJETA"],
+  ["TARJETA", "CREDITO"],
+  ["EFECTIVO", "CREDITO"],
+  ["TRANSFERENCIA", "CREDITO"],
+];
+
+/** Reparte el total entre las formas: la última sin monto toma el resto. */
+function repartir(partes: { monto: string; forma: FormaPago }[], total: number) {
+  const valores = partes.map((x) => (x.monto.trim() ? parseMonto(x.monto) : null));
+  const vacias = valores.map((v, i) => (v === null ? i : -1)).filter((i) => i >= 0);
+  const auto = vacias.length ? vacias[vacias.length - 1] : -1;
+  const puesto = valores.reduce<number>((a, v) => a + (v ?? 0), 0);
+  const resto = total - puesto;
+  const lista = partes
+    .map((x, i) => ({ forma: x.forma, monto: i === auto ? Math.max(0, resto) : (valores[i] ?? 0) }))
+    .filter((x) => x.monto > 0);
+  const suma = lista.reduce((a, x) => a + x.monto, 0);
+  let error: string | null = null;
+  if (total <= 0) error = "Primero anote el total del vale.";
+  else if (valores.some((v, i) => partes[i].monto.trim() && (v === null || v < 0))) error = "Hay un monto mal escrito.";
+  else if (suma > total) error = `Sobran ${clp(suma - total)}: los montos suman más que el vale.`;
+  else if (suma < total) error = `Faltan ${clp(total - suma)} para completar el vale.`;
+  else if (lista.length < 2) error = "Para un solo medio de pago elija esa forma arriba.";
+  const fiado = lista.filter((x) => x.forma === "CREDITO").reduce((a, x) => a + x.monto, 0);
+  return { lista, auto, resto, error, fiado };
+}
+
 const PASOS = [
   { titulo: "Cliente", texto: "Escriba nombre o alias y presione Enter. Si no existe, elija «+ Cliente nuevo»." },
   { titulo: "Detalle", texto: "Cantidad, unidad (C caja, E envase, K kilo), producto y precio; el precio se sugiere solo. Para registrar solo un monto, use «Solo monto»." },
-  { titulo: "Forma de pago", texto: "Efectivo, Transferencia o Crédito. Un pago parcial se registra en «Abona ahora»." },
+  { titulo: "Forma de pago", texto: "Efectivo, Transferencia, Tarjeta o Crédito. «Combinado» (tecla M) reparte el vale entre varias formas, por ejemplo efectivo + transferencia o tarjeta + crédito." },
   { titulo: "Guardar", texto: "Botón «Guardar vale» o Ctrl + Enter. El folio avanza automáticamente." },
 ];
 
@@ -59,7 +92,10 @@ export function RegistroVale() {
   const [activa, setActiva] = useState<string | null>(null);
   const [forma, setForma] = useState<FormaPago>("EFECTIVO");
   const [abono, setAbono] = useState("");
-  const [abonoForma, setAbonoForma] = useState<"EFECTIVO" | "TRANSFERENCIA">("EFECTIVO");
+  const [abonoForma, setAbonoForma] = useState<"EFECTIVO" | "TRANSFERENCIA" | "TARJETA">("EFECTIVO");
+  // pago combinado: varias formas en el mismo vale (efectivo + transferencia, tarjeta + crédito…)
+  const [combinado, setCombinado] = useState(false);
+  const [partes, setPartes] = useState<{ monto: string; forma: FormaPago }[]>(PARTES_INICIALES);
   const [errores, setErrores] = useState<Set<string>>(new Set());
   const [sacude, setSacude] = useState<string | null>(null);
   const [confirmarMoroso, setConfirmarMoroso] = useState(false);
@@ -127,6 +163,9 @@ export function RegistroVale() {
   const calc = useMemo(() => filas.map(estadoFila), [filas]);
   const montoSolo = parseMonto(monto) ?? 0;
   const total = soloMonto ? montoSolo : calc.reduce((a, c) => a + c.subtotal, 0);
+  const pagos = repartir(partes, total);
+  // ¿queda algo fiado? (crédito, o un combinado con parte a crédito)
+  const fiaAlgo = combinado ? pagos.fiado > 0 : forma === "CREDITO";
   const completas = calc.filter((c) => c.completa).length;
   const sucio = !!cliente || calc.some((c) => !c.vacia) || !!monto || !!detalle;
   const siguiente = data.db.tenant.ultimo_numero + 1;
@@ -160,6 +199,8 @@ export function RegistroVale() {
     setMonto("");
     setDetalle("");
     setAbono("");
+    setCombinado(false);
+    setPartes(PARTES_INICIALES);
     setErrores(new Set());
     setConfirmarMoroso(false);
     setEscUna(false);
@@ -194,7 +235,14 @@ export function RegistroVale() {
       foco(`${filas[0].k}-cant`);
       return;
     }
-    if (forma === "CREDITO" && (cli.semaforo === "ROJO" || (cli.cliente.limite_credito !== null && cli.saldo + total > cli.cliente.limite_credito)) && !confirmarMoroso) {
+    if (combinado) {
+      if (pagos.error) {
+        sacudir("forma");
+        foco("forma");
+        return;
+      }
+    }
+    if (fiaAlgo && (cli.semaforo === "ROJO" || (cli.cliente.limite_credito !== null && cli.saldo + (combinado ? pagos.fiado : total) > cli.cliente.limite_credito)) && !confirmarMoroso) {
       setConfirmarMoroso(true);
       foco("forma");
       return;
@@ -203,7 +251,7 @@ export function RegistroVale() {
       .map((f, i) => ({ f, e: calc[i] }))
       .filter(({ e }) => e.completa)
       .map(({ f, e }) => ({ cantidad: e.c!, unidad: f.unidad, producto_id: f.prod!.id, precio_unitario: e.p! }));
-    const montoAbono = forma === "CREDITO" ? (parseMonto(abono) ?? 0) : 0;
+    const montoAbono = !combinado && forma === "CREDITO" ? (parseMonto(abono) ?? 0) : 0;
     if (errorNumero) {
       sacudir("cliente");
       return;
@@ -217,12 +265,15 @@ export function RegistroVale() {
       monto: soloMonto ? montoSolo : undefined,
       glosa: soloMonto ? detalle.trim() || (forma === "CREDITO" ? "Crédito sin detalle" : "Venta sin detalle") : null,
       abono: montoAbono > 0 ? { monto: montoAbono, forma: abonoForma } : null,
+      pagos: combinado ? pagos.lista : null,
     });
     setUltimoId(mov.id);
     avisar({
       titulo: `Vale N°${mov.numero} guardado`,
-      detalle: `${cli.cliente.alias ?? cli.cliente.nombre} · ${FORMA[forma].label} · ${clp(mov.total)}${montoAbono ? ` · abonó ${clp(Math.min(montoAbono, mov.total))}` : ""}`,
-      tono: forma === "CREDITO" ? "rojo" : "ok",
+      detalle: `${cli.cliente.alias ?? cli.cliente.nombre} · ${
+        combinado ? pagos.lista.map((x) => `${FORMA[x.forma].label} ${clp(x.monto)}`).join(" + ") : FORMA[forma].label
+      } · ${clp(mov.total)}${montoAbono ? ` · abonó ${clp(Math.min(montoAbono, mov.total))}` : ""}`,
+      tono: fiaAlgo ? "rojo" : "ok",
     });
     limpiar();
   };
@@ -354,17 +405,24 @@ export function RegistroVale() {
   };
 
   const onForma = (e: KeyboardEvent<HTMLDivElement>) => {
-    const mapa: Record<string, FormaPago> = { e: "EFECTIVO", t: "TRANSFERENCIA", c: "CREDITO" };
+    const mapa: Record<string, FormaPago> = { e: "EFECTIVO", t: "TRANSFERENCIA", r: "TARJETA", c: "CREDITO" };
     const t = mapa[e.key.toLowerCase()];
-    const orden: FormaPago[] = ["EFECTIVO", "TRANSFERENCIA", "CREDITO"];
+    const orden: FormaPago[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA", "CREDITO"];
     if (t) {
       e.preventDefault();
+      setCombinado(false);
       setForma(t);
       setConfirmarMoroso(false);
+    } else if (e.key.toLowerCase() === "m") {
+      e.preventDefault();
+      setCombinado(true);
+      setConfirmarMoroso(false);
+      setTimeout(() => foco("parte-0"), 0);
     } else if (e.key === "ArrowRight" || e.key === "ArrowLeft") {
       e.preventDefault();
       const d = e.key === "ArrowRight" ? 1 : -1;
-      setForma((f) => orden[(orden.indexOf(f) + d + 3) % 3]);
+      setCombinado(false);
+      setForma((f) => orden[(orden.indexOf(f) + d + orden.length) % orden.length]);
       setConfirmarMoroso(false);
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -379,12 +437,14 @@ export function RegistroVale() {
   /* --------------------------------- vista --------------------------------- */
 
   const fechaAtrasada = fecha !== hoy();
-  const nuevoSaldo = cli ? cli.saldo + (forma === "CREDITO" ? total - Math.min(parseMonto(abono) ?? 0, total) : 0) : 0;
+  const nuevoSaldo = cli
+    ? cli.saldo + (combinado ? pagos.fiado : forma === "CREDITO" ? total - Math.min(parseMonto(abono) ?? 0, total) : 0)
+    : 0;
   const alerta =
-    forma === "CREDITO" && cli
+    fiaAlgo && cli
       ? cli.semaforo === "ROJO"
         ? "MOROSO"
-        : cli.cliente.limite_credito !== null && cli.saldo + total > cli.cliente.limite_credito
+        : cli.cliente.limite_credito !== null && nuevoSaldo > cli.cliente.limite_credito
           ? "SOBRE EL TOPE"
           : null
       : null;
@@ -707,12 +767,12 @@ export function RegistroVale() {
             ref={r("forma")}
             tabIndex={0}
             role="radiogroup"
-            aria-label="Forma de pago: E efectivo, T transferencia, C crédito"
+            aria-label="Forma de pago: E efectivo, T transferencia, R tarjeta, C crédito, M combinado"
             onKeyDown={onForma}
             className="mt-2 flex flex-wrap gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-tinta/40 focus-visible:ring-offset-4"
           >
             {(Object.keys(FORMA) as FormaPago[]).map((k) => {
-              const on = forma === k;
+              const on = !combinado && forma === k;
               return (
                 <button
                   key={k}
@@ -721,6 +781,7 @@ export function RegistroVale() {
                   role="radio"
                   aria-checked={on}
                   onClick={() => {
+                    setCombinado(false);
                     setForma(k);
                     setConfirmarMoroso(false);
                   }}
@@ -732,9 +793,112 @@ export function RegistroVale() {
                 </button>
               );
             })}
+            <button
+              type="button"
+              tabIndex={-1}
+              role="radio"
+              aria-checked={combinado}
+              onClick={() => {
+                setCombinado(true);
+                setConfirmarMoroso(false);
+                setTimeout(() => foco("parte-0"), 0);
+              }}
+              className="opcion"
+            >
+              Combinado
+              <span className="tecla hidden md:inline-flex">M</span>
+            </button>
           </div>
 
-          {forma === "CREDITO" && (
+          {combinado && (
+            <div className="animate-entra mt-4 rounded-md border border-linea bg-carton/40 p-3 sm:p-4">
+              <div className="flex flex-wrap items-center gap-2">
+                <span className="text-sm text-gris">Paga con:</span>
+                {COMBOS.map((c) => (
+                  <button
+                    key={c.join("+")}
+                    type="button"
+                    tabIndex={-1}
+                    onClick={() => {
+                      setPartes(c.map((f) => ({ monto: "", forma: f })));
+                      setTimeout(() => foco("parte-0"), 0);
+                    }}
+                    className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                      partes.length === c.length && partes.every((x, i) => x.forma === c[i]) ? "border-tinta bg-tinta text-white" : "border-kraft text-gris hover:text-grafito"
+                    }`}
+                  >
+                    {c.map((f) => FORMA[f].label).join(" + ")}
+                  </button>
+                ))}
+              </div>
+              <div className="mt-3 space-y-2">
+                {partes.map((x, i) => {
+                  const auto = i === pagos.auto;
+                  return (
+                    <div key={i} className="flex flex-wrap items-center gap-2">
+                      <input
+                        ref={r(`parte-${i}`)}
+                        value={x.monto}
+                        onChange={(e) => setPartes(partes.map((y, j) => (j === i ? { ...y, monto: e.target.value } : y)))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (i < partes.length - 1) foco(`parte-${i + 1}`);
+                            else guardar();
+                          }
+                        }}
+                        inputMode="numeric"
+                        placeholder={auto ? `resto ${clp(Math.max(0, pagos.resto))}` : "$"}
+                        aria-label={`Monto en ${FORMA[x.forma].label.toLowerCase()}`}
+                        className="campo w-40 text-right text-lg font-semibold"
+                      />
+                      <select
+                        value={x.forma}
+                        onChange={(e) => setPartes(partes.map((y, j) => (j === i ? { ...y, forma: e.target.value as FormaPago } : y)))}
+                        className="campo w-44"
+                        aria-label={`Forma de pago ${i + 1}`}
+                      >
+                        {(Object.keys(FORMA) as FormaPago[]).map((f) => (
+                          <option key={f} value={f}>
+                            {f === "CREDITO" ? "Crédito (queda debiendo)" : FORMA[f].label}
+                          </option>
+                        ))}
+                      </select>
+                      {partes.length > 2 && (
+                        <button type="button" tabIndex={-1} onClick={() => setPartes(partes.filter((_, j) => j !== i))} className="text-sm text-gris hover:text-fuji">
+                          quitar
+                        </button>
+                      )}
+                    </div>
+                  );
+                })}
+              </div>
+              <div className="mt-3 flex flex-wrap items-center justify-between gap-2 text-sm">
+                {partes.length < 4 ? (
+                  <button type="button" tabIndex={-1} onClick={() => setPartes([...partes, { monto: "", forma: "EFECTIVO" }])} className="font-medium text-tinta hover:underline">
+                    + otra forma de pago
+                  </button>
+                ) : (
+                  <span />
+                )}
+                {pagos.error ? (
+                  <b className="text-fuji">{pagos.error}</b>
+                ) : (
+                  <span className="text-gris">
+                    {pagos.lista.map((y) => `${FORMA[y.forma].label} ${clp(y.monto)}`).join(" + ")} = <b className="text-grafito">{clp(total)}</b>
+                    {pagos.fiado > 0 && cli && (
+                      <>
+                        {" "}
+                        · queda debiendo <b className="cifra text-fuji">{clp(nuevoSaldo)}</b>
+                      </>
+                    )}
+                  </span>
+                )}
+              </div>
+            </div>
+          )}
+
+          {!combinado && forma === "CREDITO" && (
             <div className="animate-entra mt-4 flex flex-wrap items-end gap-x-6 gap-y-3">
               <label className="flex items-end gap-2">
                 <span className="pb-1.5 text-sm text-gris">Abona ahora</span>
@@ -754,10 +918,10 @@ export function RegistroVale() {
                 <button
                   type="button"
                   tabIndex={-1}
-                  onClick={() => setAbonoForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : "EFECTIVO"))}
+                  onClick={() => setAbonoForma((f) => (f === "EFECTIVO" ? "TRANSFERENCIA" : f === "TRANSFERENCIA" ? "TARJETA" : "EFECTIVO"))}
                   className="pb-1.5 text-sm text-tinta underline decoration-dotted underline-offset-4"
                 >
-                  {abonoForma === "EFECTIVO" ? "en efectivo" : "por transferencia"}
+                  {abonoForma === "EFECTIVO" ? "en efectivo" : abonoForma === "TRANSFERENCIA" ? "por transferencia" : "con tarjeta"}
                 </button>
               </label>
               {cli && (

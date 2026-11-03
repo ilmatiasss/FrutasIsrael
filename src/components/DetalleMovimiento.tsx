@@ -5,7 +5,7 @@ import type { Movimiento } from "@/lib/types";
 import { anular, corregirNumero, useData } from "@/lib/store";
 import { efectoDeuda, ETIQUETA_TIPO } from "@/lib/calc";
 import { cant, clp, fechaLarga, hora } from "@/lib/format";
-import { FormaChip, Modal, Timbre } from "./ui";
+import { FORMA, FormaChip, Modal, Timbre } from "./ui";
 import { useAviso } from "./Shell";
 
 export const COLOR_TIPO: Record<Movimiento["tipo"], string> = {
@@ -185,7 +185,7 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
           <p className="mt-3 text-sm text-gris">
             {ligados.map((l) => (
               <span key={l.id} className="mr-3">
-                ↳ {l.tipo === "ABONO" ? "Abono en el mismo vale" : "Vale de origen"} N°{l.numero} · {clp(l.total)}
+                ↳ {l.tipo === "ABONO" ? `Pagado en el vale (${FORMA[l.forma_pago]?.label.toLowerCase() ?? l.forma_pago})` : "Vale de origen"} N°{l.numero} · {clp(l.total)}
                 {l.anulado_at && " (anulado)"}
               </span>
             ))}

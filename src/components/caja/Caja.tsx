@@ -6,8 +6,8 @@ import { Encabezado } from "../Encabezado";
 
 const PASOS = [
   { titulo: "Diario o semanal", texto: "«Diario» detalla los movimientos del día. «Semanal» (lunes a domingo) muestra el saldo de cada cliente al cierre." },
-  { titulo: "Arqueo", texto: "Compare el efectivo contado con «Debe haber en caja». Las transferencias se concilian con el banco." },
-  { titulo: "Egresos e ingresos", texto: "Registre como Egreso todo dinero que salga de caja (fletes, colaciones, remuneraciones)." },
+  { titulo: "Arqueo", texto: "En «Arqueo de billetes» escriba cuántos billetes y monedas hay: el sistema suma y dice si cuadra, sobra o falta. Transferencias y tarjeta se revisan en el banco." },
+  { titulo: "Egresos e ingresos", texto: "Registre como Egreso todo dinero que salga de caja. Los gastos de bodega con categoría se anotan en «Gastos» (F9)." },
   { titulo: "Imprimir y cerrar", texto: "Imprima por sección o todo en una hoja; finalice con «Cerrar la caja»." },
 ];
 

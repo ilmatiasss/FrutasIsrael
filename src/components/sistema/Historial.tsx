@@ -68,6 +68,7 @@ const CAMPO: Record<string, string> = {
   fecha: "Fecha",
   forma: "Forma de pago",
   nota: "Nota",
+  categoria: "Categoría",
   dias_amarillo: "Días para amarillo",
   dias_rojo: "Días para rojo",
   dias_sin_compra: "Días sin compra",

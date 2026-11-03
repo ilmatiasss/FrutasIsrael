@@ -11,7 +11,7 @@ import { Modal } from "../ui";
 const PASOS = [
   { titulo: "Personal", texto: "Con «+ Trabajador» registre nombre, cargo y modalidad de pago (diaria, semanal o mensual)." },
   { titulo: "Asistencia", texto: "Para pago diario, marque los días trabajados. El monto se calcula automáticamente." },
-  { titulo: "Anticipos y pagos", texto: "Registre anticipos y pagos. Los pagos en efectivo desde caja se reflejan como egreso en el cierre." },
+  { titulo: "Anticipos y pagos", texto: "Registre anticipos y pagos. Los paga Administración: no salen del cajón ni afectan el cierre de caja." },
   { titulo: "Saldo", texto: "Cada ficha indica el monto devengado, lo pagado y el saldo por pagar." },
 ];
 
@@ -299,7 +299,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
                   <div className="flex items-baseline justify-between gap-2">
                     <span>
                       <b>{TIPO_PAGO[p.tipo].label}</b> · {ddmm(p.fecha)} · {p.forma === "EFECTIVO" ? "efectivo" : "transferencia"}
-                      {p.movimiento_id && " · salió del cajón"}
+                      {p.movimiento_id ? " · salió del cajón" : p.tipo === "PAGO" || p.tipo === "ADELANTO" ? " · pagado por Administración" : ""}
                       {p.nota && <span className="text-gris"> · {p.nota}</span>}
                     </span>
                     <span className="cifra font-semibold">
@@ -348,7 +348,6 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
   const [tipo, setTipo] = useState<PagoSueldo["tipo"]>("PAGO");
   const [monto, setMonto] = useState("");
   const [forma, setForma] = useState<"EFECTIVO" | "TRANSFERENCIA">("EFECTIVO");
-  const [desdeCaja, setDesdeCaja] = useState(true);
   const [fecha, setFecha] = useState(hoy());
   const [nota, setNota] = useState("");
   const ref = useRef<HTMLInputElement>(null);
@@ -358,7 +357,6 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
     setTipo(p.tipo);
     setMonto(p.tipo === "PAGO" && p.c.falta > 0 ? miles(p.c.falta) : "");
     setForma("EFECTIVO");
-    setDesdeCaja(true);
     const h = hoy();
     setFecha(h >= p.c.periodo.desde && h <= p.c.periodo.hasta ? h : p.c.periodo.hasta);
     setNota("");
@@ -368,12 +366,11 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
   if (!p) return null;
   const m = parseMonto(monto) ?? 0;
   const despues = p.c.falta + (tipo === "BONO" ? m : tipo === "DESCUENTO" ? -m : -m);
-  const mueveCaja = forma === "EFECTIVO" && (tipo === "PAGO" || tipo === "ADELANTO");
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
     if (m <= 0) return;
-    registrarPagoSueldo({ trabajador_id: p.c.t.id, fecha, tipo, monto: m, forma, nota: nota.trim() || null, desdeCaja: mueveCaja && desdeCaja });
+    registrarPagoSueldo({ trabajador_id: p.c.t.id, fecha, tipo, monto: m, forma, nota: nota.trim() || null, desdeCaja: false });
     avisar({ titulo: `${TIPO_PAGO[tipo].label} registrado`, detalle: `${p.c.t.nombre} · ${clp(m)}`, tono: "ok" });
     onCerrar();
   };
@@ -412,15 +409,9 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
                 </button>
               ))}
             </div>
-            {mueveCaja && (
-              <label className="mt-2 flex items-start gap-2 text-sm">
-                <input type="checkbox" checked={desdeCaja} onChange={(e) => setDesdeCaja(e.target.checked)} className="mt-0.5 size-4 accent-[#2f7d45]" />
-                <span>
-                  <b>Sale del cajón de hoy</b>
-                  <span className="block text-gris">Se anota como egreso en el cierre de caja, para que la plata cuadre.</span>
-                </span>
-              </label>
-            )}
+            <p className="mt-2 rounded-md bg-carton/60 px-3 py-2 text-sm">
+              <b>Lo paga Administración.</b> <span className="text-gris">No sale del cajón ni cambia el cierre de caja.</span>
+            </p>
           </div>
         )}
         <div className="grid grid-cols-2 gap-3">

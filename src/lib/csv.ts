@@ -101,6 +101,7 @@ export function parseForma(s: string, tipo: TipoMovimiento): FormaPago {
   if (tipo === "VALE_CREDITO") return "CREDITO";
   const t = normalizar(s);
   if (t.startsWith("transf") || t.includes("banco")) return "TRANSFERENCIA";
+  if (t.startsWith("tarj") || t.includes("debito") || t.includes("débito") || t.includes("redcompra")) return "TARJETA";
   return "EFECTIVO";
 }
 
