@@ -11,11 +11,11 @@
  * Regla de oro: nunca se borra un movimiento — se anula y queda en la bitácora.
  */
 import { useMemo, useSyncExternalStore } from "react";
-import type { Arqueo,
+import type { Producto, Arqueo,
   Cliente, Config, Db, Evento, FormaPago, LineaVale, Movimiento, PagoSueldo, TipoMovimiento, TipoPagoSueldo, Trabajador, Unidad, Envase, LineaEnvase,
 } from "./types";
 import { baseVacia, crearSeed } from "./seed";
-import { hoy, lunesDe, sumarDias, uid } from "./format";
+import { normalizar as normTxt, hoy, lunesDe, sumarDias, uid } from "./format";
 import { indexar, resumenCaja, saldosAl, type Indice } from "./calc";
 
 const KEY = "frutas-israel:db:v1"; // modo prueba
@@ -608,6 +608,33 @@ export function registrarEnvases(p: {
     };
   });
   return creado;
+}
+
+/**
+ * Crea o edita un producto del catálogo (nombre, código de tipeo, unidad, color).
+ * Devuelve un mensaje de error o null. No se borran: se ocultan.
+ */
+export function guardarProducto(p: {
+  id?: string; nombre: string; codigo: string; unidad_default: Unidad; color: string; activo?: boolean;
+}): string | null {
+  if (!db) return "Sin datos";
+  const nombre = p.nombre.trim().toUpperCase().replace(/\s+/g, " ");
+  const codigo = p.codigo.trim().toUpperCase().replace(/\s+/g, "");
+  if (nombre.length < 2) return "Escriba el nombre del producto.";
+  if (!/^[A-Z0-9Ñ/]{1,5}$/.test(codigo)) return "El código debe tener de 1 a 5 letras o números (ej: DB).";
+  const otro = db.productos.filter((x) => x.id !== p.id);
+  const mismoNombre = otro.find((x) => normTxt(x.nombre) === normTxt(nombre));
+  if (mismoNombre) return `Ya existe ${mismoNombre.nombre}${mismoNombre.activo ? "" : " (oculto: vuelva a mostrarlo)"}.`;
+  const mismoCodigo = otro.find((x) => x.activo && x.codigo.toUpperCase() === codigo);
+  if (mismoCodigo) return `El código ${codigo} ya lo usa ${mismoCodigo.nombre}.`;
+  set((d) => {
+    const previo = p.id ? d.productos.find((x) => x.id === p.id) : undefined;
+    const prod: Producto = previo
+      ? { ...previo, nombre, codigo, unidad_default: p.unidad_default, color: p.color, activo: p.activo ?? previo.activo }
+      : { id: uid(), tenant_id: d.tenant.id, nombre, codigo, unidad_default: p.unidad_default, color: p.color, activo: true };
+    return { ...d, productos: previo ? d.productos.map((x) => (x.id === prod.id ? prod : x)) : [...d.productos, prod] };
+  });
+  return null;
 }
 
 /** Crea o edita un tipo de envase (nombre y garantía). */

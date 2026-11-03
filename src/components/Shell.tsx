@@ -26,6 +26,7 @@ const ATAJOS: Record<string, string> = Object.fromEntries(SECCIONES.map((x) => [
 
 const MAS = [
   { href: "/admin", label: "Cuentas y accesos" },
+  { href: "/productos", label: "Productos (frutas)" },
   { href: "/importar", label: "Importar planilla" },
   { href: "/historial", label: "Historial de cambios" },
   { href: "/ajustes", label: "Ajustes" },
