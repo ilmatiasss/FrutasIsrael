@@ -4,7 +4,7 @@ import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState, type FormEvent } from "react";
 import type { Cliente, Movimiento, Semaforo } from "@/lib/types";
 import { editarCliente, useData } from "@/lib/store";
-import { libroCuenta, vivo } from "@/lib/calc";
+import { columnaCuenta, envasesPorCliente, libroCuenta, vivo } from "@/lib/calc";
 import {
   cant, clp, ddmm, ddmmaa, diasEntre, fechaCorta, haceDias, hoy, MESES, miles, parseMonto, sumarDias,
 } from "@/lib/format";
@@ -80,8 +80,20 @@ export function CuentaCliente({ id }: { id: string }) {
       return ls
         .map((l) => `${cant(l.cantidad)} ${l.unidad === "KG" ? "kg" : l.unidad === "ENVASE" ? "env" : "cj"} ${data.idx.producto.get(l.producto_id)?.nombre ?? ""}`)
         .join(" · ");
+    const le = data.db.lineas_envase.filter((l) => l.movimiento_id === m.id);
+    if (le.length) {
+      const txt = le.map((l) => `${l.cantidad} ${data.db.envases.find((e) => e.id === l.envase_id)?.nombre ?? "envases"}`).join(" · ");
+      const como = m.forma_pago === "CREDITO" ? (m.tipo === "ENVASE_COBRO" ? "a crédito" : "descontado de la deuda") : m.forma_pago === "EFECTIVO" ? "efectivo" : "transferencia";
+      return m.tipo === "ENVASE_COBRO" ? `Envases entregados: ${txt} (garantía, ${como})` : `Envases devueltos: ${txt} (${como})`;
+    }
     return m.glosa ?? (m.tipo === "ABONO" ? (m.forma_pago === "TRANSFERENCIA" ? "Transferencia" : "Efectivo") : "");
   };
+  const envasesCli = envasesPorCliente(data.db, data.idx).get(id) ?? [];
+  const envasesTxt = envasesCli
+    .filter((s) => s.cantidad)
+    .map((s) => `${s.cantidad} ${data.db.envases.find((e) => e.id === s.envase_id)?.nombre ?? ""}`)
+    .join(" · ");
+  const garantiaCli = envasesCli.reduce((a, s) => a + s.garantia, 0);
 
   const meses = nuevoArriba ? [...libro.meses].reverse() : libro.meses;
   const ciclo: (Semaforo | null)[] = [null, "VERDE", "AMARILLO", "ROJO"];
@@ -144,6 +156,21 @@ export function CuentaCliente({ id }: { id: string }) {
                 <dt className="rotulo">Tope de crédito</dt>
                 <dd className="cifra mt-0.5 font-semibold">{c.limite_credito !== null ? clp(c.limite_credito) : "sin tope"}</dd>
                 {est.sobreLimite && <dd className="text-xs font-semibold text-fuji">lo sobrepasa</dd>}
+              </div>
+              <div className="col-span-2 sm:col-span-4">
+                <dt className="rotulo">Envases en su poder</dt>
+                <dd className="mt-0.5">
+                  {envasesTxt ? (
+                    <>
+                      <b className="font-semibold">{envasesTxt}</b> <span className="text-gris">· garantía {clp(garantiaCli)}</span>
+                    </>
+                  ) : (
+                    <span className="text-gris">ninguno</span>
+                  )}{" "}
+                  <Link href={`/envases?cliente=${c.id}`} className="ml-2 text-sm font-medium text-tinta hover:underline">
+                    Registrar entrega o devolución
+                  </Link>
+                </dd>
               </div>
             </dl>
           </div>
@@ -275,7 +302,8 @@ export function CuentaCliente({ id }: { id: string }) {
                       </tr>,
                       ...filas.map(({ mov: m, saldo }) => {
                         const anulado = !vivo(m);
-                        const col = (t: Movimiento["tipo"]) => (m.tipo === t ? m.total : 0);
+                        const columna = columnaCuenta(m);
+                        const col = (t: "credito" | "pago" | "venta") => (columna === t ? m.total : 0);
                         return (
                           <tr
                             key={m.id}
@@ -288,10 +316,10 @@ export function CuentaCliente({ id }: { id: string }) {
                               {anulado && <span className="timbre mr-2 !rotate-[-3deg] text-[10px] text-fuji">Anulado</span>}
                               <span className={anulado ? "line-through" : m.importado ? "italic text-kraft-osc" : "text-grafito/85"}>{detalle(m)}</span>
                             </td>
-                            {(["VALE_CREDITO", "ABONO", "VALE_VENTA"] as const).map((t) => (
+                            {(["credito", "pago", "venta"] as const).map((t) => (
                               <td
                                 key={t}
-                                className={`cifra px-2 py-1.5 text-right ${anulado ? "line-through" : ""} ${t === "VALE_CREDITO" ? "text-fuji" : t === "ABONO" ? "text-tinta" : "text-pera"}`}
+                                className={`cifra px-2 py-1.5 text-right ${anulado ? "line-through" : ""} ${t === "credito" ? "text-fuji" : t === "pago" ? "text-tinta" : "text-pera"}`}
                               >
                                 {col(t) ? miles(col(t)) : ""}
                               </td>
@@ -347,8 +375,8 @@ export function CuentaCliente({ id }: { id: string }) {
                     >
                       <span className="cifra">{ddmm(m.fecha)}</span>
                       <span className="truncate">{detalle(m)}</span>
-                      <span className={`cifra text-right ${m.tipo === "VALE_CREDITO" ? "text-fuji" : m.tipo === "ABONO" ? "text-tinta" : "text-pera"}`}>
-                        {m.tipo === "ABONO" ? "−" : m.tipo === "VALE_CREDITO" ? "+" : ""}
+                      <span className={`cifra text-right ${columnaCuenta(m) === "credito" ? "text-fuji" : columnaCuenta(m) === "pago" ? "text-tinta" : "text-pera"}`}>
+                        {columnaCuenta(m) === "pago" ? "−" : columnaCuenta(m) === "credito" ? "+" : ""}
                         {miles(m.total)}
                       </span>
                       <span />

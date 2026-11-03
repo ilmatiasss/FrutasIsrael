@@ -41,7 +41,7 @@ async function upsert(c: PoolClient, tabla: Tabla, filas: Fila[], tenant: string
   const cols = TABLAS[tabla] as readonly string[];
   const nombre = SQL_NOMBRE[tabla];
   // lo contable solo se agrega; movimientos y pagos pueden pasar a "anulado"; maestros se editan
-  const inmutable = tabla === "lineas" || tabla === "eventos" || tabla === "asistencias" || tabla === "cierres" || tabla === "cierres_semana";
+  const inmutable = tabla === "lineas" || tabla === "lineas_envase" || tabla === "eventos" || tabla === "asistencias" || tabla === "cierres" || tabla === "cierres_semana";
   const actualizables = cols.filter((x) => x !== "id" && x !== "tenant_id");
   for (let i = 0; i < filas.length; i += 400) {
     const lote = filas.slice(i, i + 400);

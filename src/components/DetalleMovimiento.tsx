@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Movimiento } from "@/lib/types";
-import { anular, useData } from "@/lib/store";
+import { anular, corregirNumero, useData } from "@/lib/store";
 import { efectoDeuda, ETIQUETA_TIPO } from "@/lib/calc";
 import { cant, clp, fechaLarga, hora } from "@/lib/format";
 import { FormaChip, Modal, Timbre } from "./ui";
@@ -14,11 +14,13 @@ export const COLOR_TIPO: Record<Movimiento["tipo"], string> = {
   ABONO: "#2f5d8f",
   INGRESO: "#6c665d",
   EGRESO: "#6c665d",
+  ENVASE_COBRO: "#166534",
+  ENVASE_DEVOLUCION: "#b45309",
 };
 
 export function TipoChip({ tipo, corto = false }: { tipo: Movimiento["tipo"]; corto?: boolean }) {
   const label = corto
-    ? { VALE_VENTA: "VENTA", VALE_CREDITO: "CRÉDITO", ABONO: "ABONO", INGRESO: "INGRESO", EGRESO: "EGRESO" }[tipo]
+    ? { VALE_VENTA: "VENTA", VALE_CREDITO: "CRÉDITO", ABONO: "ABONO", INGRESO: "INGRESO", EGRESO: "EGRESO", ENVASE_COBRO: "ENVASES", ENVASE_DEVOLUCION: "DEVOL. ENV." }[tipo]
     : ETIQUETA_TIPO[tipo];
   return (
     <span className="cajon whitespace-nowrap text-[11px]" style={{ color: COLOR_TIPO[tipo] }}>
@@ -34,12 +36,17 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
   const [anulando, setAnulando] = useState(false);
   const [motivo, setMotivo] = useState("");
   const [recien, setRecien] = useState(false);
+  const [corrigiendo, setCorrigiendo] = useState(false);
+  const [nuevoN, setNuevoN] = useState("");
+  const [errN, setErrN] = useState<string | null>(null);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
     setAnulando(false);
     setMotivo("");
     setRecien(false);
+    setCorrigiendo(false);
+    setErrN(null);
   }, [movId]);
   useEffect(() => {
     if (anulando) ref.current?.focus();
@@ -49,6 +56,8 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
   if (!data || !mov) return null;
   const cli = mov.cliente_id ? data.idx.cliente.get(mov.cliente_id) : null;
   const lineas = data.idx.lineasMov.get(mov.id) ?? [];
+  const lineasEnv = data.db.lineas_envase.filter((l) => l.movimiento_id === mov.id);
+  const nombreEnvase = (id: string) => data.db.envases.find((e) => e.id === id)?.nombre ?? "Envase";
   const ligados = data.db.movimientos.filter((m) => m.origen_id === mov.id || m.id === mov.origen_id);
   // cruce: cómo queda la cuenta del cliente si se anula este movimiento
   const saldoTras = (() => {
@@ -76,9 +85,34 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
               {fechaLarga(mov.fecha)} · {hora(mov.created_at)} · {mov.creado_por}
             </p>
           </div>
+          <div className="text-right">
+          {corrigiendo ? (
+            <form
+              className="flex items-center gap-1.5"
+              onSubmit={(e) => {
+                e.preventDefault();
+                const n = parseInt(nuevoN.replace(/\D/g, ""), 10);
+                const err = corregirNumero(mov.id, n);
+                if (err) return setErrN(err);
+                avisar({ titulo: `Folio corregido: N°${mov.numero} → N°${n}`, detalle: "Queda registrado en la bitácora.", tono: "tinta" });
+                setCorrigiendo(false);
+              }}
+            >
+              <input autoFocus value={nuevoN} onChange={(e) => { setNuevoN(e.target.value); setErrN(null); }} inputMode="numeric" className="campo w-28 py-1 text-right" aria-label="Nuevo N° de vale" />
+              <button type="submit" className="btn btn-primario py-1.5 text-sm">OK</button>
+            </form>
+          ) : (
           <p className="cifra text-2xl font-semibold text-fuji">
             <span className="text-base">N°</span> {mov.numero}
           </p>
+          )}
+          {errN && <p className="mt-1 text-xs text-fuji">{errN}</p>}
+          {!corrigiendo && !mov.anulado_at && (
+            <button type="button" onClick={() => { setNuevoN(String(mov.numero)); setCorrigiendo(true); }} className="text-xs font-medium text-tinta hover:underline">
+              Corregir N°
+            </button>
+          )}
+          </div>
         </div>
 
         {cli && (
@@ -111,13 +145,36 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
               ))}
             </tbody>
           </table>
+        ) : lineasEnv.length > 0 ? (
+          <table className="mt-3 w-full text-[15px]">
+            <thead>
+              <tr className="text-left text-[11px] uppercase tracking-widest text-gris">
+                <th className="py-1 font-medium">Cant.</th>
+                <th className="font-medium">Envase</th>
+                <th className="text-right font-medium">Garantía</th>
+                <th className="text-right font-medium">Total</th>
+              </tr>
+            </thead>
+            <tbody className="libro">
+              {lineasEnv.map((l) => (
+                <tr key={l.id}>
+                  <td className="cifra py-1.5">{l.cantidad}</td>
+                  <td>
+                    <b>{nombreEnvase(l.envase_id)}</b> <span className="text-gris">{mov.tipo === "ENVASE_COBRO" ? "entregados" : "devueltos"}</span>
+                  </td>
+                  <td className="cifra text-right">{clp(l.precio_unitario)}</td>
+                  <td className="cifra text-right">{clp(l.subtotal)}</td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
         ) : (
           mov.glosa && <p className="mt-4 text-lg">{mov.glosa}</p>
         )}
-        {lineas.length > 0 && mov.glosa && <p className="mt-2 text-sm text-gris">{mov.glosa}</p>}
+        {(lineas.length > 0 || lineasEnv.length > 0) && mov.glosa && <p className="mt-2 text-sm text-gris">{mov.glosa}</p>}
 
         <div className="mt-4 flex items-end justify-between">
-          <FormaChip forma={mov.forma_pago} />
+          {mov.tipo === "ENVASE_DEVOLUCION" && mov.forma_pago === "CREDITO" ? <span className="text-xs text-gris">Descontado de la deuda</span> : <FormaChip forma={mov.forma_pago} />}
           <p className="text-right">
             <span className="rotulo mr-3">Total</span>
             <span className={`cifra doble-raya text-2xl font-semibold ${mov.anulado_at ? "text-gris line-through" : ""}`}>{clp(mov.total)}</span>

@@ -4,7 +4,7 @@
  * movimientos, cartera vs cuentas de clientes). No modifica nada.
  */
 import type { Db } from "./types";
-import { efectoDeuda, estadoCliente, indexar, resumenCaja, saldosAl, vivo } from "./calc";
+import { efectoDeuda, envasesPorCliente, estadoCliente, indexar, resumenCaja, saldosAl, vivo } from "./calc";
 import { clp, hoy } from "./format";
 
 export interface Chequeo {
@@ -43,6 +43,29 @@ export function verificar(db: Db): Chequeo[] {
     malos.length
       ? { titulo: "Total de vales = suma de líneas", estado: "error", detalle: `${malos.length} vales no cuadran con su detalle.`, items: max(malos.map((m) => `N°${m.numero}`)) }
       : { titulo: "Total de vales = suma de líneas", estado: "ok", detalle: "Todos los vales cuadran con su detalle." },
+  );
+
+  // 2b. envases: total = suma de líneas; nadie devuelve más de lo que se llevó
+  const envMal = db.movimientos.filter((m) => {
+    if (m.tipo !== "ENVASE_COBRO" && m.tipo !== "ENVASE_DEVOLUCION") return false;
+    const ls = db.lineas_envase.filter((l) => l.movimiento_id === m.id);
+    return !ls.length || ls.reduce((x, l) => x + l.subtotal, 0) !== m.total;
+  });
+  out.push(
+    envMal.length
+      ? { titulo: "Envases: total = suma de líneas", estado: "error", detalle: `${envMal.length} movimientos de envases no cuadran.`, items: max(envMal.map((m) => `N°${m.numero}`)) }
+      : { titulo: "Envases: total = suma de líneas", estado: "ok", detalle: "Entregas y devoluciones cuadran con su detalle." },
+  );
+  const negativos: string[] = [];
+  envasesPorCliente(db, idx).forEach((ss, cli) => {
+    for (const x of ss)
+      if (x.cantidad < 0)
+        negativos.push(`${idx.cliente.get(cli)?.alias ?? idx.cliente.get(cli)?.nombre ?? "?"}: ${x.cantidad} ${db.envases.find((e) => e.id === x.envase_id)?.nombre ?? ""}`);
+  });
+  out.push(
+    negativos.length
+      ? { titulo: "Envases devueltos ≤ entregados", estado: "aviso", detalle: `${negativos.length} casos devolvieron más de lo registrado (pueden ser envases de antes del sistema).`, items: max(negativos) }
+      : { titulo: "Envases devueltos ≤ entregados", estado: "ok", detalle: "Ningún cliente devolvió más envases de los que se llevó." },
   );
 
   // 3. referencias rotas

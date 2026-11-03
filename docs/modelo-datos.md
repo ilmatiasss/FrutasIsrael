@@ -31,15 +31,21 @@ tenants ─┬─< usuarios
 
 | campo | nota |
 |---|---|
-| `numero` | correlativo único por tenant (N° de vale) |
-| `tipo` | `VALE_VENTA` · `VALE_CREDITO` · `ABONO` · `INGRESO` · `EGRESO` |
-| `forma_pago` | `EFECTIVO` · `TRANSFERENCIA` · `CREDITO` (solo vale crédito) |
+| `numero` | correlativo único por tenant (N° de vale); se puede escribir a mano o corregir después (bitácora `CORREGIR_FOLIO`) |
+| `tipo` | `VALE_VENTA` · `VALE_CREDITO` · `ABONO` · `INGRESO` · `EGRESO` · `ENVASE_COBRO` · `ENVASE_DEVOLUCION` |
+| `forma_pago` | `EFECTIVO` · `TRANSFERENCIA` · `CREDITO` (vale crédito y envases) |
 | `total` | CLP enteros, siempre positivo; el signo lo da el tipo |
 | `origen_id` | abono hecho en el mismo vale crédito («abona ahora») |
 | `anulado_at / anulado_por / motivo_anulacion` | anulación auditable; nunca se borra |
 | `importado` | vino del CSV de la planilla |
 
 **Deuda sin productos** (saldo anterior, préstamo, ajuste): es un `VALE_CREDITO` sin líneas; la `glosa` es opcional (por defecto «Crédito sin detalle»). Lo mismo un vale venta «solo monto». Toma N° del talonario y se anula igual que cualquier vale.
+
+**envases** — catálogo: `nombre` (Caja cosechera, Bins plástico, Cajón de madera, Pallet…), `precio` de garantía, `activo`, `orden`. Se edita desde la pantalla Envases.
+
+**lineas_envase** — detalle de una entrega o devolución: `envase_id`, `cantidad`, `precio_unitario`, `subtotal`. Inmutables como las líneas de vale.
+
+**Envases (garantía):** `ENVASE_COBRO` = el cliente se lleva envases y paga la garantía; en efectivo entra al cajón, con `CREDITO` suma a su deuda. `ENVASE_DEVOLUCION` = devuelve envases y se le paga; en efectivo sale del cajón, con `CREDITO` se descuenta de su deuda.
 
 **lineas_vale** — `cantidad` (decimal para KG), `unidad`, `producto_id`, `precio_unitario`, `subtotal`.
 
@@ -53,20 +59,21 @@ tenants ─┬─< usuarios
 
 | dato | regla |
 |---|---|
-| Deuda | Σ vale crédito − Σ abonos, sin anulados |
+| Deuda | Σ vale crédito − Σ abonos ± envases a cuenta, sin anulados |
+| Envases en su poder | Σ entregados − Σ devueltos por tipo; garantía = cantidad × precio cobrado |
 | Vales impagos | abonos aplicados FIFO sobre los vales crédito |
 | Días sin pagar | desde el último abono; si nunca pagó, desde el vale impago más antiguo |
 | Semáforo | VERDE < 15 días ≤ AMARILLO < 30 días ≤ ROJO (configurable); `semaforo_manual` lo pisa |
 | ¿Sigue comprando? | compró en los últimos 21 días; `compra_manual` lo pisa |
 | Último precio | última línea viva del producto en la misma unidad (general y para ese cliente) |
-| Efectivo en caja | ventas + abonos + ingresos en efectivo − egresos en efectivo |
+| Efectivo en caja | ventas + abonos + ingresos + garantías cobradas en efectivo − egresos − garantías devueltas en efectivo |
 
-En Postgres: vistas `v_saldos_clientes` y `v_caja_diaria`, para consultar directo en el SQL Editor de Neon.
+En Postgres: vistas `v_saldos_clientes`, `v_caja_diaria` y `v_envases_clientes`, para consultar directo en el SQL Editor de Neon.
 
 ## Garantías en la base
 
 - Sin `DELETE` en movimientos, líneas ni eventos (trigger `prohibir_borrado`).
-- `UPDATE` de un movimiento solo puede anularlo, con motivo obligatorio, y lo anota en la bitácora (trigger `solo_anular`).
+- `UPDATE` de un movimiento solo puede anularlo (motivo obligatorio) o corregir su N°; tipo, fecha, cliente, forma de pago y total no cambian (trigger `solo_anular`).
 - El servidor filtra todo por `tenant_id` y solo acepta tablas y columnas de una lista blanca (`src/lib/server/tablas.ts`).
 - El N° de vale lo confirma el servidor dentro de una transacción con la fila del locatario bloqueada: si dos cajas usan el mismo, a una se le asigna el siguiente.
 

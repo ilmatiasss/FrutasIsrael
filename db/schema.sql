@@ -56,7 +56,7 @@ create table if not exists movimientos (
   id               text primary key,
   tenant_id        text not null references tenants(id),
   numero           bigint not null,
-  tipo             text not null check (tipo in ('VALE_VENTA', 'VALE_CREDITO', 'ABONO', 'INGRESO', 'EGRESO')),
+  tipo             text not null,
   fecha            date not null,
   cliente_id       text references clientes(id) deferrable initially deferred,
   forma_pago       text not null check (forma_pago in ('EFECTIVO', 'TRANSFERENCIA', 'CREDITO')),
@@ -69,9 +69,7 @@ create table if not exists movimientos (
   anulado_por      text,
   motivo_anulacion text,
   importado        boolean not null default false,
-  unique (tenant_id, numero),
-  check ((tipo in ('INGRESO', 'EGRESO')) = (cliente_id is null)),
-  check ((tipo = 'VALE_CREDITO') = (forma_pago = 'CREDITO'))
+  unique (tenant_id, numero)
 );
 create index if not exists movimientos_cliente_idx on movimientos (tenant_id, cliente_id, fecha);
 create index if not exists movimientos_fecha_idx on movimientos (tenant_id, fecha);
@@ -171,9 +169,9 @@ end $$;
 
 create or replace function solo_anular() returns trigger language plpgsql as $$
 begin
-  if (new.numero, new.tipo, new.fecha, new.cliente_id, new.forma_pago, new.total, new.origen_id, new.creado_por)
+  if (new.tipo, new.fecha, new.cliente_id, new.forma_pago, new.total, new.origen_id, new.creado_por)
      is distinct from
-     (old.numero, old.tipo, old.fecha, old.cliente_id, old.forma_pago, old.total, old.origen_id, old.creado_por) then
+     (old.tipo, old.fecha, old.cliente_id, old.forma_pago, old.total, old.origen_id, old.creado_por) then
     raise exception 'Los movimientos no se editan: se anulan y se emite uno nuevo (N°%)', old.numero;
   end if;
   if old.anulado_at is not null and new.anulado_at is null then
@@ -263,3 +261,82 @@ create table if not exists intentos_acceso (
   at      timestamptz not null default now()
 );
 create index if not exists intentos_ip_idx on intentos_acceso (ip, at desc);
+
+-- -----------------------------------------------------------------------------
+-- Envases: garantía que se cobra al entregar y se paga al devolver
+-- -----------------------------------------------------------------------------
+create table if not exists envases (
+  id        text primary key,
+  tenant_id text not null references tenants(id),
+  nombre    text not null,
+  precio    bigint not null check (precio >= 0),
+  activo    boolean not null default true,
+  orden     int not null default 0
+);
+
+create table if not exists lineas_envase (
+  id              text primary key,
+  tenant_id       text not null references tenants(id),
+  movimiento_id   text not null references movimientos(id) deferrable initially deferred,
+  envase_id       text not null references envases(id) deferrable initially deferred,
+  cantidad        int not null check (cantidad > 0),
+  precio_unitario bigint not null check (precio_unitario >= 0),
+  subtotal        bigint not null
+);
+create index if not exists lineas_envase_mov_idx on lineas_envase (movimiento_id);
+
+do $$
+begin
+  if not exists (select 1 from pg_trigger where tgname = 'lineas_envase_sin_borrar') then
+    create trigger lineas_envase_sin_borrar before delete on lineas_envase for each row execute function prohibir_borrado();
+  end if;
+end $$;
+
+-- Reglas de movimientos con nombre fijo (se recrean igual en bases antiguas)
+do $$
+declare r record;
+begin
+  for r in
+    select conname from pg_constraint
+    where conrelid = 'movimientos'::regclass and contype = 'c'
+      and conname not in ('movimientos_tipo_chk', 'movimientos_cliente_chk', 'movimientos_credito_chk', 'movimientos_total_check', 'movimientos_forma_pago_check')
+  loop
+    execute format('alter table movimientos drop constraint %I', r.conname);
+  end loop;
+  if not exists (select 1 from pg_constraint where conname = 'movimientos_tipo_chk') then
+    alter table movimientos add constraint movimientos_tipo_chk
+      check (tipo in ('VALE_VENTA', 'VALE_CREDITO', 'ABONO', 'INGRESO', 'EGRESO', 'ENVASE_COBRO', 'ENVASE_DEVOLUCION'));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'movimientos_cliente_chk') then
+    alter table movimientos add constraint movimientos_cliente_chk
+      check ((tipo in ('INGRESO', 'EGRESO')) = (cliente_id is null));
+  end if;
+  if not exists (select 1 from pg_constraint where conname = 'movimientos_credito_chk') then
+    alter table movimientos add constraint movimientos_credito_chk
+      check ((tipo <> 'VALE_CREDITO' or forma_pago = 'CREDITO')
+         and (forma_pago <> 'CREDITO' or tipo in ('VALE_CREDITO', 'ENVASE_COBRO', 'ENVASE_DEVOLUCION')));
+  end if;
+end $$;
+
+-- deuda por cliente incluyendo garantías a crédito
+create or replace view v_saldos_clientes as
+select c.tenant_id, c.id as cliente_id, coalesce(c.alias, c.nombre) as cliente,
+       coalesce(sum(case
+         when m.tipo = 'VALE_CREDITO' then m.total
+         when m.tipo = 'ABONO' then -m.total
+         when m.tipo = 'ENVASE_COBRO' and m.forma_pago = 'CREDITO' then m.total
+         when m.tipo = 'ENVASE_DEVOLUCION' and m.forma_pago = 'CREDITO' then -m.total
+         else 0 end) filter (where m.anulado_at is null), 0) as saldo,
+       max(m.fecha) filter (where m.tipo = 'ABONO' and m.anulado_at is null) as ultimo_pago
+from clientes c
+left join movimientos m on m.cliente_id = c.id
+group by c.tenant_id, c.id;
+
+-- envases en poder de cada cliente
+create or replace view v_envases_clientes as
+select m.tenant_id, m.cliente_id, l.envase_id,
+       sum(case when m.tipo = 'ENVASE_COBRO' then l.cantidad else -l.cantidad end) as cantidad,
+       sum(case when m.tipo = 'ENVASE_COBRO' then l.subtotal else -l.subtotal end) as garantia
+from lineas_envase l
+join movimientos m on m.id = l.movimiento_id and m.anulado_at is null
+group by m.tenant_id, m.cliente_id, l.envase_id;

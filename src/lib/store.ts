@@ -12,7 +12,7 @@
  */
 import { useMemo, useSyncExternalStore } from "react";
 import type {
-  Cliente, Config, Db, Evento, FormaPago, LineaVale, Movimiento, PagoSueldo, TipoMovimiento, TipoPagoSueldo, Trabajador, Unidad,
+  Cliente, Config, Db, Evento, FormaPago, LineaVale, Movimiento, PagoSueldo, TipoMovimiento, TipoPagoSueldo, Trabajador, Unidad, Envase, LineaEnvase,
 } from "./types";
 import { baseVacia, crearSeed } from "./seed";
 import { hoy, lunesDe, sumarDias, uid } from "./format";
@@ -49,6 +49,8 @@ function normalizar(parsed: Db): Db {
     trabajadores: parsed.trabajadores ?? [],
     asistencias: parsed.asistencias ?? [],
     pagos_sueldo: parsed.pagos_sueldo ?? [],
+    envases: parsed.envases ?? baseVacia().envases.map((e) => ({ ...e, tenant_id: parsed.tenant.id })),
+    lineas_envase: parsed.lineas_envase ?? [],
     eventos: parsed.eventos ?? [],
   };
 }
@@ -126,7 +128,7 @@ export function datosParaInstalar(opcion: "vacia" | "ejemplo" | "este-pc", nombr
 
 const TABLAS_SYNC = [
   "usuarios", "clientes", "productos", "trabajadores", "movimientos", "lineas",
-  "cierres", "cierres_semana", "asistencias", "pagos_sueldo", "eventos",
+  "cierres", "cierres_semana", "asistencias", "pagos_sueldo", "eventos", "envases", "lineas_envase",
 ] as const;
 type TablaSync = (typeof TABLAS_SYNC)[number];
 
@@ -283,6 +285,11 @@ async function iniciar() {
     db = conUsuarioLocal(conPendientes(normalizar(j.db)));
     escribir(KEY_NUBE, db);
     modo = "nube";
+    // base creada antes de existir el módulo de envases: se carga el catálogo estándar
+    if (!db.envases.length) {
+      const tenant = db.tenant.id;
+      set((d) => ({ ...d, envases: baseVacia().envases.map((e) => ({ ...e, tenant_id: tenant })) }));
+    }
     void enviar();
   } else {
     // sin internet o la base no responde: se trabaja con la última copia
@@ -445,10 +452,12 @@ export function crearVale(p: {
   monto?: number;
   glosa?: string | null;
   abono?: { monto: number; forma: Exclude<FormaPago, "CREDITO"> } | null;
+  /** N° escrito a mano (para que coincida con el talonario). Sin esto, el correlativo. */
+  numero?: number | null;
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
-    const numero = d.tenant.ultimo_numero + 1;
+    const numero = p.numero && p.numero > 0 ? p.numero : d.tenant.ultimo_numero + 1;
     const lineas: LineaVale[] = [];
     const total = p.lineas.length ? p.lineas.reduce((a, l) => a + Math.round(l.cantidad * l.precio_unitario), 0) : Math.round(p.monto ?? 0);
     const mov = nuevoMov(d, numero, {
@@ -467,9 +476,9 @@ export function crearVale(p: {
       }),
     );
     const movs = [mov];
-    let ultimo = numero;
+    let ultimo = Math.max(d.tenant.ultimo_numero, numero);
     if (p.forma_pago === "CREDITO" && p.abono && p.abono.monto > 0) {
-      ultimo++;
+      ultimo = siguienteLibre(d, ultimo + 1, numero);
       movs.push(nuevoMov(d, ultimo, {
         tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.abono.forma,
         total: Math.min(p.abono.monto, total), glosa: `Abono en el mismo vale N°${numero}`, origen_id: mov.id,
@@ -485,6 +494,100 @@ export function crearVale(p: {
     };
   });
   return creado;
+}
+
+/** Primer N° libre desde `desde` (saltando los ya usados y los reservados). */
+function siguienteLibre(d: Db, desde: number, ...reservados: number[]): number {
+  const usados = new Set([...d.movimientos.map((m) => m.numero), ...reservados]);
+  let n = desde;
+  while (usados.has(n)) n++;
+  return n;
+}
+
+/** ¿Ese N° de vale ya existe? (para escribir el número a mano) */
+export function numeroUsado(numero: number): boolean {
+  return !!db?.movimientos.some((m) => m.numero === numero);
+}
+
+/**
+ * Corrige el N° de un movimiento ya guardado (p. ej. para que calce con el
+ * talonario). No cambia montos ni fechas; queda en la bitácora.
+ * Devuelve un mensaje de error o null si se pudo.
+ */
+export function corregirNumero(id: string, nuevo: number): string | null {
+  if (!db) return "Sin datos";
+  if (!Number.isInteger(nuevo) || nuevo <= 0) return "Escriba un número válido.";
+  const m = db.movimientos.find((x) => x.id === id);
+  if (!m) return "No se encontró el vale.";
+  if (m.numero === nuevo) return null;
+  if (numeroUsado(nuevo)) return `El N°${nuevo} ya está usado.`;
+  const anterior = m.numero;
+  set((d) => ({
+    ...d,
+    tenant: { ...d.tenant, ultimo_numero: Math.max(d.tenant.ultimo_numero, nuevo) },
+    movimientos: d.movimientos.map((x) => (x.id === id ? { ...x, numero: nuevo } : x)),
+    eventos: [...d.eventos, evento(d, "CORREGIR_FOLIO", id, `Folio corregido: N°${anterior} → N°${nuevo}`)],
+  }));
+  return null;
+}
+
+/* ---------------------------------- envases ---------------------------------- */
+
+export interface LineaEnvaseInput {
+  envase_id: string;
+  cantidad: number;
+  precio_unitario: number;
+}
+
+/**
+ * Entrega (cobro de garantía) o devolución (pago de garantía) de envases.
+ * - Cobro: efectivo/transferencia entra a caja; crédito suma a la deuda.
+ * - Devolución: efectivo sale de caja; transferencia no toca caja; "CREDITO" = se descuenta de la deuda.
+ */
+export function registrarEnvases(p: {
+  tipo: "ENVASE_COBRO" | "ENVASE_DEVOLUCION";
+  cliente_id: string;
+  fecha: string;
+  forma: FormaPago;
+  lineas: LineaEnvaseInput[];
+  glosa: string | null;
+}): Movimiento {
+  let creado!: Movimiento;
+  set((d) => {
+    const numero = d.tenant.ultimo_numero + 1;
+    const total = p.lineas.reduce((a, l) => a + Math.round(l.cantidad * l.precio_unitario), 0);
+    const mov = nuevoMov(d, numero, { tipo: p.tipo, fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.forma, total, glosa: p.glosa });
+    const lineas: LineaEnvase[] = p.lineas.map((l) => ({
+      id: uid(), tenant_id: d.tenant.id, movimiento_id: mov.id, envase_id: l.envase_id, cantidad: l.cantidad,
+      precio_unitario: l.precio_unitario, subtotal: Math.round(l.cantidad * l.precio_unitario),
+    }));
+    const unidades = p.lineas.reduce((a, l) => a + l.cantidad, 0);
+    creado = mov;
+    return {
+      ...d,
+      tenant: { ...d.tenant, ultimo_numero: numero },
+      movimientos: [...d.movimientos, mov],
+      lineas_envase: [...d.lineas_envase, ...lineas],
+      eventos: [
+        ...d.eventos,
+        evento(d, "CREAR_MOVIMIENTO", mov.id, `${p.tipo === "ENVASE_COBRO" ? "Entrega" : "Devolución"} de ${unidades} envases N°${numero} · $${total}`),
+      ],
+    };
+  });
+  return creado;
+}
+
+/** Crea o edita un tipo de envase (nombre y garantía). */
+export function guardarEnvase(p: { id?: string; nombre: string; precio: number; activo?: boolean }): Envase {
+  let e!: Envase;
+  set((d) => {
+    const previo = p.id ? d.envases.find((x) => x.id === p.id) : undefined;
+    e = previo
+      ? { ...previo, nombre: p.nombre, precio: p.precio, activo: p.activo ?? previo.activo }
+      : { id: uid(), tenant_id: d.tenant.id, nombre: p.nombre, precio: p.precio, activo: true, orden: d.envases.length };
+    return { ...d, envases: previo ? d.envases.map((x) => (x.id === e.id ? e : x)) : [...d.envases, e] };
+  });
+  return e;
 }
 
 export function registrarAbono(p: {

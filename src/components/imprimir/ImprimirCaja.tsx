@@ -18,6 +18,7 @@ export const MODULOS = {
   creditos: "Vales crédito",
   abonos: "Abonos",
   gastos: "Ingresos y egresos de caja",
+  envases: "Envases (garantías)",
 } as const;
 export type Modulo = keyof typeof MODULOS;
 
@@ -26,13 +27,17 @@ const TIPOS: Record<Exclude<Modulo, "resumen" | "efectivo">, TipoMovimiento[]> =
   creditos: ["VALE_CREDITO"],
   abonos: ["ABONO"],
   gastos: ["INGRESO", "EGRESO"],
+  envases: ["ENVASE_COBRO", "ENVASE_DEVOLUCION"],
 };
 
 function datos(db: Db, idx: Indice, fecha: string) {
   const movs = idx.movsFecha.get(fecha) ?? [];
   const r = resumenCaja(movs);
   const suma = (tipo: TipoMovimiento, forma: string) => movs.filter((m) => vivo(m) && m.tipo === tipo && m.forma_pago === forma).reduce((a, m) => a + m.total, 0);
-  const filas: [string, TipoMovimiento][] = [["Ventas", "VALE_VENTA"], ["Créditos", "VALE_CREDITO"], ["Abonos", "ABONO"], ["Ingresos", "INGRESO"], ["Egresos", "EGRESO"]];
+  const filas: [string, TipoMovimiento][] = [
+    ["Ventas", "VALE_VENTA"], ["Créditos", "VALE_CREDITO"], ["Abonos", "ABONO"], ["Ingresos", "INGRESO"], ["Egresos", "EGRESO"],
+    ["Garantía envases", "ENVASE_COBRO"], ["Devol. envases", "ENVASE_DEVOLUCION"],
+  ];
   const matriz = filas.map(([label, t]) => ({ label, t, ef: suma(t, "EFECTIVO"), tr: suma(t, "TRANSFERENCIA"), cr: suma(t, "CREDITO") }));
   const cierre = [...db.cierres].reverse().find((c) => c.fecha === fecha) ?? null;
   return { movs, r, matriz, cierre };
@@ -79,6 +84,8 @@ function Totales({ r }: { r: ReturnType<typeof resumenCaja> }) {
     ["Abonos", r.abonos],
     ["Ingresos", r.ingresos],
     ["Egresos", r.egresos],
+    ["Garantía de envases cobrada", r.envases_cobro ?? 0],
+    ["Garantía de envases devuelta", r.envases_devolucion ?? 0],
   ] as const;
   return (
     <table className="w-full text-[10pt]">
@@ -116,7 +123,9 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
           {linea("+", "Ventas en efectivo", matriz[0].ef)}
           {linea("+", "Abonos en efectivo", matriz[2].ef)}
           {linea("+", "Ingresos en efectivo", matriz[3].ef)}
+          {matriz[5].ef > 0 && linea("+", "Garantía de envases", matriz[5].ef)}
           {linea("−", "Egresos en efectivo", r.egresos_efectivo)}
+          {(r.devolucion_efectivo ?? 0) > 0 && linea("−", "Devolución de envases", r.devolucion_efectivo ?? 0)}
           <tr>
             <td />
             <td className="pt-1 font-semibold">Debe haber en caja</td>
@@ -177,11 +186,17 @@ function Detalle({ movs, idx, compacto = false }: { movs: Movimiento[]; idx: Ind
               <td className="cifra py-px pr-1">{m.numero}</td>
               {!compacto && <td className="cifra pr-1">{hora(m.created_at)}</td>}
               <td className="max-w-0 truncate pr-1">
+                {m.tipo === "ENVASE_COBRO" ? "Entrega · " : m.tipo === "ENVASE_DEVOLUCION" ? "Devolución · " : ""}
                 {c ? (c.alias ?? c.nombre) : m.glosa}
                 {anulado && " (anulado)"}
               </td>
-              <td className="pr-1">{m.forma_pago === "TRANSFERENCIA" ? "Transf." : m.forma_pago === "CREDITO" ? "Crédito" : "Efectivo"}</td>
-              <td className="cifra text-right">{clp(m.total)}</td>
+              <td className="pr-1">
+                {m.forma_pago === "TRANSFERENCIA" ? "Transf." : m.forma_pago === "CREDITO" ? (m.tipo === "ENVASE_DEVOLUCION" ? "A deuda" : "Crédito") : "Efectivo"}
+              </td>
+              <td className="cifra text-right">
+                {m.tipo === "ENVASE_DEVOLUCION" || m.tipo === "EGRESO" ? "−" : ""}
+                {clp(m.total)}
+              </td>
             </tr>
           );
         })}
@@ -277,8 +292,8 @@ export function ImprimirCaja() {
           </Bloque>
         </div>
         <div className="grid gap-x-6 sm:grid-cols-2">
-          {(["ventas", "creditos", "abonos", "gastos"] as const).map((m) => (
-            <Bloque key={m} titulo={MODULOS[m]} total={m === "gastos" ? undefined : total(m)}>
+          {(["ventas", "creditos", "abonos", "gastos", "envases"] as const).map((m) => (
+            <Bloque key={m} titulo={MODULOS[m]} total={m === "gastos" || m === "envases" ? undefined : total(m)}>
               <Detalle movs={lista(m)} idx={data.idx} compacto />
             </Bloque>
           ))}
@@ -293,7 +308,7 @@ export function ImprimirCaja() {
         {modulo === "resumen" && <Totales r={d.r} />}
         {modulo === "efectivo" && <Efectivo d={d} />}
         {modulo !== "resumen" && modulo !== "efectivo" && (
-          <Bloque titulo={MODULOS[modulo]} total={modulo === "gastos" ? undefined : total(modulo)}>
+          <Bloque titulo={MODULOS[modulo]} total={modulo === "gastos" || modulo === "envases" ? undefined : total(modulo)}>
             <Detalle movs={lista(modulo)} idx={data.idx} />
           </Bloque>
         )}

@@ -3,7 +3,7 @@ import { useSearchParams } from "next/navigation";
 import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
 import { flushSync } from "react-dom";
 import type { FormaPago, Producto, Unidad } from "@/lib/types";
-import { crearVale, useData } from "@/lib/store";
+import { crearVale, numeroUsado, useData } from "@/lib/store";
 import { ultimoPrecio, type EstadoCliente } from "@/lib/calc";
 import { clp, ddmm, diasEntre, fechaLarga, haceDias, hoy, miles, parseCantidad, parseMonto, uid } from "@/lib/format";
 import { Autocompletar, puntaje } from "../Autocompletar";
@@ -130,6 +130,10 @@ export function RegistroVale() {
   const completas = calc.filter((c) => c.completa).length;
   const sucio = !!cliente || calc.some((c) => !c.vacia) || !!monto || !!detalle;
   const siguiente = data.db.tenant.ultimo_numero + 1;
+  // N° escrito a mano (para calzar con el talonario); vacío = correlativo
+  const [numeroManual, setNumeroManual] = useState<string | null>(null);
+  const nManual = numeroManual !== null ? parseInt(numeroManual.replace(/\D/g, ""), 10) || null : null;
+  const errorNumero = nManual !== null && numeroUsado(nManual) ? `El N°${nManual} ya está usado` : null;
   const productos = data.db.productos.filter((p) => p.activo);
 
   const filaActiva = filas.find((f) => f.k === activa) ?? null;
@@ -160,6 +164,7 @@ export function RegistroVale() {
     setConfirmarMoroso(false);
     setEscUna(false);
     setFecha(hoy());
+    setNumeroManual(null);
     foco("cliente");
   }, [foco, soloMonto]);
 
@@ -199,7 +204,12 @@ export function RegistroVale() {
       .filter(({ e }) => e.completa)
       .map(({ f, e }) => ({ cantidad: e.c!, unidad: f.unidad, producto_id: f.prod!.id, precio_unitario: e.p! }));
     const montoAbono = forma === "CREDITO" ? (parseMonto(abono) ?? 0) : 0;
+    if (errorNumero) {
+      sacudir("cliente");
+      return;
+    }
     const mov = crearVale({
+      numero: nManual,
       fecha,
       cliente_id: cli.cliente.id,
       forma_pago: forma,
@@ -402,12 +412,45 @@ export function RegistroVale() {
             </label>
             {fechaAtrasada && <p className="text-xs font-semibold text-fuji">Fecha atrasada: {fechaLarga(fecha)}</p>}
           </div>
-          <p className="text-right">
+          <div className="text-right">
             <span className="rotulo block">N°</span>
-            <span className="text-[28px] font-semibold leading-none text-fuji sm:text-[32px]">
-              <Numeradora numero={siguiente} />
-            </span>
-          </p>
+            {numeroManual === null ? (
+              <>
+                <span className="text-[28px] font-semibold leading-none text-fuji sm:text-[32px]">
+                  <Numeradora numero={siguiente} />
+                </span>
+                <button type="button" tabIndex={-1} onClick={() => setNumeroManual(String(siguiente))} className="block w-full text-right text-xs font-medium text-tinta hover:underline">
+                  Cambiar N°
+                </button>
+              </>
+            ) : (
+              <>
+                <input
+                  autoFocus
+                  value={numeroManual}
+                  onChange={(e) => setNumeroManual(e.target.value)}
+                  onFocus={(e) => e.target.select()}
+                  onKeyDown={(e) => {
+                    if (e.key === "Enter") {
+                      e.preventDefault();
+                      document.querySelector<HTMLInputElement>('input[aria-label="Cliente"]')?.focus();
+                    }
+                    if (e.key === "Escape") setNumeroManual(null);
+                  }}
+                  inputMode="numeric"
+                  aria-label="N° de vale"
+                  className={`campo w-32 py-1 text-right text-[24px] font-semibold text-fuji ${errorNumero ? "campo-error" : ""}`}
+                />
+                {errorNumero ? (
+                  <span className="block text-xs font-medium text-fuji">{errorNumero}</span>
+                ) : (
+                  <button type="button" tabIndex={-1} onClick={() => setNumeroManual(null)} className="block w-full text-right text-xs text-gris hover:underline">
+                    Usar correlativo ({siguiente})
+                  </button>
+                )}
+              </>
+            )}
+          </div>
         </header>
 
         {/* cliente */}

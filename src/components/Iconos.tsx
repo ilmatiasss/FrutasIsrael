@@ -61,6 +61,12 @@ export const IconoSueldos = (p: P) => (
     <path d="M5.8 16.5c.5-1.8 1.7-2.8 3.2-2.8s2.7 1 3.2 2.8M14.5 9h4M14.5 12.5h4" />
   </Base>
 );
+export const IconoEnvases = (p: P) => (
+  <Base {...p}>
+    <path d="M3 9h18l-1.6 10.5a1.5 1.5 0 0 1-1.5 1.3H6.1a1.5 1.5 0 0 1-1.5-1.3z" />
+    <path d="M3 9l2-4h14l2 4M8 13h8M8 16.5h8" />
+  </Base>
+);
 export const IconoResumen = (p: P) => (
   <Base {...p}>
     <path d="M4 20V11M10 20V5M16 20v-6M21 20H3" />
@@ -102,6 +108,7 @@ export const SECCIONES: Seccion[] = [
   { href: "/vale", label: "Vale", corto: "Vale", tecla: "F1", Fruta: IconoVale, color: VERDE, suave: TINTE, que: "Registrar una venta al contado o a crédito." },
   { href: "/abono", label: "Abonos", corto: "Abonos", tecla: "F2", Fruta: IconoAbono, color: VERDE, suave: TINTE, que: "Registrar el pago total o parcial de una deuda." },
   { href: "/clientes", label: "Clientes", corto: "Clientes", tecla: "F3", Fruta: IconoClientes, color: VERDE, suave: TINTE, que: "Deuda, estado e historial de cada cliente." },
+  { href: "/envases", label: "Envases", corto: "Envases", tecla: "F8", Fruta: IconoEnvases, color: VERDE, suave: TINTE, que: "Garantía de envases: entregas, devoluciones y quién los tiene." },
   { href: "/caja", label: "Cierre de caja", corto: "Caja", tecla: "F4", Fruta: IconoCaja, color: VERDE, suave: TINTE, que: "Cuadratura diaria y semanal, con impresión." },
   { href: "/sueldos", label: "Remuneraciones", corto: "Sueldos", tecla: "F7", Fruta: IconoSueldos, color: VERDE, suave: TINTE, que: "Asistencia, anticipos y pagos del personal." },
   { href: "/resumen", label: "Reportes", corto: "Reportes", tecla: "F6", Fruta: IconoResumen, color: VERDE, suave: TINTE, que: "Ventas, cartera de crédito y productos." },

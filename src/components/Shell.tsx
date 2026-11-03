@@ -109,7 +109,7 @@ export function Shell({ children }: { children: ReactNode }) {
         router.push(ATAJOS[e.key]);
         return;
       }
-      if (e.altKey && /^[1-6]$/.test(e.key)) {
+      if (e.altKey && /^[1-7]$/.test(e.key)) {
         e.preventDefault();
         router.push(SECCIONES[Number(e.key) - 1].href);
         return;

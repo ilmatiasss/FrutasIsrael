@@ -16,10 +16,13 @@ const SECCIONES: { tipo: TipoMovimiento; titulo: string; nota: string }[] = [
   { tipo: "ABONO", titulo: "Abonos a crédito", nota: "pagos de deuda" },
   { tipo: "INGRESO", titulo: "Ingresos de caja", nota: "fondo, otros" },
   { tipo: "EGRESO", titulo: "Egresos de caja", nota: "gastos pagados del cajón" },
+  { tipo: "ENVASE_COBRO", titulo: "Envases entregados", nota: "garantía cobrada" },
+  { tipo: "ENVASE_DEVOLUCION", titulo: "Envases devueltos", nota: "garantía pagada al cliente" },
 ];
 
 const MODULO_DE: Record<TipoMovimiento, Modulo> = {
   VALE_VENTA: "ventas", VALE_CREDITO: "creditos", ABONO: "abonos", INGRESO: "gastos", EGRESO: "gastos",
+  ENVASE_COBRO: "envases", ENVASE_DEVOLUCION: "envases",
 };
 
 function IconoImpresora() {
@@ -47,7 +50,10 @@ function BotonImprimir({ fecha, modulo }: { fecha: string; modulo: Modulo }) {
 
 const CORTO: Record<TipoMovimiento, string> = {
   VALE_VENTA: "Venta", VALE_CREDITO: "Crédito", ABONO: "Abonos", INGRESO: "Ingresos", EGRESO: "Egresos",
+  ENVASE_COBRO: "Garantía env.", ENVASE_DEVOLUCION: "Devol. env.",
 };
+/** filas que restan plata (salidas) */
+const SALE = new Set<TipoMovimiento>(["EGRESO", "ENVASE_DEVOLUCION"]);
 
 /** Línea de boleta térmica con puntos guía */
 function Renglon({ label, valor, signo, fuerte = false, color }: { label: string; valor: number; signo?: string; fuerte?: boolean; color?: string }) {
@@ -97,7 +103,8 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
     return { tipo, titulo, ef: s("EFECTIVO"), tr: s("TRANSFERENCIA"), cr: s("CREDITO") };
   });
 
-  const ventasEf = matriz[0].ef, abonosEf = matriz[2].ef, ingresosEf = matriz[3].ef;
+  const ventasEf = matriz[0].ef, abonosEf = matriz[2].ef, ingresosEf = matriz[3].ef, envasesEf = matriz[5].ef;
+  const devolucionTr = matriz[6].tr;
 
   return (
     <div className="space-y-6">
@@ -154,7 +161,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
         <h2 className="stencil text-xl">Totales del día</h2>
         <BotonImprimir fecha={fecha} modulo="resumen" />
       </div>
-      <section className="grid grid-cols-2 border-y-2 border-grafito sm:grid-cols-3 lg:grid-cols-5" aria-label="Totales por tipo">
+      <section className="grid grid-cols-2 border-y-2 border-grafito sm:grid-cols-3 lg:grid-cols-4 2xl:grid-cols-7" aria-label="Totales por tipo">
         {SECCIONES.map(({ tipo, titulo }) => {
           const xs = movs.filter((m) => m.tipo === tipo && vivo(m));
           const total = xs.reduce((a, m) => a + m.total, 0);
@@ -230,7 +237,9 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
             <Renglon signo="+" label="Ventas" valor={ventasEf} />
             <Renglon signo="+" label="Abonos" valor={abonosEf} />
             <Renglon signo="+" label="Ingresos" valor={ingresosEf} />
+            {envasesEf > 0 && <Renglon signo="+" label="Garantía de envases" valor={envasesEf} />}
             <Renglon signo="−" label="Egresos" valor={r.egresos_efectivo} />
+            {(r.devolucion_efectivo ?? 0) > 0 && <Renglon signo="−" label="Devolución de envases" valor={r.devolucion_efectivo ?? 0} />}
             <p className="my-2 border-t border-grafito/50" />
             <p className="flex items-baseline justify-between">
               <span className="text-[12px] font-semibold uppercase leading-tight tracking-wider">
@@ -256,20 +265,20 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
                 {matriz.map((x) => (
                   <tr key={x.tipo} className="border-t border-dotted border-grafito/20">
                     <td className="py-1 font-sans text-[13px]" style={{ color: COLOR_TIPO[x.tipo] }}>{CORTO[x.tipo]}</td>
-                    <td className="cifra text-right">{x.ef ? (x.tipo === "EGRESO" ? "−" : "") + miles(x.ef) : "·"}</td>
-                    <td className="cifra text-right">{x.tr ? miles(x.tr) : "·"}</td>
-                    <td className="cifra text-right">{x.cr ? miles(x.cr) : "·"}</td>
+                    <td className="cifra text-right">{x.ef ? (SALE.has(x.tipo) ? "−" : "") + miles(x.ef) : "·"}</td>
+                    <td className="cifra text-right">{x.tr ? (SALE.has(x.tipo) ? "−" : "") + miles(x.tr) : "·"}</td>
+                    <td className="cifra text-right">{x.cr ? (SALE.has(x.tipo) ? "−" : "") + miles(x.cr) : "·"}</td>
                   </tr>
                 ))}
                 <tr className="border-t-2 border-grafito/60 font-semibold">
                   <td className="py-1 font-sans">Total</td>
-                  <td className="cifra text-right">{miles(r.efectivo - r.egresos_efectivo)}</td>
-                  <td className="cifra text-right">{miles(r.transferencia)}</td>
+                  <td className="cifra text-right">{miles(r.efectivo_esperado)}</td>
+                  <td className="cifra text-right">{miles(r.transferencia - devolucionTr)}</td>
                   <td className="cifra text-right text-fuji">{miles(r.credito)}</td>
                 </tr>
               </tbody>
             </table>
-            <p className="mt-2 font-sans text-[11px] leading-snug text-gris">Efectivo neto de egresos. Transferencias: revisar en la cartola del banco.</p>
+            <p className="mt-2 font-sans text-[11px] leading-snug text-gris">Efectivo y transferencias netos de salidas. Crédito: fiado nuevo del día. Transferencias: revisar en la cartola del banco.</p>
 
             <p className="my-3 border-t-2 border-dashed border-grafito/40" />
             <Renglon label="Vendido en el día" valor={r.vale_venta + r.vale_credito} fuerte />

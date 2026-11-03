@@ -3,7 +3,7 @@
  * anclados al día en que se abre la app por primera vez. Determinístico (misma
  * semilla → mismos datos) para que las demos se puedan repetir.
  */
-import type { Cliente, Db, FormaPago, LineaVale, Movimiento, Producto, Unidad } from "./types";
+import type { Cliente, Db, FormaPago, LineaVale, Movimiento, Producto, Unidad, Envase, LineaEnvase } from "./types";
 import { fromFecha, hoy, sumarDias, uid, lunesDe } from "./format";
 import { sueldosEjemplo } from "./sueldos";
 
@@ -88,6 +88,14 @@ const CLIENTES: ClienteSeed[] = [
   { nombre: "Bernarda Ulloa", alias: "DOÑA BERNA", freq: 0.35, credito: 0.5, pago: "perdido", tam: [2, 6], prods: ["FU", "PE", "NA"], transf: 0.1 },
 ];
 
+/** Tipos de envase y su garantía por unidad (editable en la pantalla Envases) */
+const ENVASES = [
+  { nombre: "Caja cosechera", precio: 2500 },
+  { nombre: "Bins plástico", precio: 35000 },
+  { nombre: "Cajón de madera", precio: 1500 },
+  { nombre: "Pallet", precio: 8000 },
+];
+
 const EGRESOS: [string, number, number][] = [
   ["Pago carretillero", 8000, 15000],
   ["Colación equipo", 12000, 22000],
@@ -139,7 +147,12 @@ export function crearSeed(anclaje: string = hoy()): Db {
     created_at: now,
   }));
 
-  type Borrador = Omit<Movimiento, "numero"> & { _lineas?: Omit<LineaVale, "movimiento_id">[] };
+  type Borrador = Omit<Movimiento, "numero"> & {
+    _lineas?: Omit<LineaVale, "movimiento_id">[];
+    _env?: Omit<LineaEnvase, "movimiento_id">[];
+  };
+  const envases: Envase[] = ENVASES.map((e, i) => ({ id: uid(), tenant_id: TENANT, nombre: e.nombre, precio: e.precio, activo: true, orden: i }));
+  const enPoder = new Map<string, Map<string, number>>(); // cliente → envase → cantidad
   const borradores: Borrador[] = [];
 
   const DIAS_HISTORIA = 95;
@@ -251,6 +264,27 @@ export function crearSeed(anclaje: string = hoy()): Db {
         });
         if (fiado) saldo.set(cli.id, (saldo.get(cli.id) ?? 0) + total);
 
+        // a veces se lleva envases y paga (o queda debiendo) la garantía
+        if (rnd() < 0.14) {
+          const env = rnd() < 0.75 ? envases[0] : rnd() < 0.6 ? envases[2] : envases[1];
+          const cantidad = env === envases[1] ? entre(1, 3) : entre(4, 20);
+          const sub = cantidad * env.precio;
+          const formaEnv: FormaPago = fiado ? "CREDITO" : "EFECTIVO";
+          const idEnv = uid();
+          borradores.push({
+            ...base(idEnv, fecha, h, 58),
+            tipo: "ENVASE_COBRO",
+            cliente_id: cli.id,
+            forma_pago: formaEnv,
+            total: sub,
+            _env: [{ id: uid(), tenant_id: TENANT, envase_id: env.id, cantidad, precio_unitario: env.precio, subtotal: sub }],
+          });
+          if (fiado) saldo.set(cli.id, (saldo.get(cli.id) ?? 0) + sub);
+          const pm = enPoder.get(cli.id) ?? new Map<string, number>();
+          pm.set(env.id, (pm.get(env.id) ?? 0) + cantidad);
+          enPoder.set(cli.id, pm);
+        }
+
         // abono al tiro en el mismo vale (pasa harto)
         if (fiado && rnd() < 0.08) {
           const ab = round(total * (0.3 + rnd() * 0.4), 5000);
@@ -264,6 +298,31 @@ export function crearSeed(anclaje: string = hoy()): Db {
             origen_id: movId,
           });
           saldo.set(cli.id, (saldo.get(cli.id) ?? 0) - ab);
+        }
+      }
+
+      // ---- devolución de envases ----
+      const pm = enPoder.get(cli.id);
+      if (pm && rnd() < 0.08) {
+        for (const [envId, n] of pm) {
+          if (n <= 0) continue;
+          const env = envases.find((x) => x.id === envId)!;
+          const cantidad = rnd() < 0.6 ? n : Math.max(1, Math.floor(n / 2));
+          const sub = cantidad * env.precio;
+          const debe = (saldo.get(cli.id) ?? 0) > sub;
+          const formaDev: FormaPago = debe && rnd() < 0.6 ? "CREDITO" : "EFECTIVO";
+          borradores.push({
+            ...base(uid(), fecha, entre(6, 12), entre(0, 59)),
+            tipo: "ENVASE_DEVOLUCION",
+            cliente_id: cli.id,
+            forma_pago: formaDev,
+            total: sub,
+            glosa: formaDev === "CREDITO" ? "Descontado de su deuda" : null,
+            _env: [{ id: uid(), tenant_id: TENANT, envase_id: env.id, cantidad, precio_unitario: env.precio, subtotal: sub }],
+          });
+          if (formaDev === "CREDITO") saldo.set(cli.id, (saldo.get(cli.id) ?? 0) - sub);
+          pm.set(envId, n - cantidad);
+          break;
         }
       }
 
@@ -328,10 +387,12 @@ export function crearSeed(anclaje: string = hoy()): Db {
   const primero = ULTIMO_VALE - borradores.length + 1;
   const movimientos: Movimiento[] = [];
   const lineas: LineaVale[] = [];
+  const lineasEnvase: LineaEnvase[] = [];
   borradores.forEach((b, i) => {
-    const { _lineas, ...mov } = b;
+    const { _lineas, _env, ...mov } = b;
     movimientos.push({ ...mov, numero: primero + i });
     _lineas?.forEach((l) => lineas.push({ ...l, movimiento_id: mov.id }));
+    _env?.forEach((l) => lineasEnvase.push({ ...l, movimiento_id: mov.id }));
   });
 
   // Algunas anulaciones (auditables) — solo vales sin abono asociado
@@ -364,6 +425,8 @@ export function crearSeed(anclaje: string = hoy()): Db {
     productos,
     movimientos,
     lineas,
+    envases,
+    lineas_envase: lineasEnvase,
     cierres: [],
     cierres_semana: [],
     ...sueldosEjemplo(TENANT, anclaje, lunesDe),
@@ -399,6 +462,8 @@ export function baseVacia(): Db {
     })),
     movimientos: [],
     lineas: [],
+    envases: ENVASES.map((e, i) => ({ id: uid(), tenant_id: tenant, nombre: e.nombre, precio: e.precio, activo: true, orden: i })),
+    lineas_envase: [],
     cierres: [],
     cierres_semana: [],
     trabajadores: [],

@@ -17,7 +17,9 @@ export type TipoMovimiento =
   | "VALE_CREDITO" // fiado: suma deuda
   | "ABONO" // pago / abono crédito: resta deuda
   | "INGRESO" // ingreso de caja (fondo, préstamo, etc.)
-  | "EGRESO"; // egreso de caja (flete, colación, bolsas…)
+  | "EGRESO" // egreso de caja (flete, colación, bolsas…)
+  | "ENVASE_COBRO" // el cliente se lleva envases y paga (o queda debiendo) la garantía
+  | "ENVASE_DEVOLUCION"; // el cliente devuelve envases y se le paga la garantía (o se descuenta de su deuda)
 
 export type FormaPago = "EFECTIVO" | "TRANSFERENCIA" | "CREDITO";
 
@@ -101,6 +103,27 @@ export interface LineaVale {
   cantidad: number; // puede ser decimal en KG
   unidad: Unidad;
   producto_id: UUID;
+  precio_unitario: number;
+  subtotal: number;
+}
+
+/** Tipo de envase con su garantía (lo que se cobra al llevarlo y se paga al devolverlo) */
+export interface Envase {
+  id: UUID;
+  tenant_id: UUID;
+  nombre: string; // "Bins plástico", "Caja cosechera"
+  precio: number; // garantía por unidad, CLP
+  activo: boolean;
+  orden: number;
+}
+
+/** Detalle de envases de un movimiento ENVASE_COBRO / ENVASE_DEVOLUCION */
+export interface LineaEnvase {
+  id: UUID;
+  tenant_id: UUID;
+  movimiento_id: UUID;
+  envase_id: UUID;
+  cantidad: number;
   precio_unitario: number;
   subtotal: number;
 }
@@ -189,6 +212,7 @@ export interface Evento {
     | "IMPORTAR_CSV"
     | "SUELDOS"
     | "SEGURIDAD"
+    | "CORREGIR_FOLIO"
     | "REINICIAR_DEMO";
   entidad_id: UUID | null;
   detalle: string;
@@ -214,6 +238,9 @@ export interface ResumenCaja {
   transferencia: number;
   credito: number;
   egresos_efectivo: number;
+  envases_cobro?: number; // garantías cobradas (cualquier forma)
+  envases_devolucion?: number; // garantías devueltas (cualquier forma)
+  devolucion_efectivo?: number; // garantías pagadas desde el cajón
   efectivo_esperado: number; // lo que debería haber en el cajón
   cantidad: number;
 }
@@ -232,6 +259,8 @@ export interface Db {
   trabajadores: Trabajador[];
   asistencias: Asistencia[];
   pagos_sueldo: PagoSueldo[];
+  envases: Envase[];
+  lineas_envase: LineaEnvase[];
   eventos: Evento[];
   config: Config;
 }

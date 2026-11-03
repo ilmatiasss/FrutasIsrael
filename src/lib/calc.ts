@@ -15,7 +15,19 @@ export function efectoDeuda(m: Movimiento): number {
   if (!vivo(m)) return 0;
   if (m.tipo === "VALE_CREDITO") return m.total;
   if (m.tipo === "ABONO") return -m.total;
+  // garantía de envases a crédito suma deuda; la devolución "a cuenta" la descuenta
+  if (m.tipo === "ENVASE_COBRO" && m.forma_pago === "CREDITO") return m.total;
+  if (m.tipo === "ENVASE_DEVOLUCION" && m.forma_pago === "CREDITO") return -m.total;
   return 0;
+}
+
+/** En qué columna de la cuenta cliente va un movimiento */
+export function columnaCuenta(m: Movimiento): "credito" | "pago" | "venta" | null {
+  const e = efectoDeuda({ ...m, anulado_at: null });
+  if (e > 0) return "credito";
+  if (e < 0) return "pago";
+  if (m.tipo === "VALE_VENTA" || m.tipo === "ENVASE_COBRO") return "venta";
+  return null;
 }
 
 /** Deuda de cada cliente al final de una fecha (solo los que deben algo) */
@@ -81,8 +93,9 @@ export function pendientesFIFO(movs: Movimiento[]): Pendiente[] {
   let pozo = 0; // abonos sin aplicar
   for (const m of movs) {
     if (!vivo(m)) continue;
-    if (m.tipo === "VALE_CREDITO") vales.push({ mov: m, pendiente: m.total });
-    if (m.tipo === "ABONO") pozo += m.total;
+    const e = efectoDeuda(m);
+    if (e > 0) vales.push({ mov: m, pendiente: e });
+    if (e < 0) pozo += -e;
   }
   for (const v of vales) {
     const aplica = Math.min(pozo, v.pendiente);
@@ -204,6 +217,7 @@ export function resumenCaja(movs: Movimiento[]): ResumenCaja {
   const r: ResumenCaja = {
     vale_venta: 0, vale_credito: 0, abonos: 0, ingresos: 0, egresos: 0,
     efectivo: 0, transferencia: 0, credito: 0, egresos_efectivo: 0, efectivo_esperado: 0, cantidad: 0,
+    envases_cobro: 0, envases_devolucion: 0, devolucion_efectivo: 0,
   };
   for (const m of movs) {
     if (!vivo(m)) continue;
@@ -214,6 +228,13 @@ export function resumenCaja(movs: Movimiento[]): ResumenCaja {
       case "ABONO": r.abonos += m.total; break;
       case "INGRESO": r.ingresos += m.total; break;
       case "EGRESO": r.egresos += m.total; break;
+      case "ENVASE_COBRO": r.envases_cobro! += m.total; break;
+      case "ENVASE_DEVOLUCION": r.envases_devolucion! += m.total; break;
+    }
+    if (m.tipo === "ENVASE_DEVOLUCION") {
+      // devolver garantía es plata que SALE: en efectivo baja el cajón
+      if (m.forma_pago === "EFECTIVO") r.devolucion_efectivo! += m.total;
+      continue;
     }
     if (m.tipo === "EGRESO") {
       if (m.forma_pago === "EFECTIVO") r.egresos_efectivo += m.total;
@@ -223,7 +244,7 @@ export function resumenCaja(movs: Movimiento[]): ResumenCaja {
     else if (m.forma_pago === "TRANSFERENCIA") r.transferencia += m.total;
     else r.credito += m.total;
   }
-  r.efectivo_esperado = r.efectivo - r.egresos_efectivo;
+  r.efectivo_esperado = r.efectivo - r.egresos_efectivo - r.devolucion_efectivo!;
   return r;
 }
 
@@ -286,9 +307,11 @@ export function libroCuenta(
     }
     sem.filas.push({ mov: m, saldo });
     if (vivo(m)) {
-      if (m.tipo === "VALE_CREDITO") { sem.credito += m.total; mes.credito += m.total; }
-      if (m.tipo === "ABONO") { sem.pago += m.total; mes.pago += m.total; }
-      if (m.tipo === "VALE_VENTA") { sem.venta += m.total; mes.venta += m.total; }
+      const col = columnaCuenta(m);
+      if (col) {
+        sem[col] += m.total;
+        mes[col] += m.total;
+      }
     }
     sem.saldoFinal = saldo;
     mes.saldoFinal = saldo;
@@ -302,4 +325,37 @@ export const ETIQUETA_TIPO: Record<Movimiento["tipo"], string> = {
   ABONO: "Abono crédito",
   INGRESO: "Ingreso caja",
   EGRESO: "Egreso caja",
+  ENVASE_COBRO: "Envases: cobro",
+  ENVASE_DEVOLUCION: "Envases: devolución",
 };
+
+/* --------------------------------- envases --------------------------------- */
+
+export interface SaldoEnvase {
+  envase_id: string;
+  cantidad: number; // en poder del cliente (entregados − devueltos)
+  garantia: number; // plata en garantía (cobrada − devuelta)
+}
+
+/** Envases en poder de cada cliente, por tipo (solo movimientos vigentes). */
+export function envasesPorCliente(db: Db, idx: Indice): Map<string, SaldoEnvase[]> {
+  const m = new Map<string, Map<string, SaldoEnvase>>();
+  for (const l of db.lineas_envase) {
+    const mov = idx.mov.get(l.movimiento_id);
+    if (!mov || !vivo(mov) || !mov.cliente_id) continue;
+    const signo = mov.tipo === "ENVASE_COBRO" ? 1 : mov.tipo === "ENVASE_DEVOLUCION" ? -1 : 0;
+    if (!signo) continue;
+    const porTipo = m.get(mov.cliente_id) ?? new Map<string, SaldoEnvase>();
+    const s = porTipo.get(l.envase_id) ?? { envase_id: l.envase_id, cantidad: 0, garantia: 0 };
+    s.cantidad += signo * l.cantidad;
+    s.garantia += signo * l.subtotal;
+    porTipo.set(l.envase_id, s);
+    m.set(mov.cliente_id, porTipo);
+  }
+  const out = new Map<string, SaldoEnvase[]>();
+  m.forEach((porTipo, cli) => {
+    const xs = [...porTipo.values()].filter((s) => s.cantidad !== 0 || s.garantia !== 0);
+    if (xs.length) out.set(cli, xs);
+  });
+  return out;
+}

@@ -14,6 +14,7 @@ const COLOR: Record<Evento["accion"], string> = {
   IMPORTAR_CSV: "#dd7420",
   SUELDOS: "#c99611",
   SEGURIDAD: "#111827",
+  CORREGIR_FOLIO: "#b45309",
   REINICIAR_DEMO: "#6b6255",
 };
 const ETIQUETA: Record<Evento["accion"], string> = {
@@ -26,6 +27,7 @@ const ETIQUETA: Record<Evento["accion"], string> = {
   IMPORTAR_CSV: "Importación",
   SUELDOS: "Sueldos",
   SEGURIDAD: "Seguridad",
+  CORREGIR_FOLIO: "Folio corregido",
   REINICIAR_DEMO: "Demo",
 };
 
