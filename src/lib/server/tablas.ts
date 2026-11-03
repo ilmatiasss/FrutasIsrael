@@ -4,7 +4,7 @@ import "server-only";
    primero lo que otros referencian. */
 
 export const TABLAS = {
-  usuarios: ["id", "tenant_id", "nombre", "rol"],
+  usuarios: ["id", "tenant_id", "nombre", "rol", "activo"],
   clientes: ["id", "tenant_id", "nombre", "alias", "telefono", "limite_credito", "semaforo_manual", "compra_manual", "notas", "created_at"],
   productos: ["id", "tenant_id", "nombre", "codigo", "unidad_default", "color", "activo"],
   trabajadores: ["id", "tenant_id", "nombre", "cargo", "modalidad", "monto", "telefono", "activo", "created_at"],

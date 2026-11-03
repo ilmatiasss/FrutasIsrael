@@ -4,6 +4,11 @@ import path from "node:path";
 import type { PoolClient } from "pg";
 import { enTransaccion, pool } from "./pg";
 import { BORRABLES, JSONB, ORDEN, SQL_NOMBRE, TABLAS, type Tabla } from "./tablas";
+import { anotarHistorial, diferencias, entradaDe, type Entrada, type Quien } from "./historial";
+
+/** Tablas cuyo historial se anota fila a fila (las líneas van dentro de su vale; la bitácora es aparte) */
+const CON_HISTORIAL: Tabla[] = ["usuarios", "clientes", "productos", "trabajadores", "envases", "movimientos", "cierres", "cierres_semana", "asistencias", "pagos_sueldo"];
+const SISTEMA: Quien = { tipo: "SISTEMA", id: null, nombre: "Sistema" };
 
 export interface Cambio {
   tabla: Tabla;
@@ -48,7 +53,7 @@ async function upsert(c: PoolClient, tabla: Tabla, filas: Fila[], tenant: string
     const valores: unknown[] = [];
     const tuplas = lote.map((f) => {
       const ph = cols.map((col) => {
-        let v = col === "tenant_id" ? tenant : (f[col] ?? null);
+        let v = col === "tenant_id" ? tenant : (f[col] ?? (col === "activo" ? true : null));
         if (JSONB.has(col) && v !== null) v = JSON.stringify(v);
         valores.push(v);
         return `$${valores.length}`;
@@ -67,9 +72,9 @@ async function upsert(c: PoolClient, tabla: Tabla, filas: Fila[], tenant: string
  * servidor: si otro PC ya usó ese número, se le asigna el siguiente libre y
  * se avisa en `renumerados`.
  */
-export async function aplicarCambios(tenant: string, cambios: Cambio[], t: CambiosTenant = {}) {
+export async function aplicarCambios(tenant: string, cambios: Cambio[], t: CambiosTenant = {}, quien: Quien = SISTEMA, ip: string | null = null) {
   return enTransaccion(async (c) => {
-    const lock = await c.query("select ultimo_numero from tenants where id = $1 for update", [tenant]);
+    const lock = await c.query("select ultimo_numero, config from tenants where id = $1 for update", [tenant]);
     if (!lock.rows[0]) throw new Error("Tenant no existe");
     let ultimo: number = lock.rows[0].ultimo_numero;
     const renumerados: { id: string; numero: number }[] = [];
@@ -109,6 +114,66 @@ export async function aplicarCambios(tenant: string, cambios: Cambio[], t: Cambi
       }
     }
 
+    /* ---------- quién lo hizo: lo pone el servidor según la sesión ---------- */
+    const previas = new Map<Tabla, Map<string, Fila>>();
+    for (const tabla of CON_HISTORIAL) {
+      const g = porTabla.get(tabla);
+      const ids = [...(g?.put ?? []).map((f) => String(f.id)), ...(g?.del ?? [])];
+      if (!ids.length) continue;
+      const r = await c.query(`select ${TABLAS[tabla].join(", ")} from ${SQL_NOMBRE[tabla]} where tenant_id = $1 and id = any($2)`, [tenant, ids]);
+      previas.set(tabla, new Map(r.rows.map((x: Fila) => [String(x.id), x])));
+    }
+    const humano = quien.tipo !== "SISTEMA";
+    const estampar = (tabla: Tabla, f: Fila) => {
+      const antes = previas.get(tabla)?.get(String(f.id));
+      if (tabla === "movimientos" || tabla === "pagos_sueldo") {
+        if (antes) f.creado_por = antes.creado_por;
+        else if (humano && !f.importado) f.creado_por = quien.nombre;
+        if (antes?.anulado_at) f.anulado_por = antes.anulado_por;
+        else if (f.anulado_at && humano) f.anulado_por = quien.nombre;
+      }
+      if ((tabla === "cierres" || tabla === "cierres_semana") && !antes && humano) f.cerrado_por = quien.nombre;
+    };
+    for (const tabla of CON_HISTORIAL) for (const f of porTabla.get(tabla)?.put ?? []) estampar(tabla, f);
+    if (humano) for (const f of porTabla.get("eventos")?.put ?? []) f.usuario = quien.nombre;
+
+    /* ---------- historial ---------- */
+    const nombres = async (tabla: "clientes" | "trabajadores", ids: unknown[]) => {
+      const m = new Map<string, string>();
+      for (const f of porTabla.get(tabla)?.put ?? []) m.set(String(f.id), String((tabla === "clientes" ? f.alias : null) ?? f.nombre));
+      const faltan = [...new Set(ids.filter((x) => x && !m.has(String(x))).map(String))];
+      if (faltan.length) {
+        const r = await c.query(`select id, ${tabla === "clientes" ? "coalesce(alias, nombre)" : "nombre"} as n from ${tabla} where tenant_id = $1 and id = any($2)`, [tenant, faltan]);
+        for (const x of r.rows) m.set(String(x.id), String(x.n));
+      }
+      return (id: unknown) => m.get(String(id)) ?? "—";
+    };
+    const todas = CON_HISTORIAL.flatMap((tb) => porTabla.get(tb)?.put ?? []);
+    const ctx = {
+      cliente: await nombres("clientes", todas.map((f) => f.cliente_id)),
+      trabajador: await nombres("trabajadores", todas.map((f) => f.trabajador_id)),
+    };
+    const entradas: Entrada[] = [];
+    for (const tabla of CON_HISTORIAL) {
+      const g = porTabla.get(tabla);
+      if (!g) continue;
+      for (const f of g.put) {
+        const e = entradaDe(tabla, previas.get(tabla)?.get(String(f.id)) ?? null, f, TABLAS[tabla], ctx);
+        if (e) entradas.push(e);
+      }
+      for (const id of g.del) {
+        const antes = previas.get(tabla)?.get(id);
+        if (antes) {
+          const e = entradaDe(tabla, null, antes, TABLAS[tabla], ctx)!;
+          entradas.push({ ...e, accion: "BORRAR", descripcion: `Quitó: ${e.descripcion}` });
+        }
+      }
+    }
+    if (t.config) {
+      const dif = diferencias((lock.rows[0].config ?? {}) as Fila, t.config as Fila, Object.keys(t.config));
+      if (Object.keys(dif).length) entradas.push({ tabla: "ajustes", registro_id: null, accion: "MODIFICAR", descripcion: "Ajustes del local", cambios: dif });
+    }
+
     for (const tabla of ORDEN) {
       const g = porTabla.get(tabla);
       if (!g) continue;
@@ -119,8 +184,28 @@ export async function aplicarCambios(tenant: string, cambios: Cambio[], t: Cambi
     ultimo = Math.max(ultimo, t.ultimo_numero ?? 0);
     await c.query("update tenants set ultimo_numero = $2 where id = $1", [tenant, ultimo]);
     if (t.config) await c.query("update tenants set config = $2 where id = $1", [tenant, JSON.stringify(t.config)]);
+    if (humano) await anotarHistorial(c, tenant, quien, ip, resumirMasivos(entradas));
     return { renumerados, ultimo_numero: ultimo };
   });
+}
+
+/** Una carga masiva (importar planilla) queda como una entrada por tipo, no miles. */
+function resumirMasivos(entradas: Entrada[], limite = 100): Entrada[] {
+  const creados = new Map<string, Entrada[]>();
+  for (const e of entradas) if (e.accion === "CREAR") creados.set(e.tabla, [...(creados.get(e.tabla) ?? []), e]);
+  const masivas = new Set([...creados].filter(([, xs]) => xs.length > limite).map(([t]) => t));
+  if (!masivas.size) return entradas;
+  const out = entradas.filter((e) => !(e.accion === "CREAR" && masivas.has(e.tabla)));
+  for (const t of masivas) {
+    const xs = creados.get(t)!;
+    out.push({
+      tabla: t,
+      registro_id: null,
+      accion: "CREAR",
+      descripcion: `Carga masiva: ${xs.length.toLocaleString("es-CL")} registros nuevos (desde «${xs[0].descripcion}» hasta «${xs[xs.length - 1].descripcion}»)`,
+    });
+  }
+  return out;
 }
 
 /* ------------------------------ instalar ------------------------------ */

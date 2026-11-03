@@ -39,6 +39,24 @@ export function Ajustes() {
     <div className="mx-auto max-w-2xl space-y-8">
       <h1 className="stencil text-[24px]">Ajustes</h1>
 
+      {enNube ? (
+        <section className="hoja rounded-lg px-6 py-5">
+          <h2 className="text-lg font-semibold">Quién está usando el sistema</h2>
+          <p className="mt-1">
+            Sesión de <b className="font-semibold">{cfg.usuario_actual}</b>. Todo lo que se haga en este equipo queda registrado a su nombre en el historial.
+          </p>
+          <button
+            type="button"
+            onClick={async () => {
+              const r = await cerrarSesion();
+              if (!r.ok) avisar({ titulo: "Hay cambios sin enviar", detalle: `Espere a que se guarden (${r.pendientes}) antes de cambiar de usuario.`, tono: "rojo" });
+            }}
+            className="btn btn-primario mt-3"
+          >
+            Cambiar de usuario
+          </button>
+        </section>
+      ) : (
       <section className="hoja rounded-lg px-6 py-5">
         <h2 className="text-lg font-semibold">Quién atiende la caja</h2>
         <p className="text-sm text-gris">Queda registrado en cada vale, abono, anulación y cierre.</p>
@@ -56,6 +74,7 @@ export function Ajustes() {
           ))}
         </div>
       </section>
+      )}
 
       <section className="hoja rounded-lg px-6 py-5">
         <h2 className="text-lg font-semibold">Clasificación automática</h2>

@@ -4,8 +4,8 @@
 
 | Quién | Cómo entra | Qué puede hacer |
 |---|---|---|
-| **Personal** (caja, vendedores) | Clave global del portal | Vales, abonos, clientes, cierre de caja, remuneraciones, reportes |
-| **Administradores** (hasta 6 activos) | Usuario + contraseña propios | Todo lo anterior, más: crear y desactivar administradores, asignar contraseñas, cambiar la clave del portal, importar planillas, ver la bitácora y la verificación de datos |
+| **Personal** (caja, vendedores) | Clave global del portal, luego **«¿Quién eres?»**: elige su nombre y, si tiene, escribe su PIN | Vales, abonos, clientes, envases, cierre de caja, remuneraciones, reportes |
+| **Administradores** (hasta 6 activos) | Usuario + contraseña propios | Todo lo anterior, más: crear y desactivar administradores y personal, asignar contraseñas y PIN, cambiar la clave del portal, importar planillas, ver el **historial de cambios** y la verificación de datos |
 
 - Las claves se guardan **cifradas con scrypt** (no se pueden leer, ni siquiera mirando la base).
 - Las sesiones van firmadas con un **secreto aleatorio que se crea al instalar y vive solo en la base**. Ni las variables de Vercel ni el código fuente permiten fabricar una sesión.
@@ -13,6 +13,16 @@
 - **Desactivar a un administrador** o cambiarle la contraseña invalida su sesión al instante.
 - **Siempre queda al menos un administrador activo:** el sistema no deja desactivar al último.
 - `CLAVE_ACCESO` (en Vercel) solo sirve para **instalar** una vez. Después no da acceso a nada.
+
+## Historial de cambios (quién hizo qué)
+
+- Cada sesión del personal va **a nombre de una persona** (tabla `usuarios`, con PIN opcional de 4 a 8 números guardado con scrypt). Los administradores crean, desactivan y ponen PIN en **Cuentas y accesos → Personal**.
+- El **servidor** anota en la tabla `historial` cada cambio que llega: qué (vale, cliente, envase, remuneración, cierre, ajustes…), acción (creó, modificó, anuló, quitó), **quién** (sacado de la sesión firmada, no de lo que diga el navegador), fecha y hora, IP y, en las modificaciones, cada campo con su valor **antes y después**. También las entradas y salidas del sistema y las acciones de seguridad.
+- El servidor también pone el autor en `creado_por`, `anulado_por`, `cerrado_por` y en la bitácora: si un navegador manda otro nombre, se ignora.
+- `historial` **no se edita ni se borra**: lo impide un trigger de la base, incluso desde el SQL Editor de Neon.
+- Desactivar a una persona o cambiarle el PIN cierra su sesión al instante.
+- Pantalla **Historial de cambios** (solo administradores): filtros por fechas, persona, tipo y acción, búsqueda e impresión.
+- Una carga masiva (importar planilla) queda como una entrada por tipo, no miles.
 
 ## Revisión (31-10-2026): qué se encontró y qué se hizo
 

@@ -36,7 +36,7 @@ Diseño corporativo: barra lateral con el logo del local, íconos de línea y ti
 - **Semanal** (lunes a domingo): solo con cuánta deuda quedó cada cliente.
 - **Impresión:** cada parte tiene su botón **Imprimir** y hay uno para **imprimir todo en una hoja** (A4). En la ventana de impresión se puede elegir «Guardar como PDF».
 
-También hay **Importar planilla** (CSV de Google Sheets), **Bitácora** y **Ajustes** en el menú «···».
+También hay **Importar planilla** (CSV de Google Sheets), **Historial de cambios** (quién hizo cada cambio, con el antes y el después; solo administradores) y **Ajustes** en el menú «···». Cada persona entra con la clave del portal y elige su nombre (con PIN opcional), así todo queda registrado a su nombre.
 
 ### Cargar un vale sin mouse
 

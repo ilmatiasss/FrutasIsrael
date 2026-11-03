@@ -1,7 +1,7 @@
 import { randomUUID } from "node:crypto";
 import { NextResponse } from "next/server";
 import { pool } from "@/lib/server/pg";
-import { acceso, claveDebil, hashClave, MAX_ADMINS, mismoOrigen, verificarClave } from "@/lib/server/auth";
+import { acceso, ipDe, claveDebil, hashClave, MAX_ADMINS, mismoOrigen, verificarClave } from "@/lib/server/auth";
 import { eventoServidor } from "@/lib/server/evento";
 
 export const dynamic = "force-dynamic";
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
   } catch {
     return NextResponse.json({ error: "Ese usuario ya existe." }, { status: 409 });
   }
-  await eventoServidor(a.tenant, a.admin!.nombre, `Administrador creado: ${u}`);
+  await eventoServidor(a.tenant, a.admin!.nombre, `Administrador creado: ${u}`, a.quien, ipDe(req));
   return NextResponse.json({ ok: true });
 }
 
@@ -56,7 +56,7 @@ export async function PATCH(req: Request) {
       if (n.rows[0].n >= MAX_ADMINS) return NextResponse.json({ error: `Máximo ${MAX_ADMINS} administradores activos.` }, { status: 400 });
     }
     await pool().query("update admins set activo = $2 where id = $1", [obj.id, accion === "activar"]);
-    await eventoServidor(a.tenant, a.admin!.nombre, `Administrador ${obj.usuario} ${accion === "activar" ? "reactivado" : "desactivado"}`);
+    await eventoServidor(a.tenant, a.admin!.nombre, `Administrador ${obj.usuario} ${accion === "activar" ? "reactivado" : "desactivado"}`, a.quien, ipDe(req));
     return NextResponse.json({ ok: true, salir: propia && accion === "desactivar" });
   }
 
@@ -65,7 +65,7 @@ export async function PATCH(req: Request) {
     const debil = claveDebil(clave ?? "");
     if (debil) return NextResponse.json({ error: `Contraseña: ${debil}` }, { status: 400 });
     await pool().query("update admins set hash = $2 where id = $1", [obj.id, hashClave(clave!)]);
-    await eventoServidor(a.tenant, a.admin!.nombre, `Contraseña cambiada: ${obj.usuario}`);
+    await eventoServidor(a.tenant, a.admin!.nombre, `Contraseña cambiada: ${obj.usuario}`, a.quien, ipDe(req));
     return NextResponse.json({ ok: true, salir: propia });
   }
   return NextResponse.json({ error: "Acción no válida" }, { status: 400 });

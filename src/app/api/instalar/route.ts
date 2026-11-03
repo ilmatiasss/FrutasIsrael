@@ -96,7 +96,7 @@ export async function POST(req: Request) {
     const seg = (await leerSeguridad(tenant))!;
     const res = NextResponse.json({ ok: true });
     res.cookies.set(COOKIE_ADMIN, tokenAdmin(seg, { id: adminId, hash }), opcionesCookie(DURACION_ADMIN));
-    res.cookies.set(COOKIE_PORTAL, tokenPortal(seg), opcionesCookie(DURACION_PORTAL));
+    res.cookies.set(COOKIE_PORTAL, tokenPortal(seg, { u: `adm:${adminId}` }), opcionesCookie(DURACION_PORTAL));
     return res;
   } catch (e) {
     console.error(e);

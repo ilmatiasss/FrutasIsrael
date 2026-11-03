@@ -3,6 +3,7 @@ import { createHmac, randomBytes, scryptSync, timingSafeEqual } from "node:crypt
 import { readFileSync } from "node:fs";
 import path from "node:path";
 import { pool, tenantId } from "./pg";
+import type { Quien } from "./historial";
 
 /*
  * Acceso al portal:
@@ -82,7 +83,8 @@ interface Carga {
   t: "p" | "a"; // portal | admin
   v?: number; // versión de la clave del portal
   a?: string; // id del admin
-  h?: string; // huella del hash del admin (cambia si cambia su contraseña)
+  h?: string; // huella del hash del admin o del PIN (cambia si cambia la clave)
+  u?: string; // portal: id de la persona (usuarios.id) o "adm:<id>" si entró un admin
   exp: number;
 }
 
@@ -112,8 +114,15 @@ export function huella(hash: string): string {
   return createHmac("sha256", "huella").update(hash).digest("base64url").slice(0, 12);
 }
 
-export function tokenPortal(seg: Seguridad): string {
-  return firmar({ t: "p", v: seg.clave_version, exp: Date.now() + DURACION_PORTAL * 1000 }, seg.secreto);
+/** Sesión del portal a nombre de una persona del personal (o de un admin). */
+export function tokenPortal(seg: Seguridad, persona: { u: string; pin_hash?: string | null }): string {
+  return firmar({ t: "p", v: seg.clave_version, u: persona.u, h: huella(persona.pin_hash ?? "sin-pin"), exp: Date.now() + DURACION_PORTAL * 1000 }, seg.secreto);
+}
+
+/** ¿El navegador ya tiene una sesión de portal válida? */
+export function portalVigente(req: Request, seg: Seguridad): boolean {
+  const c = leerToken(cookie(req, COOKIE_PORTAL), seg.secreto);
+  return !!c && c.t === "p" && c.v === seg.clave_version && !!c.u;
 }
 
 export function tokenAdmin(seg: Seguridad, admin: { id: string; hash: string }): string {
@@ -146,8 +155,22 @@ export async function adminDeSesion(req: Request, seg: Seguridad): Promise<Admin
 }
 
 export type Acceso =
-  | { ok: true; tenant: string; seg: Seguridad; admin: AdminSesion | null }
+  | { ok: true; tenant: string; seg: Seguridad; admin: AdminSesion | null; quien: Quien }
   | { ok: false; status: number; error: string };
+
+/** La persona detrás de una sesión de portal (null si la cuenta ya no está activa). */
+async function personaDe(c: Carga, seg: Seguridad): Promise<Quien | null> {
+  if (!c.u) return null;
+  if (c.u.startsWith("adm:")) {
+    const r = await pool().query("select id, nombre, hash, activo from admins where id = $1 and tenant_id = $2", [c.u.slice(4), seg.tenant_id]);
+    const a = r.rows[0];
+    return a && a.activo ? { tipo: "ADMIN", id: a.id, nombre: a.nombre } : null;
+  }
+  const r = await pool().query("select id, nombre, pin_hash, activo from usuarios where id = $1 and tenant_id = $2", [c.u, seg.tenant_id]);
+  const u = r.rows[0];
+  if (!u || !u.activo || huella(u.pin_hash ?? "sin-pin") !== c.h) return null;
+  return { tipo: "PERSONAL", id: u.id, nombre: u.nombre };
+}
 
 /**
  * Valida la sesión de una petición a la API. Un admin con sesión también
@@ -161,11 +184,15 @@ export async function acceso(req: Request, { soloAdmin = false } = {}): Promise<
   const seg = await leerSeguridad(tenant);
   if (!seg) return { ok: false, status: 428, error: "Falta crear el primer administrador" };
   const admin = await adminDeSesion(req, seg);
-  if (soloAdmin) return admin ? { ok: true, tenant, seg, admin } : { ok: false, status: 403, error: "Requiere administrador" };
-  if (admin) return { ok: true, tenant, seg, admin };
+  const comoAdmin: Quien | null = admin ? { tipo: "ADMIN", id: admin.id, nombre: admin.nombre } : null;
+  if (soloAdmin) return admin ? { ok: true, tenant, seg, admin, quien: comoAdmin! } : { ok: false, status: 403, error: "Requiere administrador" };
+  if (admin) return { ok: true, tenant, seg, admin, quien: comoAdmin! };
   const c = leerToken(cookie(req, COOKIE_PORTAL), seg.secreto);
   if (!c || c.t !== "p" || c.v !== seg.clave_version) return { ok: false, status: 401, error: "Sin sesión" };
-  return { ok: true, tenant, seg, admin: null };
+  // sesiones antiguas (sin persona) o de alguien desactivado: volver a entrar y elegir quién es
+  const quien = await personaDe(c, seg);
+  if (!quien) return { ok: false, status: 401, error: "Sin sesión" };
+  return { ok: true, tenant, seg, admin: null, quien };
 }
 
 /* ------------------------------ intentos ------------------------------ */

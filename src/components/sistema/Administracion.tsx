@@ -145,22 +145,29 @@ function Panel({ estado, recargar }: { estado: Estado; recargar: () => void }) {
             Sesión de administrador: <b className="font-semibold text-grafito">{admin.nombre}</b> ({admin.usuario})
           </p>
         </div>
-        <button
-          type="button"
-          onClick={async () => {
-            await api("/api/admin/sesion", "DELETE", {});
-            location.assign("/");
-          }}
-          className="btn btn-secundario"
-        >
-          Salir de administración
-        </button>
+        <div className="flex flex-wrap gap-2">
+          <a href="/historial" className="btn btn-primario">
+            Historial de cambios
+          </a>
+          <button
+            type="button"
+            onClick={async () => {
+              await api("/api/admin/sesion", "DELETE", {});
+              location.assign("/");
+            }}
+            className="btn btn-secundario"
+          >
+            Salir de administración
+          </button>
+        </div>
       </header>
 
       <div className="grid gap-6 xl:grid-cols-2">
         <ClavePortal estado={estado} onOk={() => { avisar({ titulo: "Clave del portal cambiada", detalle: "Todos los equipos deberán ingresar con la clave nueva.", tono: "tinta" }); recargar(); }} />
         <MiClave adminId={admin.id} />
       </div>
+
+      <Personal />
 
       <Tarjeta titulo={`Administradores (${activos} de ${estado.maxAdmins} activos)`} nota="Solo los administradores pueden crear cuentas, cambiar la clave del portal, importar planillas y ver la bitácora.">
         <div className="overflow-x-auto">
@@ -385,6 +392,161 @@ function NuevaCuenta({ recargar }: { recargar: () => void }) {
         </button>
       </div>
     </form>
+  );
+}
+
+interface Persona {
+  id: string;
+  nombre: string;
+  rol: "DUENO" | "CAJA";
+  activo: boolean;
+  pin: boolean;
+  ultimo_acceso: string | null;
+}
+
+/** Personas que atienden: entran con la clave del portal y eligen su nombre (con PIN si tienen). */
+function Personal() {
+  const avisar = useAviso();
+  const [lista, setLista] = useState<Persona[] | null>(null);
+  const [nuevo, setNuevo] = useState({ nombre: "", pin: "" });
+  const [error, setError] = useState<string | null>(null);
+  const [pinDe, setPinDe] = useState<string | null>(null);
+  const [pin, setPin] = useState("");
+  const recargar = useCallback(async () => {
+    const r = await fetch("/api/admin/personal", { cache: "no-store" }).catch(() => null);
+    if (r?.ok) setLista((await r.json()).personal);
+  }, []);
+  useEffect(() => {
+    void recargar();
+  }, [recargar]);
+
+  const accion = async (p: Persona, accion: string, extra: Record<string, string> = {}) => {
+    if (accion === "desactivar" && !confirm(`¿Desactivar a ${p.nombre}? No podrá entrar al sistema (su historial se conserva).`)) return;
+    const r = await api("/api/admin/personal", "PATCH", { id: p.id, accion, ...extra });
+    if (!r.ok) return avisar({ titulo: "No se pudo", detalle: r.error, tono: "rojo" });
+    if (accion === "pin") avisar({ titulo: "PIN asignado", detalle: `Entrégueselo a ${p.nombre} en persona.`, tono: "tinta" });
+    setPinDe(null);
+    setPin("");
+    void recargar();
+  };
+
+  const crear = async (e: FormEvent) => {
+    e.preventDefault();
+    setError(null);
+    const r = await api("/api/admin/personal", "POST", { nombre: nuevo.nombre, pin: nuevo.pin || undefined });
+    if (!r.ok) return setError(r.error ?? "No se pudo crear");
+    avisar({ titulo: "Persona agregada", detalle: nuevo.nombre, tono: "tinta" });
+    setNuevo({ nombre: "", pin: "" });
+    void recargar();
+  };
+
+  return (
+    <Tarjeta
+      titulo="Personal (quién atiende)"
+      nota="Cada persona entra con la clave del portal y elige su nombre; si tiene PIN, se le pide. Así el historial muestra quién hizo cada cambio."
+    >
+      {!lista ? (
+        <p className="text-gris">Cargando…</p>
+      ) : (
+        <div className="overflow-x-auto">
+          <table className="w-full text-sm">
+            <thead>
+              <tr className="text-left">
+                <th className="rotulo py-2 font-semibold">Nombre</th>
+                <th className="rotulo py-2 font-semibold">PIN</th>
+                <th className="rotulo py-2 font-semibold">Estado</th>
+                <th className="rotulo hidden py-2 font-semibold sm:table-cell">Último ingreso</th>
+                <th className="py-2" />
+              </tr>
+            </thead>
+            <tbody>
+              {lista.map((p) => (
+                <tr key={p.id} className={`border-t border-linea align-top ${p.activo ? "" : "text-gris"}`}>
+                  <td className="py-2 pr-2 font-medium">{p.nombre}</td>
+                  <td className="py-2 pr-2">{p.pin ? "Sí" : <span className="text-gris">No</span>}</td>
+                  <td className="py-2 pr-2">
+                    <span className="sticker" style={p.activo ? { background: "#ecf5ef", color: "#166534" } : { background: "#f0f2f5", color: "#6b7280" }}>
+                      {p.activo ? "Activo" : "Desactivado"}
+                    </span>
+                  </td>
+                  <td className="cifra hidden py-2 pr-2 text-gris sm:table-cell">
+                    {p.ultimo_acceso ? `${ddmmaa(p.ultimo_acceso.slice(0, 10))} ${hora(p.ultimo_acceso)}` : "—"}
+                  </td>
+                  <td className="py-2 text-right">
+                    {pinDe === p.id ? (
+                      <form
+                        onSubmit={(e) => {
+                          e.preventDefault();
+                          void accion(p, "pin", { pin });
+                        }}
+                        className="inline-flex items-center gap-2"
+                      >
+                        <input
+                          autoFocus
+                          value={pin}
+                          onChange={(e) => setPin(e.target.value.replace(/\D/g, "").slice(0, 8))}
+                          inputMode="numeric"
+                          placeholder="4 a 8 números"
+                          aria-label={`PIN de ${p.nombre}`}
+                          className="campo w-36 py-1.5"
+                        />
+                        <button type="submit" disabled={pin.length < 4} className="btn btn-primario py-1.5 text-sm disabled:opacity-50">
+                          Guardar
+                        </button>
+                        <button type="button" onClick={() => setPinDe(null)} className="text-sm text-gris">
+                          Cancelar
+                        </button>
+                      </form>
+                    ) : (
+                      <span className="inline-flex flex-wrap justify-end gap-x-3 gap-y-1">
+                        {p.activo && (
+                          <button type="button" onClick={() => setPinDe(p.id)} className="text-sm font-medium text-tinta hover:underline">
+                            {p.pin ? "Cambiar PIN" : "Poner PIN"}
+                          </button>
+                        )}
+                        {p.activo && p.pin && (
+                          <button type="button" onClick={() => accion(p, "quitar_pin")} className="text-sm font-medium text-gris hover:underline">
+                            Quitar PIN
+                          </button>
+                        )}
+                        <button
+                          type="button"
+                          onClick={() => accion(p, p.activo ? "desactivar" : "activar")}
+                          className={`text-sm font-medium hover:underline ${p.activo ? "text-fuji" : "text-tinta"}`}
+                        >
+                          {p.activo ? "Desactivar" : "Reactivar"}
+                        </button>
+                      </span>
+                    )}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+      )}
+      <form onSubmit={crear} className="mt-4 flex flex-wrap items-end gap-2 rounded-md border border-linea bg-carton/50 p-3">
+        <label className="block">
+          <span className="rotulo">Nueva persona</span>
+          <input value={nuevo.nombre} onChange={(e) => setNuevo({ ...nuevo, nombre: e.target.value })} placeholder="Nombre" className="campo w-52" aria-label="Nombre de la persona" />
+        </label>
+        <label className="block">
+          <span className="rotulo">PIN (opcional)</span>
+          <input
+            value={nuevo.pin}
+            onChange={(e) => setNuevo({ ...nuevo, pin: e.target.value.replace(/\D/g, "").slice(0, 8) })}
+            inputMode="numeric"
+            placeholder="4 a 8 números"
+            className="campo w-36"
+            aria-label="PIN de la persona nueva"
+          />
+        </label>
+        <button type="submit" disabled={nuevo.nombre.trim().length < 2} className="btn btn-primario disabled:opacity-50">
+          Agregar
+        </button>
+        {error && <p className="w-full text-sm font-medium text-fuji">{error}</p>}
+      </form>
+    </Tarjeta>
   );
 }
 

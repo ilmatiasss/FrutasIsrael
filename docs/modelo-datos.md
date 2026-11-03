@@ -19,7 +19,9 @@ tenants ─┬─< usuarios
 
 **tenants** — un locatario (bodega). `ultimo_numero` es el correlativo de vales; también guarda los umbrales del semáforo.
 
-**usuarios** — quién atiende (`DUENO` / `CAJA`); queda en cada vale como `creado_por`. El acceso al sistema es con la clave del local (`CLAVE_ACCESO`).
+**usuarios** — el personal (`DUENO` / `CAJA`), con `activo` y `pin_hash` opcional. Cada sesión va a nombre de una persona; el servidor la pone en `creado_por`, `anulado_por` y `cerrado_por`.
+
+**historial** — lo escribe solo el servidor: `at`, `usuario` (y `usuario_tipo` ADMIN / PERSONAL), `ip`, `tabla`, `registro_id`, `accion` (CREAR · MODIFICAR · ANULAR · BORRAR · ENTRAR · SALIR · SEGURIDAD), `descripcion` y `cambios` (`{campo: [antes, después]}`). No se edita ni se borra (trigger).
 
 **trabajadores / asistencias / pagos_sueldo** — sueldos: modalidad (por día, semanal o mensual) y monto; los días trabajados; y cada pago, adelanto, bono o descuento. Un pago en efectivo que sale del cajón crea además un `EGRESO` en `movimientos`. Los pagos no se borran, se anulan (y anulan su egreso).
 

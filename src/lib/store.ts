@@ -225,6 +225,7 @@ async function refrescar(forzar = false) {
     if (!r.ok) return;
     const j = await r.json();
     if (cola.length && !forzar) return;
+    yo = j.yo ?? null;
     db = conUsuarioLocal(normalizar(j.db));
     escribir(KEY_NUBE, db);
     modo = "nube";
@@ -234,7 +235,17 @@ async function refrescar(forzar = false) {
   }
 }
 
+/** Quién tiene la sesión (lo dice el servidor). Con base de datos manda sobre el ajuste del equipo. */
+export interface Yo {
+  tipo: "ADMIN" | "PERSONAL" | "SISTEMA";
+  id: string | null;
+  nombre: string;
+}
+let yo: Yo | null = null;
+export const quienSoy = () => yo;
+
 function conUsuarioLocal(d: Db): Db {
+  if (yo) return { ...d, config: { ...d.config, usuario_actual: yo.nombre } };
   const u = leer<string>(KEY_USUARIO);
   return { ...d, config: { ...d.config, usuario_actual: u ?? d.config.usuario_actual ?? "Caja" } };
 }
@@ -282,6 +293,7 @@ async function iniciar() {
     return;
   } else if (r && r.ok) {
     const j = await r.json();
+    yo = j.yo ?? null;
     db = conUsuarioLocal(conPendientes(normalizar(j.db)));
     escribir(KEY_NUBE, db);
     modo = "nube";

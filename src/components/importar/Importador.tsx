@@ -183,7 +183,7 @@ export function Importador() {
               {hecho && (
                 <p className="text-sm">
                   Listo. Revisa los saldos en <Link href="/clientes" className="text-tinta underline">Clientes</Link> o el registro en la{" "}
-                  <Link href="/bitacora" className="text-tinta underline">Bitácora</Link>.
+                  <Link href="/historial" className="text-tinta underline">Historial de cambios</Link>.
                 </p>
               )}
             </>

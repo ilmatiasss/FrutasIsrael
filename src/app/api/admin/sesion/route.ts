@@ -1,9 +1,10 @@
 import { NextResponse } from "next/server";
 import { pool, tenantId } from "@/lib/server/pg";
 import {
-  anotarIntento, asegurarEsquema, bloqueado, COOKIE_ADMIN, COOKIE_PORTAL, DURACION_ADMIN, DURACION_PORTAL, ipDe, leerSeguridad, mismoOrigen,
-  opcionesCookie, tokenAdmin, tokenPortal, verificarClave,
+  acceso, anotarIntento, asegurarEsquema, bloqueado, COOKIE_ADMIN, COOKIE_PORTAL, DURACION_ADMIN, DURACION_PORTAL, ipDe, leerSeguridad, mismoOrigen,
+  opcionesCookie, portalVigente, tokenAdmin, tokenPortal, verificarClave,
 } from "@/lib/server/auth";
+import { anotarHistorial } from "@/lib/server/historial";
 
 export const dynamic = "force-dynamic";
 
@@ -27,14 +28,22 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: "Usuario o contraseña incorrectos" }, { status: 401 });
   }
   await pool().query("update admins set ultimo_acceso = now() where id = $1", [a.id]);
+  await anotarHistorial(null, tenant, { tipo: "ADMIN", id: a.id, nombre: a.nombre }, ip, [
+    { tabla: "sesion", registro_id: a.id, accion: "ENTRAR", descripcion: `${a.nombre} entró como administrador` },
+  ]);
   const res = NextResponse.json({ ok: true, admin: { usuario: a.usuario, nombre: a.nombre } });
   res.cookies.set(COOKIE_ADMIN, tokenAdmin(seg, a), opcionesCookie(DURACION_ADMIN));
-  res.cookies.set(COOKIE_PORTAL, tokenPortal(seg), opcionesCookie(DURACION_PORTAL));
+  if (!portalVigente(req, seg)) res.cookies.set(COOKIE_PORTAL, tokenPortal(seg, { u: `adm:${a.id}` }), opcionesCookie(DURACION_PORTAL));
   return res;
 }
 
 /** Salir del modo administrador (el portal sigue abierto). */
-export async function DELETE() {
+export async function DELETE(req: Request) {
+  const s = await acceso(req, { soloAdmin: true }).catch(() => null);
+  if (s?.ok)
+    await anotarHistorial(null, s.tenant, s.quien, ipDe(req), [
+      { tabla: "sesion", registro_id: s.quien.id, accion: "SALIR", descripcion: `${s.quien.nombre} salió de administración` },
+    ]).catch(() => {});
   const res = NextResponse.json({ ok: true });
   res.cookies.set(COOKIE_ADMIN, "", opcionesCookie(0));
   return res;

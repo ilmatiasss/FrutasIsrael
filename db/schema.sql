@@ -263,6 +263,48 @@ create table if not exists intentos_acceso (
 create index if not exists intentos_ip_idx on intentos_acceso (ip, at desc);
 
 -- -----------------------------------------------------------------------------
+-- Personal: cada persona entra con su nombre (y PIN opcional) después de la
+-- clave del portal; así cada cambio queda con quién lo hizo.
+-- -----------------------------------------------------------------------------
+alter table usuarios add column if not exists activo boolean not null default true;
+alter table usuarios add column if not exists pin_hash text;
+alter table usuarios add column if not exists created_at timestamptz not null default now();
+alter table usuarios add column if not exists ultimo_acceso timestamptz;
+
+-- -----------------------------------------------------------------------------
+-- Historial de cambios: lo escribe solo el servidor, con el usuario de la
+-- sesión. No se edita ni se borra.
+-- -----------------------------------------------------------------------------
+create table if not exists historial (
+  id           bigserial primary key,
+  tenant_id    text not null references tenants(id),
+  at           timestamptz not null default now(),
+  usuario      text not null,              -- nombre de quien lo hizo
+  usuario_tipo text not null,              -- ADMIN · PERSONAL · SISTEMA
+  usuario_id   text,
+  ip           text,
+  tabla        text not null,              -- qué: movimientos, clientes, envases, sesion…
+  registro_id  text,
+  accion       text not null,              -- CREAR · MODIFICAR · ANULAR · BORRAR · ENTRAR · SALIR · SEGURIDAD
+  descripcion  text not null,
+  cambios      jsonb                       -- { campo: [antes, después] }
+);
+create index if not exists historial_tenant_at_idx on historial (tenant_id, at desc);
+create index if not exists historial_registro_idx on historial (tenant_id, registro_id);
+
+create or replace function historial_inmutable() returns trigger language plpgsql as $$
+begin
+  raise exception 'El historial no se edita ni se borra';
+end $$;
+
+do $$
+begin
+  if not exists (select 1 from pg_trigger where tgname = 'historial_sin_cambios') then
+    create trigger historial_sin_cambios before update or delete on historial for each row execute function historial_inmutable();
+  end if;
+end $$;
+
+-- -----------------------------------------------------------------------------
 -- Envases: garantía que se cobra al entregar y se paga al devolver
 -- -----------------------------------------------------------------------------
 create table if not exists envases (

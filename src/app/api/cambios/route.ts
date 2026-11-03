@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { hayBase } from "@/lib/server/pg";
 import { aplicarCambios, type Cambio, type CambiosTenant } from "@/lib/server/repo";
-import { acceso, mismoOrigen } from "@/lib/server/auth";
+import { acceso, ipDe, mismoOrigen } from "@/lib/server/auth";
 
 export const dynamic = "force-dynamic";
 
@@ -13,9 +13,9 @@ export async function POST(req: Request) {
   try {
     const a = await acceso(req);
     if (!a.ok) return NextResponse.json({ error: a.error }, { status: a.status });
-    // la bitácora de seguridad solo la escribe el servidor
-    const cambios = body.cambios.filter((c) => !(c.tabla === "eventos" && c.fila?.accion === "SEGURIDAD"));
-    const r = await aplicarCambios(a.tenant, cambios, body.tenant ?? {});
+    // la bitácora de seguridad y las personas (PIN, activo) solo las escribe el servidor
+    const cambios = body.cambios.filter((c) => !(c.tabla === "eventos" && c.fila?.accion === "SEGURIDAD") && c.tabla !== "usuarios");
+    const r = await aplicarCambios(a.tenant, cambios, body.tenant ?? {}, a.quien, ipDe(req));
     return NextResponse.json({ ok: true, ...r });
   } catch (e) {
     console.error(e);

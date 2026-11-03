@@ -27,7 +27,7 @@ const ATAJOS: Record<string, string> = Object.fromEntries(SECCIONES.map((x) => [
 const MAS = [
   { href: "/admin", label: "Cuentas y accesos" },
   { href: "/importar", label: "Importar planilla" },
-  { href: "/bitacora", label: "Bitácora (historial)" },
+  { href: "/historial", label: "Historial de cambios" },
   { href: "/ajustes", label: "Ajustes" },
 ];
 
@@ -182,7 +182,10 @@ export function Shell({ children }: { children: ReactNode }) {
         </nav>
         <div className="border-t border-white/10 px-5 py-4 text-[12px] text-white/60">
           <p>
-            Atiende: <b className="font-semibold text-white">{data?.db.config.usuario_actual ?? "…"}</b>
+            Atiende: <b className="font-semibold text-white">{data?.db.config.usuario_actual ?? "…"}</b>{" "}
+            <Link href="/ajustes" className="text-white/50 underline-offset-2 hover:text-white hover:underline">
+              cambiar
+            </Link>
           </p>
           {fecha && <p className="first-letter:uppercase">{fechaLarga(fecha)}</p>}
         </div>

@@ -39,6 +39,7 @@ export interface Usuario {
   tenant_id: UUID;
   nombre: string;
   rol: "DUENO" | "CAJA";
+  activo?: boolean;
 }
 
 export interface Cliente {
