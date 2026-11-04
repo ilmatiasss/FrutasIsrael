@@ -49,6 +49,7 @@ export function Envases() {
   const [cant, setCant] = useState<Record<string, string>>({});
   const [forma, setForma] = useState<FormaPago>("EFECTIVO");
   const [nota, setNota] = useState("");
+  const [fecha, setFecha] = useState(hoy());
   const [ultimoId, setUltimoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const primerCant = useRef<HTMLInputElement | null>(null);
@@ -90,7 +91,7 @@ export function Envases() {
     const mov = registrarEnvases({
       tipo,
       cliente_id: est.cliente.id,
-      fecha: hoy(),
+      fecha,
       forma,
       lineas: lineas.map(({ envase_id, cantidad, precio_unitario }) => ({ envase_id, cantidad, precio_unitario })),
       glosa: nota.trim() || (tipo === "ENVASE_DEVOLUCION" && forma === "CREDITO" ? "Descontado de su deuda" : null),
@@ -104,6 +105,7 @@ export function Envases() {
     });
     setCant({});
     setNota("");
+    setFecha(hoy());
   };
 
   // envases en la calle (todos los clientes)
@@ -176,6 +178,19 @@ export function Envases() {
         ) : (
         <form onSubmit={guardar} className="hoja mx-auto w-full max-w-[880px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {pestanas}
+          <div>
+            <label className="flex items-center gap-1.5 text-sm">
+              <span className="text-gris">Fecha</span>
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => e.target.value && setFecha(e.target.value)}
+                aria-label="Fecha"
+                className={`bg-transparent p-0 text-sm ${fecha !== hoy() ? "font-semibold text-fuji" : "text-gris"}`}
+              />
+            </label>
+            {fecha !== hoy() && <p className="text-xs font-semibold text-fuji">{fecha < hoy() ? "Fecha atrasada" : "Fecha adelantada"}</p>}
+          </div>
 
           <div>
             <span className="rotulo">Cliente</span>

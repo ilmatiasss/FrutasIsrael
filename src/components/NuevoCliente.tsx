@@ -16,11 +16,11 @@ export function NuevoCliente({
   onCerrar: () => void;
   onCreado: (c: Cliente) => void;
 }) {
-  const [f, setF] = useState({ nombre: "", alias: "", telefono: "", limite: "", deuda: "" });
+  const [f, setF] = useState({ nombre: "", alias: "", telefono: "", limite: "", deuda: "", fechaDeuda: hoy() });
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => {
     if (abierto) {
-      setF({ nombre: nombreInicial, alias: "", telefono: "", limite: "", deuda: "" });
+      setF({ nombre: nombreInicial, alias: "", telefono: "", limite: "", deuda: "", fechaDeuda: hoy() });
       setTimeout(() => ref.current?.focus(), 30);
     }
   }, [abierto, nombreInicial]);
@@ -35,7 +35,7 @@ export function NuevoCliente({
       limite_credito: parseMonto(f.limite),
     });
     const deuda = parseMonto(f.deuda);
-    if (deuda && deuda > 0) cargarDeuda({ cliente_id: c.id, monto: deuda, glosa: "Saldo anterior", fecha: hoy() });
+    if (deuda && deuda > 0) cargarDeuda({ cliente_id: c.id, monto: deuda, glosa: "Saldo anterior", fecha: f.fechaDeuda });
     onCreado(c);
   };
 
@@ -64,6 +64,12 @@ export function NuevoCliente({
         </div>
         <div className="grid grid-cols-2 gap-3">
           {campo("deuda", "Saldo inicial", "ej: 350k", { inputMode: "numeric" })}
+          {f.deuda.trim() && (
+            <label className="block">
+              <span className="rotulo">Fecha del saldo</span>
+              <input type="date" value={f.fechaDeuda} onChange={(e) => e.target.value && setF({ ...f, fechaDeuda: e.target.value })} className="campo font-sans" aria-label="Fecha del saldo inicial" />
+            </label>
+          )}
           {campo("limite", "Tope de crédito", "opcional", { inputMode: "numeric" })}
         </div>
         <div className="flex justify-end gap-2 pt-2">

@@ -33,6 +33,7 @@ export function RegistroAbono() {
   const [monto, setMonto] = useState("");
   const [forma, setForma] = useState<Forma>("EFECTIVO");
   const [glosa, setGlosa] = useState("");
+  const [fecha, setFecha] = useState(hoy());
   const [ultimoId, setUltimoId] = useState<string | null>(null);
   const [alDia, setAlDia] = useState(0); // cambia para re-animar el timbre
   const [sacude, setSacude] = useState(false);
@@ -85,7 +86,7 @@ export function RegistroAbono() {
       foco("monto");
       return;
     }
-    const mov = registrarAbono({ cliente_id: est.cliente.id, monto: m, forma, glosa: glosa.trim() || null, fecha: hoy() });
+    const mov = registrarAbono({ cliente_id: est.cliente.id, monto: m, forma, glosa: glosa.trim() || null, fecha });
     setUltimoId(mov.id);
     if (saldo - m <= 0) setAlDia((x) => x + 1);
     avisar({
@@ -96,6 +97,7 @@ export function RegistroAbono() {
     setMonto("");
     setGlosa("");
     setForma("EFECTIVO");
+    setFecha(hoy());
     foco("cliente");
   };
 
@@ -145,6 +147,17 @@ export function RegistroAbono() {
           <div>
             <p className="stencil text-[18px]">Nuevo abono</p>
             <p className="text-sm text-gris">Pago total o parcial de una deuda</p>
+            <label className="mt-1 flex items-center gap-1.5 text-sm">
+              <span className="text-gris">Fecha</span>
+              <input
+                type="date"
+                value={fecha}
+                onChange={(e) => e.target.value && setFecha(e.target.value)}
+                aria-label="Fecha"
+                className={`bg-transparent p-0 text-sm ${fecha !== hoy() ? "font-semibold text-fuji" : "text-gris"}`}
+              />
+            </label>
+            {fecha !== hoy() && <p className="text-xs font-semibold text-fuji">{fecha < hoy() ? "Fecha atrasada" : "Fecha adelantada"}</p>}
           </div>
           <p className="text-right">
             <span className="rotulo block">N°</span>
