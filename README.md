@@ -29,7 +29,7 @@ Diseño corporativo: barra lateral con el logo del local, íconos de línea y ti
 | `F8` | **Envases** (`/envases`) | Garantía de envases: al **entregar** se cobra (efectivo, transferencia o a la cuenta) y al **devolver** se paga (sale del cajón, transferencia o se descuenta de la deuda). Muestra cuántos envases tiene cada cliente, los envases en la calle (imprimible en `/imprimir/envases`) y **Precios de envases**: lista desplegable para elegir un envase y cambiar su garantía, agregar tipos nuevos u ocultarlos. |
 | `F9` | **Gastos** (`/gastos`) | Gastos de bodega con categoría (compra de envases, gas grúa horquilla, fletes… o una escrita a mano) y detalle libre. En efectivo salen del cajón; transferencia o tarjeta no. Resumen del mes por categoría. |
 | `F4` | **Cierre de caja** (`/caja`) | Ver detalle abajo. |
-| `F7` | **Remuneraciones** (`/sueldos`) | Trabajadores por día, semana o mes: asistencia, anticipos, bonos, descuentos, pagos y lo que falta pagar. Los pagos los hace Administración: no salen del cajón ni cambian el cierre. |
+| `F7` | **Remuneraciones** (`/sueldos`) | Trabajadores por día, semana o mes: asistencia, anticipos, bonos, descuentos, pagos y lo que falta pagar. Roles: Embalador y Administración. Si el pago sale del cajón, queda como egreso en el cierre. |
 | `F6` | **Reportes** (`/resumen`) | La semana en palabras, ventas por semana, fiado en la calle, antigüedad de la deuda, los que más deben y productos. |
 
 **Cierre de caja (`F4`):**

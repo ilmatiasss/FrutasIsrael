@@ -9,14 +9,14 @@ import { useAviso } from "../Shell";
 import { Modal } from "../ui";
 
 const PASOS = [
-  { titulo: "Personal", texto: "Con «+ Trabajador» registre nombre, cargo y modalidad de pago (diaria, semanal o mensual)." },
+  { titulo: "Personal", texto: "Con «+ Trabajador» registre nombre, rol (Embalador o Administración) y modalidad de pago (diaria, semanal o mensual)." },
   { titulo: "Asistencia", texto: "Para pago diario, marque los días trabajados. El monto se calcula automáticamente." },
-  { titulo: "Anticipos y pagos", texto: "Registre anticipos y pagos. Los paga Administración: no salen del cajón ni afectan el cierre de caja." },
+  { titulo: "Anticipos y pagos", texto: "Registre anticipos y pagos. Los pagos en efectivo desde caja se reflejan como egreso en el cierre." },
   { titulo: "Saldo", texto: "Cada ficha indica el monto devengado, lo pagado y el saldo por pagar." },
 ];
 
 const DIAS_CORTOS = ["L", "M", "M", "J", "V", "S", "D"];
-const CARGOS = ["Cargador", "Carretillero", "Caja", "Vendedor", "Chofer", "Administración"];
+const CARGOS = ["Embalador", "Administración"];
 
 function iniciales(n: string) {
   return n
@@ -299,7 +299,7 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
                   <div className="flex items-baseline justify-between gap-2">
                     <span>
                       <b>{TIPO_PAGO[p.tipo].label}</b> · {ddmm(p.fecha)} · {p.forma === "EFECTIVO" ? "efectivo" : "transferencia"}
-                      {p.movimiento_id ? " · salió del cajón" : p.tipo === "PAGO" || p.tipo === "ADELANTO" ? " · pagado por Administración" : ""}
+                      {p.movimiento_id && " · salió del cajón"}
                       {p.nota && <span className="text-gris"> · {p.nota}</span>}
                     </span>
                     <span className="cifra font-semibold">
@@ -348,6 +348,7 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
   const [tipo, setTipo] = useState<PagoSueldo["tipo"]>("PAGO");
   const [monto, setMonto] = useState("");
   const [forma, setForma] = useState<"EFECTIVO" | "TRANSFERENCIA">("EFECTIVO");
+  const [desdeCaja, setDesdeCaja] = useState(true);
   const [fecha, setFecha] = useState(hoy());
   const [nota, setNota] = useState("");
   const ref = useRef<HTMLInputElement>(null);
@@ -357,6 +358,7 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
     setTipo(p.tipo);
     setMonto(p.tipo === "PAGO" && p.c.falta > 0 ? miles(p.c.falta) : "");
     setForma("EFECTIVO");
+    setDesdeCaja(true);
     const h = hoy();
     setFecha(h >= p.c.periodo.desde && h <= p.c.periodo.hasta ? h : p.c.periodo.hasta);
     setNota("");
@@ -366,11 +368,12 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
   if (!p) return null;
   const m = parseMonto(monto) ?? 0;
   const despues = p.c.falta + (tipo === "BONO" ? m : tipo === "DESCUENTO" ? -m : -m);
+  const mueveCaja = forma === "EFECTIVO" && (tipo === "PAGO" || tipo === "ADELANTO");
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
     if (m <= 0) return;
-    registrarPagoSueldo({ trabajador_id: p.c.t.id, fecha, tipo, monto: m, forma, nota: nota.trim() || null, desdeCaja: false });
+    registrarPagoSueldo({ trabajador_id: p.c.t.id, fecha, tipo, monto: m, forma, nota: nota.trim() || null, desdeCaja: mueveCaja && desdeCaja });
     avisar({ titulo: `${TIPO_PAGO[tipo].label} registrado`, detalle: `${p.c.t.nombre} · ${clp(m)}`, tono: "ok" });
     onCerrar();
   };
@@ -409,9 +412,15 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
                 </button>
               ))}
             </div>
-            <p className="mt-2 rounded-md bg-carton/60 px-3 py-2 text-sm">
-              <b>Lo paga Administración.</b> <span className="text-gris">No sale del cajón ni cambia el cierre de caja.</span>
-            </p>
+            {mueveCaja && (
+              <label className="mt-2 flex items-start gap-2 text-sm">
+                <input type="checkbox" checked={desdeCaja} onChange={(e) => setDesdeCaja(e.target.checked)} className="mt-0.5 size-4 accent-[#2f7d45]" />
+                <span>
+                  <b>Sale del cajón de hoy</b>
+                  <span className="block text-gris">Se anota como egreso en el cierre de caja, para que la plata cuadre.</span>
+                </span>
+              </label>
+            )}
           </div>
         )}
         <div className="grid grid-cols-2 gap-3">
@@ -449,19 +458,19 @@ function EditarTrabajador({ t, onCerrar }: { t: Trabajador | "nuevo" | null; onC
   const [f, setF] = useState({ nombre: "", cargo: "", modalidad: "DIA" as Modalidad, monto: "", telefono: "", activo: true });
   useEffect(() => {
     if (!t) return;
-    if (t === "nuevo") setF({ nombre: "", cargo: "", modalidad: "DIA", monto: "", telefono: "", activo: true });
-    else setF({ nombre: t.nombre, cargo: t.cargo, modalidad: t.modalidad, monto: miles(t.monto), telefono: t.telefono ?? "", activo: t.activo });
+    if (t === "nuevo") setF({ nombre: "", cargo: CARGOS[0], modalidad: "DIA", monto: "", telefono: "", activo: true });
+    else setF({ nombre: t.nombre, cargo: CARGOS.includes(t.cargo) ? t.cargo : "", modalidad: t.modalidad, monto: miles(t.monto), telefono: t.telefono ?? "", activo: t.activo });
   }, [t]);
   if (!t) return null;
   const m = parseMonto(f.monto) ?? 0;
 
   const enviar = (e: FormEvent) => {
     e.preventDefault();
-    if (f.nombre.trim().length < 2 || m <= 0) return;
+    if (f.nombre.trim().length < 2 || m <= 0 || !CARGOS.includes(f.cargo)) return;
     const g = guardarTrabajador({
       id: t === "nuevo" ? undefined : t.id,
       nombre: f.nombre.trim(),
-      cargo: f.cargo.trim() || "Ayudante",
+      cargo: f.cargo,
       modalidad: f.modalidad,
       monto: m,
       telefono: f.telefono.trim() || null,
@@ -480,15 +489,15 @@ function EditarTrabajador({ t, onCerrar }: { t: Trabajador | "nuevo" | null; onC
           <input autoFocus value={f.nombre} onChange={(e) => setF({ ...f, nombre: e.target.value })} className="campo text-lg" placeholder="Nombre y apellido" />
         </label>
         <div>
-          <span className="rotulo">¿Qué hace?</span>
-          <div className="mt-1.5 flex flex-wrap gap-1.5">
+          <span className="rotulo">Rol</span>
+          <div className="mt-1.5 flex flex-wrap gap-1.5" role="radiogroup" aria-label="Rol">
             {CARGOS.map((c) => (
-              <button key={c} type="button" aria-pressed={f.cargo === c} onClick={() => setF({ ...f, cargo: c })} className="opcion py-1 text-sm">
+              <button key={c} type="button" role="radio" aria-checked={f.cargo === c} onClick={() => setF({ ...f, cargo: c })} className="opcion py-1.5 text-sm">
                 {c}
               </button>
             ))}
           </div>
-          <input value={f.cargo} onChange={(e) => setF({ ...f, cargo: e.target.value })} className="campo mt-2" placeholder="u otro cargo" />
+          {!f.cargo && <p className="mt-1.5 text-sm text-fuji">Elija el rol: Embalador o Administración.</p>}
         </div>
         <div>
           <span className="rotulo">¿Cómo se le paga?</span>
@@ -527,7 +536,7 @@ function EditarTrabajador({ t, onCerrar }: { t: Trabajador | "nuevo" | null; onC
           <button type="button" onClick={onCerrar} className="btn btn-secundario">
             Cancelar
           </button>
-          <button type="submit" className="btn btn-primario">
+          <button type="submit" disabled={!f.cargo || f.nombre.trim().length < 2 || m <= 0} className="btn btn-primario disabled:opacity-40">
             Guardar
           </button>
         </div>

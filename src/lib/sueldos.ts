@@ -73,10 +73,10 @@ export function sueldosEjemplo(tenant: string, anclaje: Fecha, lunesDe: (f: Fech
     id: uid(), tenant_id: tenant, nombre, cargo, modalidad, monto, telefono, activo: true, created_at: now,
   });
   const trabajadores = [
-    mk("Pedro Carrasco", "Cargador", "DIA", 25000, "+56 9 7123 4410"),
-    mk("Luis «Chico» Soto", "Carretillero", "DIA", 20000, "+56 9 6611 2093"),
-    mk("Marisol Fuentes", "Caja", "SEMANA", 160000, "+56 9 8844 1270"),
-    mk("Jorge Ibarra", "Vendedor", "SEMANA", 180000, "+56 9 5532 9087"),
+    mk("Pedro Carrasco", "Embalador", "DIA", 25000, "+56 9 7123 4410"),
+    mk("Luis «Chico» Soto", "Embalador", "DIA", 20000, "+56 9 6611 2093"),
+    mk("Marisol Fuentes", "Embalador", "SEMANA", 160000, "+56 9 8844 1270"),
+    mk("Jorge Ibarra", "Embalador", "SEMANA", 180000, "+56 9 5532 9087"),
     mk("Rosa Medina", "Administración", "MES", 680000, "+56 9 9012 3345"),
   ];
   const asistencias: Asistencia[] = [];
