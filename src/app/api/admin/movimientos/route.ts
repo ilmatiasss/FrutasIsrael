@@ -93,7 +93,8 @@ export async function PATCH(req: Request) {
       if (body.lineas) {
         lineas = body.lineas.map((l, i) => {
           const cantidad = Number(l.cantidad), precio = Math.round(Number(l.precio_unitario));
-          if (!(cantidad > 0) || !(precio > 0)) throw new ErrorUsuario(`Línea ${i + 1}: cantidad y precio deben ser mayores a 0.`);
+          if (!(cantidad > 0)) throw new ErrorUsuario(`Línea ${i + 1}: la cantidad debe ser mayor a 0.`);
+          if (!(precio >= 0)) throw new ErrorUsuario(`Línea ${i + 1}: el precio no puede ser negativo.`);
           if (!UNIDADES.includes(l.unidad)) throw new ErrorUsuario(`Línea ${i + 1}: unidad inválida.`);
           return { id: randomUUID(), tenant_id: a.tenant, movimiento_id: m0.id, orden: i + 1, cantidad, unidad: l.unidad, producto_id: l.producto_id, precio_unitario: precio, subtotal: Math.round(cantidad * precio) };
         });
@@ -108,7 +109,7 @@ export async function PATCH(req: Request) {
         if (lineas.length && !body.lineas) throw new ErrorUsuario("El vale tiene productos: cambie los productos, no el monto.");
         total = Math.round(Number(body.monto));
       }
-      if (!(total > 0)) throw new ErrorUsuario("El total debe ser mayor a 0.");
+      if (!(total >= 0)) throw new ErrorUsuario("El total no puede ser negativo.");
       const pagado = pagados.reduce((s, p) => s + Number(p.total), 0);
       if (pagado > total) throw new ErrorUsuario(`Ya se pagaron ${clp(pagado)} en este vale: el total no puede quedar menor.`);
 

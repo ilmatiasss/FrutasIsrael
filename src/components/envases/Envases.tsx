@@ -85,9 +85,6 @@ export function Envases() {
     setError(null);
     if (!est) return setError("Elija el cliente.");
     if (!lineas.length) return setError("Indique la cantidad de al menos un tipo de envase.");
-    const sinPrecio = lineas.filter((l) => l.precio_unitario <= 0);
-    if (sinPrecio.length)
-      return setError(`Falta la garantía de ${sinPrecio.map((l) => l.nombre).join(", ")}: póngaselo en la pestaña «Precios».`);
     const mov = registrarEnvases({
       tipo,
       cliente_id: est.cliente.id,
@@ -137,7 +134,6 @@ export function Envases() {
   }, [porCliente, data]);
   const garantiaTotal = enLaCalle.clientes.reduce((a, c) => a + c.garantia, 0);
 
-  const sinPrecio = activos.filter((e) => e.precio <= 0);
   const pestanas = (
     <div className="flex w-full rounded-md border border-kraft bg-hoja p-0.5 sm:inline-flex sm:w-auto" role="tablist" aria-label="Envases">
       {(
@@ -159,7 +155,6 @@ export function Envases() {
           >
             {l}
             <span className="hidden md:inline">{extra}</span>
-            {k === "PRECIOS" && sinPrecio.length > 0 && <span className={`ml-1.5 inline-block size-2 rounded-full ${activa ? "bg-white" : "bg-limon"}`} aria-label="falta precio" />}
           </button>
         );
       })}
@@ -254,13 +249,7 @@ export function Envases() {
                   <span className="min-w-0">
                     <b className="block font-medium leading-tight">{e.nombre}</b>
                     <span className="block text-xs text-gris">
-                      {e.precio > 0 ? (
-                        <>{clp(e.precio)} c/u</>
-                      ) : (
-                        <button type="button" tabIndex={-1} onClick={() => setVista("precios")} className="font-semibold text-limon hover:underline">
-                          sin precio: ponerle precio
-                        </button>
-                      )}
+                      {clp(e.precio)} c/u
                       {est && <> · tiene {t}</>}
                     </span>
                   </span>
@@ -381,7 +370,7 @@ function PreciosEnvases() {
   const [sel, setSel] = useState<string>(() => envases[0]?.id ?? NUEVO);
   const actual = envases.find((e) => e.id === sel) ?? null;
   const [nombre, setNombre] = useState(actual?.nombre ?? "");
-  const [precio, setPrecio] = useState(actual && actual.precio > 0 ? miles(actual.precio) : "");
+  const [precio, setPrecio] = useState(actual ? miles(actual.precio) : "");
   const [error, setError] = useState<string | null>(null);
   const precioRef = useRef<HTMLInputElement | null>(null);
 
@@ -389,21 +378,20 @@ function PreciosEnvases() {
     const e = envases.find((x) => x.id === id) ?? null;
     setSel(id);
     setNombre(e?.nombre ?? "");
-    setPrecio(e && e.precio > 0 ? miles(e.precio) : "");
+    setPrecio(e ? miles(e.precio) : "");
     setError(null);
     if (enfocar) setTimeout(() => precioRef.current?.focus(), 0);
   };
 
   const nuevoPrecio = parseMonto(precio);
   const cambiado = actual ? nombre.trim() !== actual.nombre || (nuevoPrecio ?? -1) !== actual.precio : true;
-  const faltan = envases.filter((e) => e.activo && e.precio <= 0);
 
   const guardar = (ev: FormEvent) => {
     ev.preventDefault();
     setError(null);
     const n = nombre.trim();
     if (!n) return setError("Escriba el nombre del envase.");
-    if (nuevoPrecio === null || nuevoPrecio <= 0) return setError("Escriba el precio por envase (mayor a $0).");
+    if (nuevoPrecio === null || nuevoPrecio < 0) return setError("Escriba el precio por envase (puede ser $0).");
     const repetido = envases.find((e) => e.id !== actual?.id && normalizarNombre(e.nombre) === normalizarNombre(n));
     if (repetido) return setError(`Ya existe un envase llamado ${repetido.nombre}.`);
     const e = guardarEnvase({ id: actual?.id, nombre: n, precio: nuevoPrecio, activo: actual?.activo ?? true });
@@ -424,11 +412,6 @@ function PreciosEnvases() {
           <h2 className="font-semibold">Precios de envases</h2>
           <span className="block text-sm text-gris">Lo que se cobra por cada envase al entregarlo (y se devuelve cuando lo traen). Elija uno para cambiar su precio.</span>
         </span>
-        {faltan.length > 0 && (
-          <span className="rounded-md bg-platano-suave px-2.5 py-1 text-sm">
-            Falta precio: <b className="font-semibold">{faltan.map((e) => e.nombre).join(", ")}</b>
-          </span>
-        )}
       </header>
       <div className="grid gap-6 pt-4 lg:grid-cols-[minmax(0,1fr)_minmax(0,1fr)]">
         <form onSubmit={guardar} className="space-y-3">
@@ -437,7 +420,7 @@ function PreciosEnvases() {
             <select value={sel} onChange={(e) => elegir(e.target.value, true)} className="campo mt-1 w-full" aria-label="Elegir envase">
               {envases.map((e) => (
                 <option key={e.id} value={e.id}>
-                  {e.nombre} — {e.precio > 0 ? clp(e.precio) : "sin precio"}
+                  {e.nombre} — {clp(e.precio)}
                   {e.activo ? "" : " (oculto)"}
                 </option>
               ))}
@@ -465,8 +448,8 @@ function PreciosEnvases() {
           </div>
           {actual && (
             <p className="text-sm text-gris">
-              Precio actual: <b className="text-grafito">{actual.precio > 0 ? clp(actual.precio) : "sin precio"}</b>
-              {nuevoPrecio !== null && nuevoPrecio !== actual.precio && nuevoPrecio > 0 && (
+              Precio actual: <b className="text-grafito">{clp(actual.precio)}</b>
+              {nuevoPrecio !== null && nuevoPrecio !== actual.precio && nuevoPrecio >= 0 && (
                 <>
                   {" "}
                   → nuevo: <b className="text-tinta">{clp(nuevoPrecio)}</b>
@@ -510,7 +493,7 @@ function PreciosEnvases() {
                     {e.nombre}
                     {!e.activo && <span className="ml-2 text-xs font-normal text-gris">oculto</span>}
                   </span>
-                  {e.precio > 0 ? <span className="cifra shrink-0">{clp(e.precio)}</span> : <span className="shrink-0 text-sm font-semibold text-limon">sin precio</span>}
+                  <span className="cifra shrink-0">{clp(e.precio)}</span>
                 </button>
               </li>
             ))}

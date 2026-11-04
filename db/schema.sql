@@ -60,7 +60,7 @@ create table if not exists movimientos (
   fecha            date not null,
   cliente_id       text references clientes(id) deferrable initially deferred,
   forma_pago       text not null,
-  total            bigint not null check (total > 0),
+  total            bigint not null,
   glosa            text,
   origen_id        text references movimientos(id) deferrable initially deferred,
   creado_por       text not null,
@@ -82,7 +82,7 @@ create table if not exists lineas_vale (
   cantidad        numeric(10, 2) not null check (cantidad > 0),
   unidad          text not null check (unidad in ('CAJA', 'ENVASE', 'KG')),
   producto_id     text not null references productos(id) deferrable initially deferred,
-  precio_unitario bigint not null check (precio_unitario > 0),
+  precio_unitario bigint not null,
   subtotal        bigint not null
 );
 create index if not exists lineas_mov_idx on lineas_vale (movimiento_id);
@@ -344,6 +344,15 @@ begin
   end if;
 end $$;
 
+-- Precio $0 permitido en las líneas de vale
+alter table lineas_vale drop constraint if exists lineas_vale_precio_unitario_check;
+do $$
+begin
+  if not exists (select 1 from pg_constraint where conname = 'lineas_vale_precio_chk') then
+    alter table lineas_vale add constraint lineas_vale_precio_chk check (precio_unitario >= 0);
+  end if;
+end $$;
+
 -- Gastos de bodega: categoría del egreso (compra de envases, gas grúa horquilla…)
 alter table movimientos add column if not exists categoria text;
 
@@ -354,10 +363,14 @@ begin
   for r in
     select conname from pg_constraint
     where conrelid = 'movimientos'::regclass and contype = 'c'
-      and conname not in ('movimientos_tipo_chk', 'movimientos_cliente_chk', 'movimientos_credito_chk', 'movimientos_total_check', 'movimientos_forma_chk')
+      and conname not in ('movimientos_tipo_chk', 'movimientos_cliente_chk', 'movimientos_credito_chk', 'movimientos_total_chk', 'movimientos_forma_chk')
   loop
     execute format('alter table movimientos drop constraint %I', r.conname);
   end loop;
+  -- precios en $0 permitidos (regalo, muestra, envase sin garantía): total >= 0
+  if not exists (select 1 from pg_constraint where conname = 'movimientos_total_chk') then
+    alter table movimientos add constraint movimientos_total_chk check (total >= 0);
+  end if;
   if not exists (select 1 from pg_constraint where conname = 'movimientos_forma_chk') then
     alter table movimientos add constraint movimientos_forma_chk
       check (forma_pago in ('EFECTIVO', 'TRANSFERENCIA', 'TARJETA', 'CREDITO'));

@@ -76,7 +76,8 @@ function estadoFila(f: Fila) {
   const c = parseCantidad(f.cant);
   const p = parseMonto(f.precio);
   const vacia = !f.cant.trim() && !f.prodQ.trim() && !f.precio.trim();
-  const completa = c !== null && !!f.prod && p !== null && p > 0;
+  // precio $0 permitido (regalo, muestra): solo tiene que estar escrito
+  const completa = c !== null && !!f.prod && p !== null && p >= 0;
   return { c, p, vacia, completa, subtotal: completa ? Math.round(c! * p!) : 0 };
 }
 
@@ -218,7 +219,7 @@ export function RegistroVale() {
       foco("cliente");
       return;
     }
-    if (soloMonto && montoSolo <= 0) {
+    if (soloMonto && parseMonto(monto) === null) {
       sacudir("monto");
       foco("monto");
       return;
@@ -390,7 +391,7 @@ export function RegistroVale() {
     if (e.key === "Enter") {
       e.preventDefault();
       const p = parseMonto(f.precio);
-      if (!p) return sacudir(f.k);
+      if (p === null) return sacudir(f.k);
       setFila(f.k, { precio: miles(p) });
       irSiguienteFila(f.k);
     } else if (e.key === "Backspace" && !f.precio) {

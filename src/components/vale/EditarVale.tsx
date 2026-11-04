@@ -66,9 +66,9 @@ export function EditarVale({ mov, onListo, onCancelar }: { mov: Movimiento; onLi
     if (!num) return setError("Escriba el N° de vale.");
     if (conProductos) {
       if (!lineas.length) return setError("Agregue al menos un producto, o cambie a «solo monto».");
-      const mala = calc.findIndex((x, i) => !x.c || !x.p || !lineas[i].producto_id);
+      const mala = calc.findIndex((x, i) => !x.c || x.p === null || !lineas[i].producto_id);
       if (mala >= 0) return setError(`Revise la línea ${mala + 1}: cantidad, producto y precio.`);
-    } else if (!total) return setError("Escriba el monto.");
+    } else if (parseMonto(monto) === null) return setError("Escriba el monto (puede ser $0).");
     setGuardando(true);
     const r = await llamar("PATCH", {
       id: mov.id,
