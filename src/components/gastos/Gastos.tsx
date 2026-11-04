@@ -177,7 +177,7 @@ export function Gastos() {
             </div>
             <label className="block">
               <span className="rotulo">Fecha</span>
-              <input type="date" value={fecha} max={hoy()} onChange={(e) => e.target.value && setFecha(e.target.value)} className="campo mt-1" />
+              <input type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} className="campo mt-1" />
             </label>
           </div>
           {error && <p className="text-sm font-medium text-fuji">{error}</p>}

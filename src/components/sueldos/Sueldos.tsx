@@ -180,7 +180,6 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
   const [motivo, setMotivo] = useState("");
   const avisar = useAviso();
   const t = c.t;
-  const h = hoy();
   const pct = c.corresponde > 0 ? Math.min(100, (c.pagado / c.corresponde) * 100) : c.pagado > 0 ? 100 : 0;
 
   return (
@@ -207,12 +206,10 @@ function Tarjeta({ c, onPagar, onEditar }: { c: CuentaTrabajador; onPagar: (c: C
             {DIAS_CORTOS.map((d, i) => {
               const f = sumarDias(c.periodo.desde, i);
               const on = c.dias.includes(f);
-              const futuro = f > h;
               return (
                 <button
                   key={f}
                   type="button"
-                  disabled={futuro}
                   aria-pressed={on}
                   onClick={() => marcarDia(t.id, f, !on)}
                   className={`flex flex-col items-center rounded-md border py-1.5 text-sm font-semibold transition disabled:opacity-30 ${on ? "border-tinta bg-tinta text-white" : "border-kraft bg-hoja text-gris hover:border-tinta"}`}
@@ -426,7 +423,7 @@ function RegistrarPago({ p, onCerrar }: { p: { c: CuentaTrabajador; tipo: PagoSu
         <div className="grid grid-cols-2 gap-3">
           <label className="block">
             <span className="rotulo">Fecha</span>
-            <input type="date" value={fecha} max={hoy()} onChange={(e) => e.target.value && setFecha(e.target.value)} className="campo" />
+            <input type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} className="campo" />
           </label>
           <label className="block">
             <span className="rotulo">Nota (opcional)</span>

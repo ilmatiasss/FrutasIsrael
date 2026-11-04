@@ -463,14 +463,13 @@ export function RegistroVale() {
               <input
                 type="date"
                 value={fecha}
-                max={hoy()}
                 onChange={(e) => e.target.value && setFecha(e.target.value)}
                 className={`bg-transparent p-0 text-sm ${fechaAtrasada ? "font-semibold text-fuji" : "text-gris"}`}
                 tabIndex={-1}
                 aria-label="Fecha del vale"
               />
             </label>
-            {fechaAtrasada && <p className="text-xs font-semibold text-fuji">Fecha atrasada: {fechaLarga(fecha)}</p>}
+            {fechaAtrasada && <p className="text-xs font-semibold text-fuji">{fecha < hoy() ? "Fecha atrasada" : "Fecha adelantada"}: {fechaLarga(fecha)}</p>}
           </div>
           <div className="text-right">
             <span className="rotulo block">N°</span>

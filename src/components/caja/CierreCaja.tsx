@@ -91,7 +91,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
     const k = (e: KeyboardEvent) => {
       if (document.querySelector('[role="dialog"]') || ["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)) return;
       if (e.key === "ArrowLeft") setFecha((f) => sumarDias(f, -1));
-      if (e.key === "ArrowRight") setFecha((f) => (f < hoy() ? sumarDias(f, 1) : f));
+      if (e.key === "ArrowRight") setFecha((f) => sumarDias(f, 1));
       if (e.key.toLowerCase() === "g") setForm("EGRESO");
       if (e.key.toLowerCase() === "i") setForm("INGRESO");
     };
@@ -122,15 +122,13 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
             <input
               type="date"
               value={fecha}
-              max={hoy()}
               onChange={(e) => e.target.value && setFecha(e.target.value)}
               className="campo w-auto font-sans text-lg"
               aria-label="Fecha del cierre"
             />
             <button
               type="button"
-              onClick={() => esHoy || setFecha(sumarDias(fecha, 1))}
-              disabled={esHoy}
+              onClick={() => setFecha(sumarDias(fecha, 1))}
               className="btn btn-secundario px-2.5 py-1 disabled:opacity-30"
               aria-label="Día siguiente"
             >

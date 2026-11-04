@@ -68,7 +68,7 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
         </div>
         <label className="flex items-center gap-3 text-sm">
           <span className="rotulo">Fecha</span>
-          <input type="date" value={fecha} max={hoy()} onChange={(e) => e.target.value && setFecha(e.target.value)} className="bg-transparent text-sm" />
+          <input type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} className="bg-transparent text-sm" />
         </label>
         <p className="border-t border-linea pt-3 text-sm text-gris">
           Debe hoy <span className="cifra text-grafito">{clp(est.saldo)}</span>

@@ -109,7 +109,9 @@ export function verificar(db: Db): Chequeo[] {
   const porCuentas = db.clientes.reduce((a, c) => a + estadoCliente(c, idx, db.config, h).saldo, 0);
   const porMovs = db.movimientos.reduce((a, m) => a + efectoDeuda(m), 0);
   const deudores = db.clientes.reduce((a, c) => a + Math.max(0, estadoCliente(c, idx, db.config, h).saldo), 0);
-  const semanal = saldosAl(db.movimientos, h).reduce((a, s) => a + s.saldo, 0);
+  // con vales de fecha adelantada, se compara hasta el último día con movimientos
+  const hasta = db.movimientos.reduce((f, m) => (m.fecha > f ? m.fecha : f), h);
+  const semanal = saldosAl(db.movimientos, hasta).reduce((a, s) => a + s.saldo, 0);
   if (deudores !== semanal)
     out.push({ titulo: "Fiado en la calle: Clientes = Cierre semanal", estado: "error", detalle: `Clientes ${clp(deudores)} vs cierre semanal ${clp(semanal)}.` });
   else out.push({ titulo: "Fiado en la calle: Clientes = Cierre semanal", estado: "ok", detalle: `Ambos muestran ${clp(deudores)}.` });
@@ -145,8 +147,8 @@ export function verificar(db: Db): Chequeo[] {
   const futuros = db.movimientos.filter((m) => m.fecha > h);
   out.push(
     futuros.length
-      ? { titulo: "Fechas válidas", estado: "error", detalle: `${futuros.length} movimientos con fecha futura.`, items: max(futuros.map((m) => `N°${m.numero} (${m.fecha})`)) }
-      : { titulo: "Fechas válidas", estado: "ok", detalle: "No hay movimientos con fecha futura." },
+      ? { titulo: "Fechas adelantadas", estado: "aviso", detalle: `${futuros.length} movimientos con fecha posterior a hoy (permitido; revisar que sea a propósito).`, items: max(futuros.map((m) => `N°${m.numero} (${m.fecha})`)) }
+      : { titulo: "Fechas adelantadas", estado: "ok", detalle: "No hay movimientos con fecha posterior a hoy." },
   );
 
   // 10. saldos a favor (informativo)
