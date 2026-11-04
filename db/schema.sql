@@ -160,15 +160,25 @@ create table if not exists eventos (
 create index if not exists eventos_tenant_idx on eventos (tenant_id, at desc);
 
 -- -----------------------------------------------------------------------------
--- Inmutabilidad: lo contable no se borra; un movimiento solo puede anularse
+-- Inmutabilidad: lo contable no se borra; un movimiento solo puede anularse.
+-- Excepción: un ADMINISTRADOR puede editar o borrar un vale desde la app. Esa
+-- operación la hace el servidor (api/admin/movimientos) dentro de una
+-- transacción que marca frutas.edicion_admin = 'on' y deja copia completa en
+-- el historial. Nada más puede saltarse estas reglas.
 -- -----------------------------------------------------------------------------
 create or replace function prohibir_borrado() returns trigger language plpgsql as $$
 begin
+  if coalesce(current_setting('frutas.edicion_admin', true), '') = 'on' and tg_table_name <> 'eventos' then
+    return old;
+  end if;
   raise exception 'No se borran registros de %: se anulan', tg_table_name;
 end $$;
 
 create or replace function solo_anular() returns trigger language plpgsql as $$
 begin
+  if coalesce(current_setting('frutas.edicion_admin', true), '') = 'on' then
+    return new;
+  end if;
   if (new.tipo, new.fecha, new.cliente_id, new.forma_pago, new.total, new.origen_id, new.creado_por)
      is distinct from
      (old.tipo, old.fecha, old.cliente_id, old.forma_pago, old.total, old.origen_id, old.creado_por) then

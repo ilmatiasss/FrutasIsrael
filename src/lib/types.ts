@@ -224,6 +224,8 @@ export interface Evento {
     | "SUELDOS"
     | "SEGURIDAD"
     | "CORREGIR_FOLIO"
+    | "EDITAR_VALE"
+    | "BORRAR_MOVIMIENTO"
     | "PRECIO_ENVASE"
     | "REINICIAR_DEMO";
   entidad_id: UUID | null;

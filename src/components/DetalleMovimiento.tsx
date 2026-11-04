@@ -7,6 +7,8 @@ import { efectoDeuda, ETIQUETA_TIPO } from "@/lib/calc";
 import { cant, clp, fechaLarga, hora } from "@/lib/format";
 import { FORMA, FormaChip, Modal, Timbre } from "./ui";
 import { useAviso } from "./Shell";
+import { useEsAdmin } from "./sistema/useEsAdmin";
+import { BorrarMovimiento, EditarVale } from "./vale/EditarVale";
 
 export const COLOR_TIPO: Record<Movimiento["tipo"], string> = {
   VALE_VENTA: "#6c665d",
@@ -39,6 +41,8 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
   const [corrigiendo, setCorrigiendo] = useState(false);
   const [nuevoN, setNuevoN] = useState("");
   const [errN, setErrN] = useState<string | null>(null);
+  const [admin, setAdmin] = useState<null | "editar" | "borrar">(null);
+  const esAdmin = useEsAdmin(!!movId);
   const ref = useRef<HTMLTextAreaElement>(null);
 
   useEffect(() => {
@@ -47,6 +51,7 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
     setRecien(false);
     setCorrigiendo(false);
     setErrN(null);
+    setAdmin(null);
   }, [movId]);
   useEffect(() => {
     if (anulando) ref.current?.focus();
@@ -74,6 +79,21 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
     setAnulando(false);
     avisar({ titulo: `N°${mov.numero} anulado`, detalle: "Queda registrado en la bitácora.", tono: "rojo" });
   };
+
+  const esVale = mov.tipo === "VALE_VENTA" || mov.tipo === "VALE_CREDITO";
+  if (admin === "editar")
+    return (
+      <Modal abierto={!!movId} onCerrar={onCerrar} ancho="max-w-2xl" etiqueta={`Editar N° ${mov.numero}`}>
+        <EditarVale
+          mov={mov}
+          onCancelar={() => setAdmin(null)}
+          onListo={(msg) => {
+            setAdmin(null);
+            avisar({ titulo: "Vale editado", detalle: `${msg}. Queda en el historial.`, tono: "tinta" });
+          }}
+        />
+      </Modal>
+    );
 
   return (
     <Modal abierto={!!movId} onCerrar={onCerrar} ancho="max-w-lg" etiqueta={`Detalle N° ${mov.numero}`}>
@@ -207,7 +227,7 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
           </>
         )}
 
-        {!mov.anulado_at && !anulando && (
+        {!mov.anulado_at && !anulando && admin !== "borrar" && (
           <div className="mt-5 flex justify-between gap-2 border-t border-linea pt-4">
             <button type="button" onClick={onCerrar} className="btn btn-secundario">
               Cerrar
@@ -216,6 +236,33 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
               Anular…
             </button>
           </div>
+        )}
+
+        {esAdmin && !anulando && admin !== "borrar" && !mov.origen_id && (
+          <div className="mt-3 flex flex-wrap items-center justify-between gap-2 rounded-md bg-carton/60 px-3 py-2">
+            <span className="text-xs font-semibold text-gris">Administrador</span>
+            <span className="flex gap-2">
+              {esVale && !mov.anulado_at && (
+                <button type="button" onClick={() => setAdmin("editar")} className="btn btn-secundario py-1.5 text-sm">
+                  Editar vale
+                </button>
+              )}
+              <button type="button" onClick={() => setAdmin("borrar")} className="btn py-1.5 text-sm text-fuji hover:bg-fuji/10">
+                Borrar…
+              </button>
+            </span>
+          </div>
+        )}
+
+        {admin === "borrar" && (
+          <BorrarMovimiento
+            mov={mov}
+            onCancelar={() => setAdmin(null)}
+            onListo={(msg) => {
+              avisar({ titulo: msg, detalle: "Queda una copia en el historial.", tono: "rojo" });
+              onCerrar();
+            }}
+          />
         )}
 
         {anulando && (

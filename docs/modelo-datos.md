@@ -81,6 +81,7 @@ En Postgres: vistas `v_saldos_clientes`, `v_caja_diaria` y `v_envases_clientes`,
 
 - Sin `DELETE` en movimientos, líneas ni eventos (trigger `prohibir_borrado`).
 - `UPDATE` de un movimiento solo puede anularlo (motivo obligatorio) o corregir su N°; tipo, fecha, cliente, forma de pago y total no cambian (trigger `solo_anular`).
+- **Excepción, solo administradores:** desde el detalle de un vale pueden editarlo (N°, fecha, cliente, forma de pago, productos o monto, detalle) o borrar un movimiento. Lo hace el servidor (`/api/admin/movimientos`) en una transacción que activa `frutas.edicion_admin`; exige motivo y deja en `historial` el antes y el después (al borrar, copia completa del movimiento y sus líneas). Fuera de eso, la base sigue sin permitir editar ni borrar.
 - El servidor filtra todo por `tenant_id` y solo acepta tablas y columnas de una lista blanca (`src/lib/server/tablas.ts`).
 - El N° de vale lo confirma el servidor dentro de una transacción con la fila del locatario bloqueada: si dos cajas usan el mismo, a una se le asigna el siguiente.
 

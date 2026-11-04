@@ -389,6 +389,16 @@ export function reintentarAhora() {
   void enviar();
 }
 
+/** Cambios de este equipo que aún no llegan al servidor. */
+export function cambiosPendientes(): number {
+  return cola.reduce((a, l) => a + l.cambios.length, 0);
+}
+
+/** Vuelve a traer todo del servidor (después de una edición de administrador). */
+export async function recargarDelServidor(): Promise<void> {
+  await refrescar(true);
+}
+
 /**
  * Cierra la sesión en este equipo y borra la copia local de los datos, para
  * que no queden en el navegador. Si hay cambios sin enviar, no cierra.

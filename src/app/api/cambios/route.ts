@@ -21,7 +21,7 @@ export async function POST(req: Request) {
     console.error(e);
     const msg = e instanceof Error ? e.message : String(e);
     // error de datos (regla de negocio, restricción): no reintentar igual
-    const datos = /violates|No se borran|no se editan|desanular|no permitida|invalid input/i.test(msg);
+    const datos = /violates|No se borran|No se puede borrar|no se editan|desanular|no permitida|invalid input/i.test(msg);
     return NextResponse.json({ error: msg }, { status: datos ? 422 : 503 });
   }
 }
