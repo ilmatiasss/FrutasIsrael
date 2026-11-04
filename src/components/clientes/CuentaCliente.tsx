@@ -78,7 +78,7 @@ export function CuentaCliente({ id }: { id: string }) {
     const ls = data.idx.lineasMov.get(m.id);
     if (ls?.length)
       return ls
-        .map((l) => `${cant(l.cantidad)} ${l.unidad === "KG" ? "kg" : l.unidad === "ENVASE" ? "env" : "cj"} ${data.idx.producto.get(l.producto_id)?.nombre ?? ""}`)
+        .map((l) => `${cant(l.cantidad)} ${l.unidad === "KG" ? "kg" : l.unidad === "ENVASE" ? "bin" : "cj"} ${data.idx.producto.get(l.producto_id)?.nombre ?? ""}`)
         .join(" · ");
     const le = data.db.lineas_envase.filter((l) => l.movimiento_id === m.id);
     if (le.length) {

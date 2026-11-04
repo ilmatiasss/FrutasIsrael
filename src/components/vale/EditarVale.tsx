@@ -171,7 +171,7 @@ export function EditarVale({ mov, onListo, onCancelar }: { mov: Movimiento; onLi
                 <input value={l.cantidad} onChange={(e) => setLinea(l.k, { cantidad: e.target.value })} inputMode="decimal" className="campo py-1.5 text-right" aria-label={`Cantidad línea ${i + 1}`} />
                 <select value={l.unidad} onChange={(e) => setLinea(l.k, { unidad: e.target.value as Unidad })} className="campo py-1.5" aria-label={`Unidad línea ${i + 1}`}>
                   <option value="CAJA">Caja</option>
-                  <option value="ENVASE">Envase</option>
+                  <option value="ENVASE">Bin</option>
                   <option value="KG">Kg</option>
                 </select>
                 <select

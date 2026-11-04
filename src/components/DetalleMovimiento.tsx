@@ -157,7 +157,7 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
                 <tr key={l.id}>
                   <td className="cifra py-1.5">{cant(l.cantidad)}</td>
                   <td>
-                    <span className="text-gris">{l.unidad}</span> <b>{data.idx.producto.get(l.producto_id)?.nombre}</b>
+                    <span className="text-gris">{l.unidad === "ENVASE" ? "BIN" : l.unidad}</span> <b>{data.idx.producto.get(l.producto_id)?.nombre}</b>
                   </td>
                   <td className="cifra text-right">{clp(l.precio_unitario)}</td>
                   <td className="cifra text-right">{clp(l.subtotal)}</td>

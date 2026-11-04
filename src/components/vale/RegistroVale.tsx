@@ -49,7 +49,7 @@ function repartir(partes: { monto: string; forma: FormaPago }[], total: number) 
 
 const PASOS = [
   { titulo: "Cliente", texto: "Escriba nombre o alias y presione Enter. Si no existe, elija «+ Cliente nuevo»." },
-  { titulo: "Detalle", texto: "Cantidad, unidad (C caja, E envase, K kilo), producto y precio; el precio se sugiere solo. Para registrar solo un monto, use «Solo monto»." },
+  { titulo: "Detalle", texto: "Cantidad, unidad (C caja, B bin, K kilo), producto y precio; el precio se sugiere solo. Para registrar solo un monto, use «Solo monto»." },
   { titulo: "Forma de pago", texto: "Efectivo, Transferencia, Tarjeta o Crédito. «Combinado» (tecla M) reparte el vale entre varias formas, por ejemplo efectivo + transferencia o tarjeta + crédito." },
   { titulo: "Guardar", texto: "Botón «Guardar vale» o Ctrl + Enter. El folio avanza automáticamente." },
 ];
@@ -65,7 +65,8 @@ interface Fila {
 }
 
 const UNIDADES: Unidad[] = ["CAJA", "ENVASE", "KG"];
-const TECLA_UNIDAD: Record<string, Unidad> = { c: "CAJA", e: "ENVASE", k: "KG" };
+// B = bin (se guarda como ENVASE); E sigue funcionando por costumbre
+const TECLA_UNIDAD: Record<string, Unidad> = { c: "CAJA", b: "ENVASE", e: "ENVASE", k: "KG" };
 
 const filaVacia = (unidad: Unidad = "CAJA"): Fila => ({
   k: uid(), cant: "", unidad, unidadTocada: false, prodQ: "", prod: null, precio: "",
@@ -341,7 +342,7 @@ export function RegistroVale() {
       cambiarModo(true);
       return;
     }
-    const m = v.match(/^\s*(\d+(?:[.,]\d+)?)\s*([cekCEK])$/);
+    const m = v.match(/^\s*(\d+(?:[.,]\d+)?)\s*([cebkCEBK])$/);
     if (m) {
       flushSync(() => setFila(f.k, { cant: m[1], unidad: TECLA_UNIDAD[m[2].toLowerCase()], unidadTocada: true }));
       foco(`${f.k}-prod`);
@@ -656,11 +657,11 @@ export function RegistroVale() {
                     const idx = (UNIDADES.indexOf(f.unidad) + 1) % UNIDADES.length;
                     setFila(f.k, { unidad: UNIDADES[idx], unidadTocada: true });
                   }}
-                  aria-label={`Unidad: ${f.unidad}. Teclas C, E o K`}
-                  title="C caja · E envase · K kilo"
+                  aria-label={`Unidad: ${f.unidad === "ENVASE" ? "BIN" : f.unidad}. Teclas C, B o K`}
+                  title="C caja · B bin · K kilo"
                   className="campo a-u text-left font-sans text-[15px] font-semibold"
                 >
-                  {f.unidad === "CAJA" ? "Caja" : f.unidad === "ENVASE" ? "Envase" : "Kg"}
+                  {f.unidad === "CAJA" ? "Caja" : f.unidad === "ENVASE" ? "Bin" : "Kg"}
                 </button>
                 <Autocompletar
                   etiqueta={`Producto línea ${i + 1}`}
@@ -940,7 +941,7 @@ export function RegistroVale() {
 
           <div className="mt-6 flex flex-col-reverse items-stretch gap-3 sm:flex-row sm:items-center sm:justify-between">
             <p className={`text-sm ${escUna ? "font-semibold text-fuji" : "hidden text-gris md:block"}`}>
-              {escUna ? "Presiona Esc otra vez para limpiar el vale" : soloMonto ? "Enter avanza · 150k = $150.000" : "Enter avanza · 5c = 5 cajas · 12k = $12.000"}
+              {escUna ? "Presiona Esc otra vez para limpiar el vale" : soloMonto ? "Enter avanza · 150k = $150.000" : "Enter avanza · 5c = 5 cajas · 5b = 5 bins · 12k = $12.000"}
             </p>
             <button type="button" onClick={guardar} className="btn btn-primario px-6 py-3 text-lg">
               Guardar vale

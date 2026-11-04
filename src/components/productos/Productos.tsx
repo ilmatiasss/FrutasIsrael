@@ -7,7 +7,7 @@ import { useAviso } from "../Shell";
 
 const UNIDADES: { k: Unidad; label: string }[] = [
   { k: "CAJA", label: "Caja" },
-  { k: "ENVASE", label: "Envase" },
+  { k: "ENVASE", label: "Bin" },
   { k: "KG", label: "Kilo" },
 ];
 const COLORES = ["#C4262E", "#9E1B32", "#D2553A", "#E07B24", "#EE8A1E", "#E39B2D", "#D9B638", "#A8B84A", "#5E8C31", "#9DA83A", "#6B2A55", "#3E2A4F", "#B04A6A", "#8A7A3A", "#A27B4B"];
