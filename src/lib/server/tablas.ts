@@ -11,7 +11,7 @@ export const TABLAS = {
   envases: ["id", "tenant_id", "nombre", "precio", "activo", "orden"],
   movimientos: [
     "id", "tenant_id", "numero", "tipo", "fecha", "cliente_id", "forma_pago", "total", "glosa", "origen_id",
-    "creado_por", "created_at", "anulado_at", "anulado_por", "motivo_anulacion", "importado", "categoria",
+    "creado_por", "created_at", "anulado_at", "anulado_por", "motivo_anulacion", "importado", "categoria", "numero_manual",
   ],
   lineas: ["id", "tenant_id", "movimiento_id", "orden", "cantidad", "unidad", "producto_id", "precio_unitario", "subtotal"],
   lineas_envase: ["id", "tenant_id", "movimiento_id", "envase_id", "cantidad", "precio_unitario", "subtotal"],

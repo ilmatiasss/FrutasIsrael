@@ -39,7 +39,10 @@ function datos(db: Db, idx: Indice, fecha: string) {
   };
   const matriz = matrizCaja(movs).map((x) => ({ ...x, label: etiqueta[x.tipo], t: x.tipo }));
   const cierre = [...db.cierres].reverse().find((c) => c.fecha === fecha) ?? null;
-  return { movs, r, matriz, cierre };
+  const sueldos = db.pagos_sueldo
+    .filter((p) => p.fecha === fecha)
+    .map((p) => ({ p, t: db.trabajadores.find((x) => x.id === p.trabajador_id) }));
+  return { movs, r, matriz, cierre, sueldos };
 }
 
 /* ------------------------------ piezas de la hoja ------------------------------ */
@@ -132,6 +135,11 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
               <span className="doble-raya">{clp(r.efectivo_esperado)}</span>
             </td>
           </tr>
+          <tr>
+            <td />
+            <td className="pt-1 text-gris">Crédito dado hoy (fiado, no entra a la caja)</td>
+            <td className="cifra pt-1 text-right">{clp(r.vale_credito - (r.pagado_en_vale ?? 0))}</td>
+          </tr>
         </tbody>
       </table>
       <ArqueoHoja arqueo={d.cierre?.snapshot.arqueo ?? null} esperado={r.efectivo_esperado} />
@@ -158,6 +166,33 @@ function Efectivo({ d }: { d: ReturnType<typeof datos> }) {
         </tbody>
       </table>
     </>
+  );
+}
+
+/** Remuneraciones del día en la hoja impresa */
+function TablaSueldos({ sueldos }: { sueldos: ReturnType<typeof datos>["sueldos"] }) {
+  if (!sueldos.length) return <p className="text-[9pt] text-gris">Sin remuneraciones.</p>;
+  const total = sueldos.filter(({ p }) => !p.anulado_at && (p.tipo === "PAGO" || p.tipo === "ADELANTO")).reduce((a, { p }) => a + p.monto, 0);
+  return (
+    <table className="w-full text-[9pt]">
+      <tbody>
+        {sueldos.map(({ p, t }) => (
+          <tr key={p.id} className={`border-b border-linea ${p.anulado_at ? "text-gris line-through" : ""}`}>
+            <td className="py-px pr-1">{t?.nombre ?? "—"}</td>
+            <td className="pr-1">{p.tipo === "PAGO" ? "Pago" : p.tipo === "ADELANTO" ? "Anticipo" : p.tipo === "BONO" ? "Bono" : "Descuento"}</td>
+            <td className="pr-1">{p.movimiento_id ? "Cajón" : p.forma === "EFECTIVO" ? "Efectivo" : "Transf."}</td>
+            <td className="cifra text-right">
+              {p.tipo === "DESCUENTO" ? "−" : ""}
+              {clp(p.monto)}
+            </td>
+          </tr>
+        ))}
+        <tr>
+          <td colSpan={3} className="pt-1 font-semibold">Total pagado</td>
+          <td className="cifra pt-1 text-right font-semibold">{clp(total)}</td>
+        </tr>
+      </tbody>
+    </table>
   );
 }
 
@@ -334,6 +369,11 @@ export function ImprimirCaja() {
               <Detalle movs={lista(m)} idx={data.idx} compacto />
             </Bloque>
           ))}
+          {d.sueldos.length > 0 && (
+            <Bloque titulo="Remuneraciones">
+              <TablaSueldos sueldos={d.sueldos} />
+            </Bloque>
+          )}
         </div>
         <Firmas cierre={d.cierre} />
       </>
@@ -347,6 +387,11 @@ export function ImprimirCaja() {
         {modulo !== "resumen" && modulo !== "efectivo" && (
           <Bloque titulo={MODULOS[modulo]} total={modulo === "gastos" || modulo === "envases" ? undefined : total(modulo)}>
             <Detalle movs={lista(modulo)} idx={data.idx} />
+          </Bloque>
+        )}
+        {modulo === "gastos" && d.sueldos.length > 0 && (
+          <Bloque titulo="Remuneraciones">
+            <TablaSueldos sueldos={d.sueldos} />
           </Bloque>
         )}
         {(modulo === "resumen" || modulo === "efectivo") && <Firmas cierre={d.cierre} />}

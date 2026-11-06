@@ -16,7 +16,7 @@ import type { Producto, Arqueo,
 } from "./types";
 import { baseVacia, crearSeed } from "./seed";
 import { normalizar as normTxt, hoy, lunesDe, sumarDias, uid } from "./format";
-import { indexar, resumenCaja, saldosAl, type Indice } from "./calc";
+import { proximoNumero, serieDe, type Serie, indexar, resumenCaja, saldosAl, type Indice } from "./calc";
 
 const KEY = "frutas-israel:db:v1"; // modo prueba
 const KEY_NUBE = "frutas-israel:nube:v1"; // copia de lo que hay en la base (para trabajar sin internet)
@@ -437,6 +437,7 @@ function evento(d: Db, accion: Evento["accion"], entidad_id: string | null, deta
 function nuevoMov(d: Db, numero: number, p: {
   tipo: TipoMovimiento; fecha: string; cliente_id: string | null; forma_pago: FormaPago;
   total: number; glosa?: string | null; origen_id?: string | null; importado?: boolean; created_at?: string; categoria?: string | null;
+  numero_manual?: boolean;
 }): Movimiento {
   return {
     id: uid(),
@@ -456,7 +457,19 @@ function nuevoMov(d: Db, numero: number, p: {
     motivo_anulacion: null,
     importado: p.importado ?? false,
     categoria: p.categoria ?? null,
+    numero_manual: p.numero_manual ?? false,
   };
+}
+
+/** N° a usar: el escrito a mano (puede ser 0 o repetido) o el próximo del talonario. */
+function numeroPara(d: Db, serie: Serie, manual?: number | null): { numero: number; numero_manual: boolean } {
+  if (manual !== null && manual !== undefined && Number.isInteger(manual) && manual >= 0) return { numero: manual, numero_manual: true };
+  return { numero: proximoNumero(d.movimientos, serie), numero_manual: false };
+}
+
+/** Próximo N° sugerido para un talonario (para mostrar en pantalla). */
+export function proximoN(serie: Serie): number {
+  return db ? proximoNumero(db.movimientos, serie) : 1;
 }
 
 export interface LineaInput {
@@ -486,7 +499,7 @@ export function crearVale(p: {
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
-    const numero = p.numero && p.numero > 0 ? p.numero : d.tenant.ultimo_numero + 1;
+    const { numero, numero_manual } = numeroPara(d, "VALE", p.numero);
     const lineas: LineaVale[] = [];
     const total = p.lineas.length ? p.lineas.reduce((a, l) => a + Math.round(l.cantidad * l.precio_unitario), 0) : Math.round(p.monto ?? 0);
     const combinado = !!p.pagos?.length;
@@ -498,6 +511,7 @@ export function crearVale(p: {
       forma_pago: forma,
       total,
       glosa: p.glosa ?? null,
+      numero_manual,
     });
     p.lineas.forEach((l, i) =>
       lineas.push({
@@ -514,17 +528,16 @@ export function crearVale(p: {
         if (x.forma === "CREDITO" || x.monto <= 0 || resto <= 0) continue;
         const monto = Math.min(Math.round(x.monto), resto);
         resto -= monto;
-        ultimo = siguienteLibre(d, ultimo + 1, numero, ...movs.map((m) => m.numero));
-        movs.push(nuevoMov(d, ultimo, {
+        // lo pagado en el mismo vale lleva el mismo N° del vale
+        movs.push(nuevoMov(d, numero, {
           tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: x.forma, total: monto,
-          glosa: `Pago combinado del vale N°${numero}`, origen_id: mov.id,
+          glosa: `Pago combinado del vale N°${numero}`, origen_id: mov.id, numero_manual: true,
         }));
       }
     } else if (p.forma_pago === "CREDITO" && p.abono && p.abono.monto > 0) {
-      ultimo = siguienteLibre(d, ultimo + 1, numero);
-      movs.push(nuevoMov(d, ultimo, {
+      movs.push(nuevoMov(d, numero, {
         tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.abono.forma,
-        total: Math.min(p.abono.monto, total), glosa: `Abono en el mismo vale N°${numero}`, origen_id: mov.id,
+        total: Math.min(p.abono.monto, total), glosa: `Abono en el mismo vale N°${numero}`, origen_id: mov.id, numero_manual: true,
       }));
     }
     creado = mov;
@@ -539,17 +552,10 @@ export function crearVale(p: {
   return creado;
 }
 
-/** Primer N° libre desde `desde` (saltando los ya usados y los reservados). */
-function siguienteLibre(d: Db, desde: number, ...reservados: number[]): number {
-  const usados = new Set([...d.movimientos.map((m) => m.numero), ...reservados]);
-  let n = desde;
-  while (usados.has(n)) n++;
-  return n;
-}
-
-/** ¿Ese N° de vale ya existe? (para escribir el número a mano) */
-export function numeroUsado(numero: number): boolean {
-  return !!db?.movimientos.some((m) => m.numero === numero);
+/** ¿Ese N° ya existe en el talonario? (solo para avisar: se permite repetir) */
+export function numeroUsado(numero: number, serie: Serie = "VALE", excepto?: string): boolean {
+  if (!db) return false;
+  return db.movimientos.some((m) => m.id !== excepto && m.numero === numero && serieDe(m.tipo) === serie && !(m.tipo === "ABONO" && m.origen_id));
 }
 
 /**
@@ -559,16 +565,16 @@ export function numeroUsado(numero: number): boolean {
  */
 export function corregirNumero(id: string, nuevo: number): string | null {
   if (!db) return "Sin datos";
-  if (!Number.isInteger(nuevo) || nuevo <= 0) return "Escriba un número válido.";
+  if (!Number.isInteger(nuevo) || nuevo < 0) return "Escriba un número válido (0 o más).";
   const m = db.movimientos.find((x) => x.id === id);
   if (!m) return "No se encontró el vale.";
   if (m.numero === nuevo) return null;
-  if (numeroUsado(nuevo)) return `El N°${nuevo} ya está usado.`;
   const anterior = m.numero;
   set((d) => ({
     ...d,
     tenant: { ...d.tenant, ultimo_numero: Math.max(d.tenant.ultimo_numero, nuevo) },
-    movimientos: d.movimientos.map((x) => (x.id === id ? { ...x, numero: nuevo } : x)),
+    // lo pagado en el mismo vale sigue al vale
+    movimientos: d.movimientos.map((x) => (x.id === id || (x.origen_id === id && x.numero === anterior) ? { ...x, numero: nuevo, numero_manual: true } : x)),
     eventos: [...d.eventos, evento(d, "CORREGIR_FOLIO", id, `Folio corregido: N°${anterior} → N°${nuevo}`)],
   }));
   return null;
@@ -594,12 +600,13 @@ export function registrarEnvases(p: {
   forma: FormaPago;
   lineas: LineaEnvaseInput[];
   glosa: string | null;
+  numero?: number | null;
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
-    const numero = d.tenant.ultimo_numero + 1;
+    const { numero, numero_manual } = numeroPara(d, "ENVASE", p.numero);
     const total = p.lineas.reduce((a, l) => a + Math.round(l.cantidad * l.precio_unitario), 0);
-    const mov = nuevoMov(d, numero, { tipo: p.tipo, fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.forma, total, glosa: p.glosa });
+    const mov = nuevoMov(d, numero, { tipo: p.tipo, fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.forma, total, glosa: p.glosa, numero_manual });
     const lineas: LineaEnvase[] = p.lineas.map((l) => ({
       id: uid(), tenant_id: d.tenant.id, movimiento_id: mov.id, envase_id: l.envase_id, cantidad: l.cantidad,
       precio_unitario: l.precio_unitario, subtotal: Math.round(l.cantidad * l.precio_unitario),
@@ -608,7 +615,7 @@ export function registrarEnvases(p: {
     creado = mov;
     return {
       ...d,
-      tenant: { ...d.tenant, ultimo_numero: numero },
+      tenant: { ...d.tenant, ultimo_numero: Math.max(d.tenant.ultimo_numero, numero) },
       movimientos: [...d.movimientos, mov],
       lineas_envase: [...d.lineas_envase, ...lineas],
       eventos: [
@@ -669,18 +676,18 @@ export function guardarEnvase(p: { id?: string; nombre: string; precio: number; 
 }
 
 export function registrarAbono(p: {
-  cliente_id: string; monto: number; forma: Exclude<FormaPago, "CREDITO">; glosa: string | null; fecha: string;
+  cliente_id: string; monto: number; forma: Exclude<FormaPago, "CREDITO">; glosa: string | null; fecha: string; numero?: number | null;
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
-    const numero = d.tenant.ultimo_numero + 1;
+    const { numero, numero_manual } = numeroPara(d, "ABONO", p.numero);
     const mov = nuevoMov(d, numero, {
-      tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.forma, total: p.monto, glosa: p.glosa,
+      tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.forma, total: p.monto, glosa: p.glosa, numero_manual,
     });
     creado = mov;
     return {
       ...d,
-      tenant: { ...d.tenant, ultimo_numero: numero },
+      tenant: { ...d.tenant, ultimo_numero: Math.max(d.tenant.ultimo_numero, numero) },
       movimientos: [...d.movimientos, mov],
       eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", mov.id, `Abono N°${numero} · $${p.monto}`)],
     };
@@ -690,18 +697,19 @@ export function registrarAbono(p: {
 
 export function registrarCaja(p: {
   tipo: "INGRESO" | "EGRESO"; monto: number; forma: Exclude<FormaPago, "CREDITO">; glosa: string; fecha: string; categoria?: string | null;
+  numero?: number | null;
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
-    const numero = d.tenant.ultimo_numero + 1;
+    const { numero, numero_manual } = numeroPara(d, "CAJA", p.numero);
     const mov = nuevoMov(d, numero, {
       tipo: p.tipo, fecha: p.fecha, cliente_id: null, forma_pago: p.forma, total: p.monto, glosa: p.glosa,
-      categoria: p.tipo === "EGRESO" ? (p.categoria ?? null) : null,
+      categoria: p.tipo === "EGRESO" ? (p.categoria ?? null) : null, numero_manual,
     });
     creado = mov;
     return {
       ...d,
-      tenant: { ...d.tenant, ultimo_numero: numero },
+      tenant: { ...d.tenant, ultimo_numero: Math.max(d.tenant.ultimo_numero, numero) },
       movimientos: [...d.movimientos, mov],
       eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", mov.id, `${p.tipo} N°${numero} · ${p.glosa} · $${p.monto}`)],
     };
@@ -769,17 +777,17 @@ export function cerrarCaja(fecha: string, nota: string | null, arqueo: Arqueo | 
 }
 
 /** Deuda sin productos: saldo anterior, préstamo, ajuste. Queda como vale crédito con glosa. */
-export function cargarDeuda(p: { cliente_id: string; monto: number; glosa: string; fecha: string }): Movimiento {
+export function cargarDeuda(p: { cliente_id: string; monto: number; glosa: string; fecha: string; numero?: number | null }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
-    const numero = d.tenant.ultimo_numero + 1;
+    const { numero, numero_manual } = numeroPara(d, "VALE", p.numero);
     const mov = nuevoMov(d, numero, {
-      tipo: "VALE_CREDITO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: "CREDITO", total: p.monto, glosa: p.glosa,
+      tipo: "VALE_CREDITO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: "CREDITO", total: p.monto, glosa: p.glosa, numero_manual,
     });
     creado = mov;
     return {
       ...d,
-      tenant: { ...d.tenant, ultimo_numero: numero },
+      tenant: { ...d.tenant, ultimo_numero: Math.max(d.tenant.ultimo_numero, numero) },
       movimientos: [...d.movimientos, mov],
       eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", mov.id, `Deuda agregada N°${numero} · ${p.glosa} · $${p.monto}`)],
     };
@@ -844,8 +852,9 @@ export function registrarPagoSueldo(p: {
     let numero = d.tenant.ultimo_numero;
     let mov: Movimiento | null = null;
     if (mueveCaja) {
-      numero++;
-      mov = nuevoMov(d, numero, {
+      const n = proximoNumero(d.movimientos, "CAJA");
+      numero = Math.max(numero, n);
+      mov = nuevoMov(d, n, {
         tipo: "EGRESO", fecha: p.fecha, cliente_id: null, forma_pago: "EFECTIVO", total: p.monto,
         glosa: `Sueldo · ${t?.nombre ?? ""}${p.tipo === "ADELANTO" ? " (adelanto)" : ""}`,
       });
@@ -923,14 +932,15 @@ export function importar(filas: ImportFila[], resolverCliente: (nombre: string) 
           clientesNuevos++;
         }
       }
-      // respeta el N° de la planilla si no choca; si no, correlativo nuevo
-      const numero = f.numero && !usados.has(f.numero) ? f.numero : ++ultimo;
+      // respeta el N° de la planilla (aunque se repita); sin N°, el próximo de su talonario
+      const manual = f.numero !== null && f.numero !== undefined && f.numero >= 0;
+      const numero = manual ? f.numero! : proximoNumero([...d.movimientos, ...movs], serieDe(f.tipo));
       usados.add(numero);
       if (numero > ultimo) ultimo = numero;
       movs.push(
         nuevoMov(d, numero, {
           tipo: f.tipo, fecha: f.fecha, cliente_id, forma_pago: f.forma, total: f.monto, glosa: f.glosa,
-          importado: true, created_at: new Date(f.fecha + "T12:00:00").toISOString(),
+          importado: true, created_at: new Date(f.fecha + "T12:00:00").toISOString(), numero_manual: manual,
         }),
       );
       creados++;

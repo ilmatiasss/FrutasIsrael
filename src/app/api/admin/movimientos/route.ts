@@ -69,11 +69,7 @@ export async function PATCH(req: Request) {
 
       // ---- valores nuevos ----
       const numero = body.numero !== undefined ? Number(body.numero) : Number(m0.numero);
-      if (!Number.isInteger(numero) || numero <= 0) throw new ErrorUsuario("El N° de vale debe ser un número mayor a 0.");
-      if (numero !== Number(m0.numero)) {
-        const usado = await c.query("select 1 from movimientos where tenant_id = $1 and numero = $2 and id <> $3", [a.tenant, numero, m0.id]);
-        if (usado.rowCount) throw new ErrorUsuario(`El N°${numero} ya está usado por otro movimiento.`);
-      }
+      if (!Number.isInteger(numero) || numero < 0) throw new ErrorUsuario("El N° de vale debe ser un número (0 o más).");
       const fecha = body.fecha ?? String(m0.fecha);
       if (!FECHA.test(fecha)) throw new ErrorUsuario("Fecha inválida.");
       const cliente_id = body.cliente_id ?? String(m0.cliente_id);
@@ -116,7 +112,7 @@ export async function PATCH(req: Request) {
       // ---- aplicar ----
       await modoAdmin(c);
       await c.query(
-        "update movimientos set numero = $2, fecha = $3, cliente_id = $4, forma_pago = $5, tipo = $6, total = $7, glosa = $8 where id = $1",
+        "update movimientos set numero = $2, fecha = $3, cliente_id = $4, forma_pago = $5, tipo = $6, total = $7, glosa = $8, numero_manual = (numero_manual or numero <> $2) where id = $1",
         [m0.id, numero, fecha, cliente_id, forma, tipo, total, glosa],
       );
       if (body.lineas) {
@@ -128,7 +124,11 @@ export async function PATCH(req: Request) {
           );
       }
       // lo pagado en el mismo vale sigue al vale (fecha y cliente)
-      if (pagados.length) await c.query("update movimientos set fecha = $2, cliente_id = $3 where origen_id = $1 and anulado_at is null", [m0.id, fecha, cliente_id]);
+      if (pagados.length) {
+        await c.query("update movimientos set fecha = $2, cliente_id = $3 where origen_id = $1 and anulado_at is null", [m0.id, fecha, cliente_id]);
+        // lo pagado en el mismo vale lleva el N° del vale
+        await c.query("update movimientos set numero = $2, numero_manual = true where origen_id = $1 and numero = $3", [m0.id, numero, m0.numero]);
+      }
       if (numero > Number(t.rows[0].ultimo_numero)) await c.query("update tenants set ultimo_numero = $2 where id = $1", [a.tenant, numero]);
 
       // ---- historial con el antes y el después ----

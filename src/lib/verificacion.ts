@@ -4,7 +4,7 @@
  * movimientos, cartera vs cuentas de clientes). No modifica nada.
  */
 import type { Db } from "./types";
-import { efectoDeuda, envasesPorCliente, estadoCliente, indexar, resumenCaja, saldosAl, vivo } from "./calc";
+import { NOMBRE_SERIE, proximoNumero, serieDe, type Serie, efectoDeuda, envasesPorCliente, estadoCliente, indexar, resumenCaja, saldosAl, vivo } from "./calc";
 import { clp, hoy } from "./format";
 
 export interface Chequeo {
@@ -20,17 +20,24 @@ export function verificar(db: Db): Chequeo[] {
   const out: Chequeo[] = [];
   const max = (xs: string[]) => xs.slice(0, 8);
 
-  // 1. numeración del talonario
-  const nums = db.movimientos.map((m) => m.numero);
-  const vistos = new Set<number>();
-  const dup = nums.filter((n) => (vistos.has(n) ? true : (vistos.add(n), false)));
-  const mayor = Math.max(0, ...nums);
+  // 1. numeración: cada talonario por separado; repetir o usar 0 se permite (solo se avisa)
+  const repetidos: string[] = [];
+  for (const s of ["VALE", "ABONO", "ENVASE", "CAJA"] as Serie[]) {
+    const vistos = new Set<number>();
+    for (const m of db.movimientos) {
+      if (serieDe(m.tipo) !== s || m.numero <= 0 || (m.tipo === "ABONO" && m.origen_id)) continue;
+      if (vistos.has(m.numero)) repetidos.push(`${NOMBRE_SERIE[s]} N°${m.numero}`);
+      vistos.add(m.numero);
+    }
+  }
   out.push(
-    dup.length
-      ? { titulo: "Folios de vales únicos", estado: "error", detalle: `${dup.length} números repetidos.`, items: max(dup.map((n) => `N°${n}`)) }
-      : mayor > db.tenant.ultimo_numero
-        ? { titulo: "Folios de vales únicos", estado: "error", detalle: `El correlativo (${db.tenant.ultimo_numero}) es menor que el último folio usado (${mayor}).` }
-        : { titulo: "Folios de vales únicos", estado: "ok", detalle: `${nums.length} folios sin repetir; próximo N°${db.tenant.ultimo_numero + 1}.` },
+    repetidos.length
+      ? { titulo: "Números de talonario", estado: "aviso", detalle: `${repetidos.length} números repetidos (permitido; revisar que sea a propósito).`, items: max(repetidos) }
+      : {
+          titulo: "Números de talonario",
+          estado: "ok",
+          detalle: `Sin repetidos. Próximos: vale N°${proximoNumero(db.movimientos, "VALE")}, abono N°${proximoNumero(db.movimientos, "ABONO")}, envases N°${proximoNumero(db.movimientos, "ENVASE")}, caja N°${proximoNumero(db.movimientos, "CAJA")}.`,
+        },
   );
 
   // 2. total de cada vale = suma de sus líneas

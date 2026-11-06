@@ -4,7 +4,8 @@ import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent }
 import { flushSync } from "react-dom";
 import type { FormaPago, Producto, Unidad } from "@/lib/types";
 import { crearVale, numeroUsado, useData } from "@/lib/store";
-import { ultimoPrecio, type EstadoCliente } from "@/lib/calc";
+import { proximoNumero, ultimoPrecio, type EstadoCliente } from "@/lib/calc";
+import { leerNumero } from "../CampoNumero";
 import { clp, ddmm, diasEntre, fechaLarga, haceDias, hoy, miles, parseCantidad, parseMonto, uid } from "@/lib/format";
 import { Autocompletar, puntaje } from "../Autocompletar";
 import { filtrarClientes, OpcionCliente, useEstados } from "../clientes";
@@ -170,11 +171,12 @@ export function RegistroVale() {
   const fiaAlgo = combinado ? pagos.fiado > 0 : forma === "CREDITO";
   const completas = calc.filter((c) => c.completa).length;
   const sucio = !!cliente || calc.some((c) => !c.vacia) || !!monto || !!detalle;
-  const siguiente = data.db.tenant.ultimo_numero + 1;
+  const siguiente = proximoNumero(data.db.movimientos, "VALE");
   // N° escrito a mano (para calzar con el talonario); vacío = correlativo
   const [numeroManual, setNumeroManual] = useState<string | null>(null);
-  const nManual = numeroManual !== null ? parseInt(numeroManual.replace(/\D/g, ""), 10) || null : null;
-  const errorNumero = nManual !== null && numeroUsado(nManual) ? `El N°${nManual} ya está usado` : null;
+  // 0 y números repetidos se permiten (talonarios con números en blanco o repetidos): solo se avisa
+  const nManual = leerNumero(numeroManual);
+  const avisoNumero = nManual !== null && nManual > 0 && numeroUsado(nManual, "VALE") ? `Ya existe el N°${nManual}: quedará repetido` : nManual === 0 ? "Sin número (N° 0)" : null;
   const productos = data.db.productos.filter((p) => p.activo);
 
   const filaActiva = filas.find((f) => f.k === activa) ?? null;
@@ -254,10 +256,6 @@ export function RegistroVale() {
       .filter(({ e }) => e.completa)
       .map(({ f, e }) => ({ cantidad: e.c!, unidad: f.unidad, producto_id: f.prod!.id, precio_unitario: e.p! }));
     const montoAbono = !combinado && forma === "CREDITO" ? (parseMonto(abono) ?? 0) : 0;
-    if (errorNumero) {
-      sacudir("cliente");
-      return;
-    }
     const mov = crearVale({
       numero: nManual,
       fecha,
@@ -481,7 +479,7 @@ export function RegistroVale() {
                   <Numeradora numero={siguiente} />
                 </span>
                 <button type="button" tabIndex={-1} onClick={() => setNumeroManual(String(siguiente))} className="block w-full text-right text-xs font-medium text-tinta hover:underline">
-                  {data.db.tenant.ultimo_numero === 0 ? "Escribir N° del talonario" : "Cambiar N°"}
+                  {siguiente === 1 ? "Escribir N° del talonario" : "Cambiar N°"}
                 </button>
               </>
             ) : (
@@ -500,15 +498,12 @@ export function RegistroVale() {
                   }}
                   inputMode="numeric"
                   aria-label="N° de vale"
-                  className={`campo w-32 py-1 text-right text-[24px] font-semibold text-fuji ${errorNumero ? "campo-error" : ""}`}
+                  className="campo w-32 py-1 text-right text-[24px] font-semibold text-fuji"
                 />
-                {errorNumero ? (
-                  <span className="block text-xs font-medium text-fuji">{errorNumero}</span>
-                ) : (
-                  <button type="button" tabIndex={-1} onClick={() => setNumeroManual(null)} className="block w-full text-right text-xs text-gris hover:underline">
-                    Usar correlativo ({siguiente})
-                  </button>
-                )}
+                {avisoNumero && <span className="block max-w-[14rem] text-xs font-medium text-limon">{avisoNumero}</span>}
+                <button type="button" tabIndex={-1} onClick={() => setNumeroManual(null)} className="block w-full text-right text-xs text-gris hover:underline">
+                  Usar el siguiente ({siguiente})
+                </button>
               </>
             )}
           </div>

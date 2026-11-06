@@ -33,7 +33,8 @@ tenants ─┬─< usuarios
 
 | campo | nota |
 |---|---|
-| `numero` | correlativo único por tenant (N° de vale); se puede escribir a mano o corregir después (bitácora `CORREGIR_FOLIO`) |
+| `numero` | N° del talonario. Cada tipo tiene el suyo: vales (venta, crédito, deuda sin detalle), abonos, envases, caja (ingresos y egresos); el próximo es el mayor + 1 de ese talonario. Se puede escribir a mano, también 0 o repetido (la verificación solo avisa). Lo pagado en un vale combinado lleva el N° del vale. |
+| `numero_manual` | el N° lo escribió una persona: el servidor lo respeta. Si es automático y otro equipo ya usó ese N° en el mismo talonario, el servidor le da el siguiente. |
 | `tipo` | `VALE_VENTA` · `VALE_CREDITO` · `ABONO` · `INGRESO` · `EGRESO` · `ENVASE_COBRO` · `ENVASE_DEVOLUCION` |
 | `forma_pago` | `EFECTIVO` · `TRANSFERENCIA` · `TARJETA` · `CREDITO` (vale crédito y envases) |
 | `categoria` | egresos: categoría del gasto de bodega |

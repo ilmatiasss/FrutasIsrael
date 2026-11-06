@@ -68,8 +68,7 @@ create table if not exists movimientos (
   anulado_at       timestamptz,
   anulado_por      text,
   motivo_anulacion text,
-  importado        boolean not null default false,
-  unique (tenant_id, numero)
+  importado        boolean not null default false
 );
 create index if not exists movimientos_cliente_idx on movimientos (tenant_id, cliente_id, fecha);
 create index if not exists movimientos_fecha_idx on movimientos (tenant_id, fecha);
@@ -352,6 +351,12 @@ begin
     alter table lineas_vale add constraint lineas_vale_precio_chk check (precio_unitario >= 0);
   end if;
 end $$;
+
+-- Talonarios: cada tipo lleva su numeración y un N° escrito a mano puede ser
+-- 0 o repetirse. El servidor solo corrige choques de números automáticos.
+alter table movimientos drop constraint if exists movimientos_tenant_id_numero_key;
+alter table movimientos add column if not exists numero_manual boolean not null default false;
+create index if not exists movimientos_numero_idx on movimientos (tenant_id, numero);
 
 -- Gastos de bodega: categoría del egreso (compra de envases, gas grúa horquilla…)
 alter table movimientos add column if not exists categoria text;

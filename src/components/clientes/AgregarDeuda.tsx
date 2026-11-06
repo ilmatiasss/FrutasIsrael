@@ -4,6 +4,7 @@ import type { EstadoCliente } from "@/lib/calc";
 import { cargarDeuda } from "@/lib/store";
 import { clp, hoy, miles, parseMonto } from "@/lib/format";
 import { useAviso } from "../Shell";
+import { CampoNumero, leerNumero } from "../CampoNumero";
 import { Modal } from "../ui";
 
 const MOTIVOS = ["Saldo anterior", "Préstamo", "Ajuste de cuenta"];
@@ -14,6 +15,7 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
   const [monto, setMonto] = useState("");
   const [motivo, setMotivo] = useState("");
   const [fecha, setFecha] = useState(hoy());
+  const [numero, setNumero] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
@@ -21,6 +23,7 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
     setMonto("");
     setMotivo("");
     setFecha(hoy());
+    setNumero(null);
     setTimeout(() => ref.current?.focus(), 30);
   }, [abierto]);
 
@@ -29,7 +32,7 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
     e.preventDefault();
     if (m <= 0) return;
     const glosa = motivo.trim() || "Crédito sin detalle";
-    const mov = cargarDeuda({ cliente_id: est.cliente.id, monto: m, glosa, fecha });
+    const mov = cargarDeuda({ cliente_id: est.cliente.id, monto: m, glosa, fecha, numero: leerNumero(numero) });
     avisar({ titulo: `Deuda agregada · N°${mov.numero}`, detalle: `${est.cliente.alias ?? est.cliente.nombre} · ${clp(m)} · ${glosa}`, tono: "rojo" });
     onCerrar();
   };
@@ -37,11 +40,14 @@ export function AgregarDeuda({ est, abierto, onCerrar }: { est: EstadoCliente; a
   return (
     <Modal abierto={abierto} onCerrar={onCerrar} etiqueta="Agregar deuda">
       <form onSubmit={enviar} className="space-y-4">
-        <div>
-          <p className="stencil text-2xl">Agregar deuda</p>
-          <p className="text-sm text-gris">
-            A {est.cliente.alias ?? est.cliente.nombre}. Solo el monto: sin productos.
-          </p>
+        <div className="flex items-start justify-between gap-3">
+          <div>
+            <p className="stencil text-2xl">Agregar deuda</p>
+            <p className="text-sm text-gris">
+              A {est.cliente.alias ?? est.cliente.nombre}. Solo el monto: sin productos.
+            </p>
+          </div>
+          <CampoNumero serie="VALE" valor={numero} setValor={setNumero} />
         </div>
         <label className="block">
           <span className="rotulo">Monto</span>

@@ -10,6 +10,7 @@ import { Autocompletar } from "../Autocompletar";
 import { filtrarClientes, OpcionCliente, useEstados } from "../clientes";
 import { Encabezado } from "../Encabezado";
 import { useAviso } from "../Shell";
+import { CampoNumero, leerNumero } from "../CampoNumero";
 import { Colillas } from "../vale/Colillas";
 
 const PASOS = [
@@ -50,6 +51,7 @@ export function Envases() {
   const [forma, setForma] = useState<FormaPago>("EFECTIVO");
   const [nota, setNota] = useState("");
   const [fecha, setFecha] = useState(hoy());
+  const [numero, setNumero] = useState<string | null>(null);
   const [ultimoId, setUltimoId] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const primerCant = useRef<HTMLInputElement | null>(null);
@@ -89,6 +91,7 @@ export function Envases() {
       tipo,
       cliente_id: est.cliente.id,
       fecha,
+      numero: leerNumero(numero),
       forma,
       lineas: lineas.map(({ envase_id, cantidad, precio_unitario }) => ({ envase_id, cantidad, precio_unitario })),
       glosa: nota.trim() || (tipo === "ENVASE_DEVOLUCION" && forma === "CREDITO" ? "Descontado de su deuda" : null),
@@ -103,6 +106,7 @@ export function Envases() {
     setCant({});
     setNota("");
     setFecha(hoy());
+    setNumero(null);
   };
 
   // envases en la calle (todos los clientes)
@@ -173,6 +177,7 @@ export function Envases() {
         ) : (
         <form onSubmit={guardar} className="hoja mx-auto w-full max-w-[880px] space-y-5 px-4 py-5 sm:px-7 sm:py-6">
           {pestanas}
+          <div className="flex items-start justify-between gap-4">
           <div>
             <label className="flex items-center gap-1.5 text-sm">
               <span className="text-gris">Fecha</span>
@@ -185,6 +190,8 @@ export function Envases() {
               />
             </label>
             {fecha !== hoy() && <p className="text-xs font-semibold text-fuji">{fecha < hoy() ? "Fecha atrasada" : "Fecha adelantada"}</p>}
+          </div>
+          <CampoNumero serie="ENVASE" valor={numero} setValor={setNumero} />
           </div>
 
           <div>

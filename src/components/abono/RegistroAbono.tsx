@@ -8,7 +8,8 @@ import { clp, ddmm, diasEntre, haceDias, hoy, miles, parseMonto } from "@/lib/fo
 import { Autocompletar } from "../Autocompletar";
 import { filtrarClientes, OpcionCliente, useEstados } from "../clientes";
 import { useAviso } from "../Shell";
-import { FORMA, MontoGrande, Numeradora, StickerSemaforo, useCuenta } from "../ui";
+import { CampoNumero, leerNumero } from "../CampoNumero";
+import { FORMA, MontoGrande, StickerSemaforo, useCuenta } from "../ui";
 import { Colillas } from "../vale/Colillas";
 
 import { Encabezado } from "../Encabezado";
@@ -34,6 +35,7 @@ export function RegistroAbono() {
   const [forma, setForma] = useState<Forma>("EFECTIVO");
   const [glosa, setGlosa] = useState("");
   const [fecha, setFecha] = useState(hoy());
+  const [numero, setNumero] = useState<string | null>(null);
   const [ultimoId, setUltimoId] = useState<string | null>(null);
   const [alDia, setAlDia] = useState(0); // cambia para re-animar el timbre
   const [sacude, setSacude] = useState(false);
@@ -86,7 +88,7 @@ export function RegistroAbono() {
       foco("monto");
       return;
     }
-    const mov = registrarAbono({ cliente_id: est.cliente.id, monto: m, forma, glosa: glosa.trim() || null, fecha });
+    const mov = registrarAbono({ cliente_id: est.cliente.id, monto: m, forma, glosa: glosa.trim() || null, fecha, numero: leerNumero(numero) });
     setUltimoId(mov.id);
     if (saldo - m <= 0) setAlDia((x) => x + 1);
     avisar({
@@ -98,6 +100,7 @@ export function RegistroAbono() {
     setGlosa("");
     setForma("EFECTIVO");
     setFecha(hoy());
+    setNumero(null);
     foco("cliente");
   };
 
@@ -159,12 +162,7 @@ export function RegistroAbono() {
             </label>
             {fecha !== hoy() && <p className="text-xs font-semibold text-fuji">{fecha < hoy() ? "Fecha atrasada" : "Fecha adelantada"}</p>}
           </div>
-          <p className="text-right">
-            <span className="rotulo block">N°</span>
-            <span className="text-[28px] font-semibold leading-none text-fuji sm:text-[32px]">
-              <Numeradora numero={data.db.tenant.ultimo_numero + 1} />
-            </span>
-          </p>
+          <CampoNumero serie="ABONO" valor={numero} setValor={setNumero} />
         </header>
 
         <div className="mt-5">

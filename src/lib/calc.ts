@@ -10,6 +10,34 @@ import { diasEntre, lunesDe, semanaISO } from "./format";
 
 export const vivo = (m: Movimiento) => !m.anulado_at;
 
+/* ------------------------------ talonarios ------------------------------ */
+
+/** Cada tipo de movimiento lleva su propia numeración (como los talonarios de papel). */
+export type Serie = "VALE" | "ABONO" | "ENVASE" | "CAJA";
+export const NOMBRE_SERIE: Record<Serie, string> = { VALE: "vales", ABONO: "abonos", ENVASE: "envases", CAJA: "ingresos y egresos" };
+
+export function serieDe(tipo: Movimiento["tipo"]): Serie {
+  if (tipo === "VALE_VENTA" || tipo === "VALE_CREDITO") return "VALE";
+  if (tipo === "ABONO") return "ABONO";
+  if (tipo === "ENVASE_COBRO" || tipo === "ENVASE_DEVOLUCION") return "ENVASE";
+  return "CAJA";
+}
+
+/** Lo pagado dentro de un vale (pago combinado) lleva el N° del vale: no cuenta para el talonario de abonos. */
+const cuentaEnSerie = (m: Movimiento, serie: Serie) => serieDe(m.tipo) === serie && !(m.tipo === "ABONO" && m.origen_id) && m.numero > 0;
+
+/** Próximo N° del talonario: el mayor usado + 1. */
+export function proximoNumero(movs: Movimiento[], serie: Serie): number {
+  let mayor = 0;
+  for (const m of movs) if (cuentaEnSerie(m, serie) && m.numero > mayor) mayor = m.numero;
+  return mayor + 1;
+}
+
+/** ¿Ese N° ya existe en el mismo talonario? (se permite repetir; solo se avisa) */
+export function numeroRepetido(movs: Movimiento[], serie: Serie, numero: number, excepto?: string): Movimiento | null {
+  return movs.find((m) => m.id !== excepto && m.numero === numero && cuentaEnSerie(m, serie)) ?? null;
+}
+
 /** Efecto de un movimiento sobre la deuda del cliente */
 export function efectoDeuda(m: Movimiento): number {
   if (!vivo(m)) return 0;

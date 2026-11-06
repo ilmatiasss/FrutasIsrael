@@ -8,7 +8,9 @@ import { clp, fechaLarga, hora, hoy, miles, parseMonto, sumarDias } from "@/lib/
 import { COLOR_TIPO, DetalleMovimiento } from "../DetalleMovimiento";
 import { MODULOS, type Modulo } from "../imprimir/ImprimirCaja";
 import { useAviso } from "../Shell";
+import { CampoNumero, leerNumero } from "../CampoNumero";
 import { Arqueo } from "./Arqueo";
+import { TIPO_PAGO } from "@/lib/sueldos";
 import type { Arqueo as TArqueo } from "@/lib/types";
 import { FormaChip, MontoGrande, Tecla, Vacio } from "../ui";
 
@@ -101,6 +103,11 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
 
   // matriz tipo × forma de pago
   const matriz = matrizCaja(movs);
+  // remuneraciones del día (pagos, anticipos, bonos y descuentos)
+  const sueldos = data.db.pagos_sueldo.filter((p) => p.fecha === fecha).sort((a, b) => a.created_at.localeCompare(b.created_at));
+  const sueldosVivos = sueldos.filter((p) => !p.anulado_at && (p.tipo === "PAGO" || p.tipo === "ADELANTO"));
+  const sueldosTotal = sueldosVivos.reduce((a, p) => a + p.monto, 0);
+  const sueldosCajon = sueldosVivos.filter((p) => p.movimiento_id).reduce((a, p) => a + p.monto, 0);
   const pagadoVale = r.pagado_en_vale ?? 0;
   const fiadoNeto = r.vale_credito - pagadoVale;
   const cobradoDeudas = r.abonos - pagadoVale;
@@ -215,6 +222,45 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
               </section>
             );
           })}
+
+          {sueldos.length > 0 && (
+            <section id="REMUNERACIONES" className="hoja scroll-mt-20 overflow-hidden rounded-lg">
+              <header className="flex items-baseline justify-between border-b-2 border-grafito/80 px-4 pb-2 pt-4">
+                <h2 className="font-semibold">
+                  Remuneraciones <span className="ml-1 font-sans text-sm font-normal normal-case tracking-normal text-gris">pagos de sueldo del día</span>
+                </h2>
+                <span className="cifra doble-raya text-xl font-semibold">{clp(sueldosTotal)}</span>
+              </header>
+              <table className="w-full text-[15px]">
+                <tbody>
+                  {sueldos.map((p) => {
+                    const t = data.db.trabajadores.find((x) => x.id === p.trabajador_id);
+                    const anul = !!p.anulado_at;
+                    return (
+                      <tr key={p.id} className={`border-b border-linea ${anul ? "text-gris line-through" : ""}`}>
+                        <td className="cifra w-[56px] py-1.5 pl-4 text-sm text-gris">{hora(p.created_at)}</td>
+                        <td className="max-w-0 truncate pr-2">
+                          <b className="font-semibold">{t?.nombre ?? "—"}</b>
+                          <span className="ml-2 text-xs text-gris">
+                            {TIPO_PAGO[p.tipo].label}
+                            {t?.cargo ? ` · ${t.cargo}` : ""}
+                            {p.nota ? ` · ${p.nota}` : ""}
+                          </span>
+                        </td>
+                        <td className="hidden w-[150px] text-xs text-gris sm:table-cell">
+                          {p.tipo === "BONO" || p.tipo === "DESCUENTO" ? "a cuenta del sueldo" : p.movimiento_id ? "efectivo · salió del cajón" : p.forma === "EFECTIVO" ? "efectivo · no del cajón" : "transferencia"}
+                        </td>
+                        <td className="cifra w-[120px] pr-4 text-right">
+                          {p.tipo === "DESCUENTO" ? "−" : ""}
+                          {clp(p.monto)}
+                        </td>
+                      </tr>
+                    );
+                  })}
+                </tbody>
+              </table>
+            </section>
+          )}
         </div>
 
         {/* ------------------------------ la boleta ------------------------------ */}
@@ -241,6 +287,7 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
             {envasesEf > 0 && <Renglon signo="+" label="Garantía de envases" valor={envasesEf} />}
             <Renglon signo="−" label="Egresos" valor={r.egresos_efectivo} />
             {(r.devolucion_efectivo ?? 0) > 0 && <Renglon signo="−" label="Devolución de envases" valor={r.devolucion_efectivo ?? 0} />}
+            {sueldosCajon > 0 && <p className="pl-4 font-sans text-[11px] text-gris">De los egresos, {clp(sueldosCajon)} son remuneraciones.</p>}
             <p className="my-2 border-t border-grafito/50" />
             <p className="flex items-baseline justify-between">
               <span className="text-[12px] font-semibold uppercase leading-tight tracking-wider">
@@ -250,6 +297,26 @@ export function CierreCaja({ pestanas }: { pestanas?: React.ReactNode }) {
               </span>
               <span className="cifra doble-raya text-[28px] font-semibold">{clp(r.efectivo_esperado)}</span>
             </p>
+
+            {/* los dos lados: lo que entró a la caja y lo que quedó fiado */}
+            <div className="mt-3 grid grid-cols-2 gap-2 font-sans" aria-label="Crédito del día">
+              <div className="rounded-md bg-[#fdeeec] px-2.5 py-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-fuji">Crédito dado hoy</p>
+                <p className="cifra text-[18px] font-semibold text-fuji">{clp(fiadoNeto)}</p>
+                <p className="text-[10px] leading-tight text-gris">fiado: no entra a la caja</p>
+              </div>
+              <div className="rounded-md bg-[#eef3fe] px-2.5 py-1.5">
+                <p className="text-[10px] font-semibold uppercase tracking-wider text-[#1d4ed8]">Transf. y tarjeta</p>
+                <p className="cifra text-[18px] font-semibold text-[#1d4ed8]">{clp(r.transferencia - devolucionTr + (r.tarjeta ?? 0))}</p>
+                <p className="text-[10px] leading-tight text-gris">van al banco</p>
+              </div>
+            </div>
+            {sueldosTotal > 0 && (
+              <p className="mt-2 flex justify-between font-sans text-[13px]">
+                <span>Remuneraciones pagadas hoy</span>
+                <b className="cifra">{clp(sueldosTotal)}</b>
+              </p>
+            )}
 
             <p className="my-3 border-t-2 border-dashed border-grafito/40" />
             <Arqueo fecha={fecha} esperado={r.efectivo_esperado} guardado={cierre?.snapshot.arqueo ?? null} onCambio={setArqueo} />
@@ -416,6 +483,7 @@ function FormCaja({ tipo, fecha, onCerrar }: { tipo: "EGRESO" | "INGRESO"; fecha
   const [glosa, setGlosa] = useState("");
   const [monto, setMonto] = useState("");
   const [forma, setForma] = useState<"EFECTIVO" | "TRANSFERENCIA" | "TARJETA">("EFECTIVO");
+  const [numero, setNumero] = useState<string | null>(null);
   const ref = useRef<HTMLInputElement>(null);
   useEffect(() => ref.current?.focus(), [tipo]);
   const sugerencias = tipo === "EGRESO" ? ["Compra de envases", "Gas grúa horquilla", "Carretillero", "Colación", "Flete", "Bolsas y cinta"] : ["Fondo de caja", "Préstamo", "Devolución"];
@@ -423,7 +491,7 @@ function FormCaja({ tipo, fecha, onCerrar }: { tipo: "EGRESO" | "INGRESO"; fecha
     e.preventDefault();
     const m = parseMonto(monto);
     if (!glosa.trim() || !m) return;
-    const mov = registrarCaja({ tipo, monto: m, forma, glosa: glosa.trim(), fecha, categoria: tipo === "EGRESO" ? glosa.trim() : null });
+    const mov = registrarCaja({ tipo, monto: m, forma, glosa: glosa.trim(), fecha, categoria: tipo === "EGRESO" ? glosa.trim() : null, numero: leerNumero(numero) });
     avisar({ titulo: `${tipo === "EGRESO" ? "Egreso" : "Ingreso"} N°${mov.numero}`, detalle: `${glosa} · ${clp(m)}`, tono: tipo === "EGRESO" ? "rojo" : "ok" });
     onCerrar();
   };
@@ -435,6 +503,7 @@ function FormCaja({ tipo, fecha, onCerrar }: { tipo: "EGRESO" | "INGRESO"; fecha
       
     >
       <p className="w-full font-semibold sm:w-auto">{tipo === "EGRESO" ? "Egreso de caja" : "Ingreso de caja"}</p>
+      <CampoNumero serie="CAJA" valor={numero} setValor={setNumero} alinear="left" />
       <label className="min-w-[220px] flex-1">
         <span className="text-[11px] uppercase tracking-widest text-gris">Detalle</span>
         <input ref={ref} value={glosa} onChange={(e) => setGlosa(e.target.value)} list="glosas" className="campo font-sans text-lg" placeholder={sugerencias[0]} />

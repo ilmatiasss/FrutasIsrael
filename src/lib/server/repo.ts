@@ -6,6 +6,19 @@ import { enTransaccion, pool } from "./pg";
 import { BORRABLES, JSONB, ORDEN, SQL_NOMBRE, TABLAS, type Tabla } from "./tablas";
 import { anotarHistorial, diferencias, entradaDe, type Entrada, type Quien } from "./historial";
 
+/** Valor si el navegador no manda la columna (p. ej. un equipo con la versión anterior abierta) */
+const POR_DEFECTO: Record<string, unknown> = { activo: true, numero_manual: false, importado: false };
+
+/** Talonario de cada tipo (igual que serieDe en src/lib/calc.ts) */
+function serie(tipo: string): string {
+  if (tipo === "VALE_VENTA" || tipo === "VALE_CREDITO") return "VALE";
+  if (tipo === "ABONO") return "ABONO";
+  if (tipo === "ENVASE_COBRO" || tipo === "ENVASE_DEVOLUCION") return "ENVASE";
+  return "CAJA";
+}
+const SERIE_SQL = `case when tipo in ('VALE_VENTA', 'VALE_CREDITO') then 'VALE' when tipo = 'ABONO' then 'ABONO'
+  when tipo in ('ENVASE_COBRO', 'ENVASE_DEVOLUCION') then 'ENVASE' else 'CAJA' end`;
+
 /** Tablas cuyo historial se anota fila a fila (las líneas van dentro de su vale; la bitácora es aparte) */
 const CON_HISTORIAL: Tabla[] = ["usuarios", "clientes", "productos", "trabajadores", "envases", "movimientos", "cierres", "cierres_semana", "asistencias", "pagos_sueldo"];
 const SISTEMA: Quien = { tipo: "SISTEMA", id: null, nombre: "Sistema" };
@@ -53,7 +66,7 @@ async function upsert(c: PoolClient, tabla: Tabla, filas: Fila[], tenant: string
     const valores: unknown[] = [];
     const tuplas = lote.map((f) => {
       const ph = cols.map((col) => {
-        let v = col === "tenant_id" ? tenant : (f[col] ?? (col === "activo" ? true : null));
+        let v = col === "tenant_id" ? tenant : (f[col] ?? (col in POR_DEFECTO ? POR_DEFECTO[col] : null));
         if (JSONB.has(col) && v !== null) v = JSON.stringify(v);
         valores.push(v);
         return `$${valores.length}`;
@@ -90,28 +103,47 @@ export async function aplicarCambios(tenant: string, cambios: Cambio[], t: Cambi
       porTabla.set(x.tabla, g);
     }
 
-    // movimientos nuevos: asegurar N° único
+    // movimientos nuevos con N° AUTOMÁTICO: si otro equipo ya usó ese N° en el
+    // mismo talonario, se le da el siguiente. Un N° escrito a mano se respeta
+    // tal cual (puede ser 0 o repetido).
     const movs = porTabla.get("movimientos")?.put ?? [];
     if (movs.length) {
       const ids = movs.map((m) => String(m.id));
       const existentes = new Set((await c.query("select id from movimientos where id = any($1)", [ids])).rows.map((r) => r.id));
       const nuevos = movs.filter((m) => !existentes.has(String(m.id)));
-      if (nuevos.length) {
-        const usados = new Set(
-          (await c.query("select numero from movimientos where tenant_id = $1 and numero = any($2)", [tenant, nuevos.map((m) => Number(m.numero))])).rows.map((r) => Number(r.numero)),
+      const automaticos = nuevos.filter((m) => !m.numero_manual && !(m.tipo === "ABONO" && m.origen_id));
+      if (automaticos.length) {
+        const r = await c.query(
+          `select ${SERIE_SQL} as serie, numero from movimientos
+            where tenant_id = $1 and numero > 0 and not (tipo = 'ABONO' and origen_id is not null)`,
+          [tenant],
         );
-        const enLote = new Set<number>();
-        for (const m of nuevos.sort((a, b) => Number(a.numero) - Number(b.numero))) {
+        const usados = new Map<string, Set<number>>();
+        const mayor = new Map<string, number>();
+        const marcar = (serie: string, n: number) => {
+          if (!usados.has(serie)) usados.set(serie, new Set());
+          usados.get(serie)!.add(n);
+          mayor.set(serie, Math.max(mayor.get(serie) ?? 0, n));
+        };
+        for (const x of r.rows) marcar(String(x.serie), Number(x.numero));
+        // los manuales del mismo lote también ocupan su N°
+        for (const m of nuevos) if (m.numero_manual && Number(m.numero) > 0 && !(m.tipo === "ABONO" && m.origen_id)) marcar(serie(String(m.tipo)), Number(m.numero));
+        for (const m of automaticos.sort((a, b) => Number(a.numero) - Number(b.numero))) {
+          const s = serie(String(m.tipo));
           let n = Number(m.numero);
-          if (usados.has(n) || enLote.has(n)) {
-            n = Math.max(ultimo, ...enLote) + 1;
+          if (usados.get(s)?.has(n)) {
+            const viejo = n;
+            n = (mayor.get(s) ?? 0) + 1;
             m.numero = n;
             renumerados.push({ id: String(m.id), numero: n });
+            // lo pagado en el mismo vale sigue al vale
+            for (const x of nuevos) if (x.origen_id === m.id && Number(x.numero) === viejo) x.numero = n;
           }
-          enLote.add(n);
+          marcar(s, n);
           ultimo = Math.max(ultimo, n);
         }
       }
+      for (const m of nuevos) ultimo = Math.max(ultimo, Number(m.numero) || 0);
     }
 
     /* ---------- quién lo hizo: lo pone el servidor según la sesión ---------- */

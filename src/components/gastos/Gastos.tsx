@@ -7,6 +7,7 @@ import { clp, ddmm, hoy, hora, miles, normalizar, parseMonto } from "@/lib/forma
 import { DetalleMovimiento } from "../DetalleMovimiento";
 import { Encabezado } from "../Encabezado";
 import { useAviso } from "../Shell";
+import { CampoNumero, leerNumero } from "../CampoNumero";
 import { FORMA } from "../ui";
 
 const PASOS = [
@@ -31,6 +32,7 @@ export function Gastos() {
   const [monto, setMonto] = useState("");
   const [forma, setForma] = useState<Exclude<FormaPago, "CREDITO">>("EFECTIVO");
   const [fecha, setFecha] = useState(hoy());
+  const [numero, setNumero] = useState<string | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [mes, setMes] = useState(hoy().slice(0, 7));
   const [filtro, setFiltro] = useState<string | null>(null);
@@ -83,7 +85,7 @@ export function Gastos() {
       return setError("Escriba el monto.");
     }
     const existente = categorias.find((c) => normalizar(c) === normalizar(cat)) ?? cat;
-    const mov = registrarCaja({ tipo: "EGRESO", monto: m, forma, glosa: detalle.trim() ? `${existente} · ${detalle.trim()}` : existente, fecha, categoria: existente });
+    const mov = registrarCaja({ tipo: "EGRESO", monto: m, forma, glosa: detalle.trim() ? `${existente} · ${detalle.trim()}` : existente, fecha, categoria: existente, numero: leerNumero(numero) });
     avisar({
       titulo: `Gasto N°${mov.numero} registrado`,
       detalle: `${existente} · ${clp(m)} · ${forma === "EFECTIVO" ? "salió del cajón" : FORMA[forma].label.toLowerCase()}`,
@@ -91,6 +93,7 @@ export function Gastos() {
     });
     setDetalle("");
     setMonto("");
+    setNumero(null);
     setMes(fecha.slice(0, 7));
   };
 
@@ -179,6 +182,7 @@ export function Gastos() {
               <span className="rotulo">Fecha</span>
               <input type="date" value={fecha} onChange={(e) => e.target.value && setFecha(e.target.value)} className="campo mt-1" />
             </label>
+            <CampoNumero serie="CAJA" valor={numero} setValor={setNumero} etiqueta="N° del gasto" />
           </div>
           {error && <p className="text-sm font-medium text-fuji">{error}</p>}
           <div className="flex justify-end border-t border-linea pt-4">

@@ -96,6 +96,8 @@ export interface Movimiento {
   importado: boolean;
   /** egresos: categoría del gasto (compra de envases, gas grúa…) */
   categoria?: string | null;
+  /** el N° lo escribió una persona (puede ser 0 o repetido): el servidor no lo cambia */
+  numero_manual?: boolean;
 }
 
 export interface LineaVale {
