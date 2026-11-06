@@ -85,7 +85,100 @@ async function upsert(c: PoolClient, tabla: Tabla, filas: Fila[], tenant: string
  * servidor: si otro PC ya usó ese número, se le asigna el siguiente libre y
  * se avisa en `renumerados`.
  */
+/** Columnas que un equipo no puede cambiar en una fila que ya existe */
+const FIJAS: Record<"movimientos" | "pagos_sueldo", string[]> = {
+  movimientos: ["tipo", "fecha", "cliente_id", "forma_pago", "total", "glosa", "origen_id", "creado_por", "created_at", "importado", "categoria"],
+  pagos_sueldo: ["trabajador_id", "fecha", "tipo", "monto", "forma", "movimiento_id", "nota", "creado_por", "created_at"],
+};
+
+export interface Rechazo {
+  tabla: string;
+  id: string;
+  error: string;
+}
+
+/** ¿Es un error de datos (regla o restricción de la base) y no una caída? */
+export function esErrorDeDatos(e: unknown): boolean {
+  const code = (e as { code?: string })?.code ?? "";
+  const msg = e instanceof Error ? e.message : String(e);
+  return code.startsWith("23") || code === "P0001" || code === "22P02" || /violates|No se borran|No se puede borrar|no se editan|desanular|no permitida|invalid input|Tabla no permitida/i.test(msg);
+}
+
+/**
+ * Aplica los cambios de un equipo.
+ * - Lo que un administrador borró no revive aunque un equipo con una copia
+ *   vieja lo vuelva a mandar.
+ * - Si la base rechaza algo, NO se pierde el resto: se reintenta por partes
+ *   (cada vale con sus líneas y pagos, cada cliente, etc.) y se informa solo
+ *   lo rechazado.
+ */
 export async function aplicarCambios(tenant: string, cambios: Cambio[], t: CambiosTenant = {}, quien: Quien = SISTEMA, ip: string | null = null) {
+  const rechazados: Rechazo[] = [];
+  // ---- lo borrado por un administrador no vuelve ----
+  const refs = new Set<string>();
+  for (const x of cambios) {
+    refs.add(String(x.fila.id));
+    if (x.fila.movimiento_id) refs.add(String(x.fila.movimiento_id));
+    if (x.fila.origen_id) refs.add(String(x.fila.origen_id));
+  }
+  const borrados = refs.size
+    ? new Set((await pool().query("select id from borrados where tenant_id = $1 and id = any($2)", [tenant, [...refs]])).rows.map((r) => String(r.id)))
+    : new Set<string>();
+  const vigentes = borrados.size
+    ? cambios.filter((x) => {
+        const muerto = [x.fila.id, x.fila.movimiento_id, x.fila.origen_id].some((v) => v && borrados.has(String(v)));
+        if (muerto) rechazados.push({ tabla: x.tabla, id: String(x.fila.id), error: "Un administrador lo borró: no se vuelve a crear." });
+        return !muerto;
+      })
+    : cambios;
+
+  try {
+    const r = await aplicarLote(tenant, vigentes, t, quien, ip);
+    return { ...r, rechazados };
+  } catch (e) {
+    if (!esErrorDeDatos(e) || vigentes.length <= 1) {
+      if (esErrorDeDatos(e) && vigentes.length === 1) {
+        rechazados.push({ tabla: vigentes[0].tabla, id: String(vigentes[0].fila.id), error: e instanceof Error ? e.message : String(e) });
+        return { renumerados: [], ultimo_numero: 0, ajustados: 0, rechazados };
+      }
+      throw e;
+    }
+  }
+
+  // ---- reintento por partes: un error no se lleva lo demás ----
+  const raiz = (x: Cambio): string => {
+    if (x.tabla === "lineas" || x.tabla === "lineas_envase") return String(x.fila.movimiento_id);
+    if (x.tabla === "movimientos" && x.fila.origen_id) return String(x.fila.origen_id);
+    if (x.tabla === "pagos_sueldo" && x.fila.movimiento_id) return String(x.fila.movimiento_id);
+    return String(x.fila.id);
+  };
+  const grupos = new Map<string, Cambio[]>();
+  const orden = (x: Cambio) => ORDEN.indexOf(x.tabla);
+  for (const x of [...vigentes].sort((a, b) => orden(a) - orden(b))) {
+    const k = raiz(x);
+    grupos.set(k, [...(grupos.get(k) ?? []), x]);
+  }
+  const renumerados: { id: string; numero: number }[] = [];
+  let ultimo_numero = 0;
+  let ajustados = 0;
+  let primero = true;
+  for (const [, grupo] of grupos) {
+    try {
+      const r = await aplicarLote(tenant, grupo, primero ? t : {}, quien, ip);
+      renumerados.push(...r.renumerados);
+      ultimo_numero = Math.max(ultimo_numero, r.ultimo_numero);
+      ajustados += r.ajustados;
+      primero = false;
+    } catch (e) {
+      if (!esErrorDeDatos(e)) throw e;
+      const msg = e instanceof Error ? e.message : String(e);
+      for (const x of grupo) rechazados.push({ tabla: x.tabla, id: String(x.fila.id), error: msg });
+    }
+  }
+  return { renumerados, ultimo_numero, ajustados, rechazados };
+}
+
+async function aplicarLote(tenant: string, cambios: Cambio[], t: CambiosTenant = {}, quien: Quien = SISTEMA, ip: string | null = null) {
   return enTransaccion(async (c) => {
     const lock = await c.query("select ultimo_numero, config from tenants where id = $1 for update", [tenant]);
     if (!lock.rows[0]) throw new Error("Tenant no existe");
@@ -171,6 +264,22 @@ export async function aplicarCambios(tenant: string, cambios: Cambio[], t: Cambi
     const humano = quien.tipo !== "SISTEMA";
     const estampar = (tabla: Tabla, f: Fila) => {
       const antes = previas.get(tabla)?.get(String(f.id));
+      if (antes && (tabla === "movimientos" || tabla === "pagos_sueldo")) {
+        // Desde un equipo solo se puede ANULAR o corregir el N°. Lo contable queda
+        // como está en la base: así un equipo con una copia vieja (p. ej. después
+        // de que un administrador editó el vale) no lo pisa ni hace fallar el envío.
+        for (const col of FIJAS[tabla]) if (col in antes) f[col] = antes[col];
+        if (antes.anulado_at) {
+          // nunca se "desanula"
+          f.anulado_at = antes.anulado_at;
+          f.motivo_anulacion = antes.motivo_anulacion;
+        }
+        if (tabla === "movimientos" && !antes.anulado_at && f.anulado_at) {
+          // una anulación no cambia el N° (pudo corregirlo otro equipo)
+          f.numero = antes.numero;
+          f.numero_manual = antes.numero_manual;
+        }
+      }
       if (tabla === "movimientos" || tabla === "pagos_sueldo") {
         if (antes) f.creado_por = antes.creado_por;
         else if (humano && !f.importado) f.creado_por = quien.nombre;
@@ -226,11 +335,41 @@ export async function aplicarCambios(tenant: string, cambios: Cambio[], t: Cambi
       if (g.del.length) await c.query(`delete from ${SQL_NOMBRE[tabla]} where tenant_id = $1 and id = any($2)`, [tenant, g.del]);
     }
 
+    // ---- anulaciones en cascada (las impone la base, venga de donde venga) ----
+    // anular un vale anula lo pagado dentro de él; anular una parte de un abono
+    // combinado anula las demás partes.
+    const anulados = (porTabla.get("movimientos")?.put ?? [])
+      .filter((f) => f.anulado_at && !previas.get("movimientos")?.get(String(f.id))?.anulado_at)
+      .map((f) => String(f.id));
+    let ajustados = 0;
+    if (anulados.length) {
+      const r1 = await c.query(
+        `update movimientos a
+            set anulado_at = v.anulado_at, anulado_por = v.anulado_por,
+                motivo_anulacion = coalesce(v.motivo_anulacion, 'Anulado') || ' (junto al vale N°' || v.numero || ')'
+           from movimientos v
+          where v.id = any($1) and v.tenant_id = $2 and v.anulado_at is not null
+            and a.origen_id = v.id and a.anulado_at is null`,
+        [anulados, tenant],
+      );
+      const r2 = await c.query(
+        `update movimientos a
+            set anulado_at = v.anulado_at, anulado_por = v.anulado_por, motivo_anulacion = v.motivo_anulacion
+           from movimientos v
+          where v.id = any($1) and v.tenant_id = $2 and v.anulado_at is not null
+            and v.tipo = 'ABONO' and v.origen_id is null and v.glosa like '%Abono combinado:%'
+            and a.tenant_id = v.tenant_id and a.id <> v.id and a.tipo = 'ABONO' and a.origen_id is null and a.anulado_at is null
+            and a.numero = v.numero and a.cliente_id = v.cliente_id and a.fecha = v.fecha and a.glosa = v.glosa`,
+        [anulados, tenant],
+      );
+      ajustados = (r1.rowCount ?? 0) + (r2.rowCount ?? 0);
+    }
+
     ultimo = Math.max(ultimo, t.ultimo_numero ?? 0);
     await c.query("update tenants set ultimo_numero = $2 where id = $1", [tenant, ultimo]);
     if (t.config) await c.query("update tenants set config = $2 where id = $1", [tenant, JSON.stringify(t.config)]);
     if (humano) await anotarHistorial(c, tenant, quien, ip, resumirMasivos(entradas));
-    return { renumerados, ultimo_numero: ultimo };
+    return { renumerados, ultimo_numero: ultimo, ajustados };
   });
 }
 

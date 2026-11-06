@@ -194,6 +194,12 @@ export async function DELETE(req: Request) {
       await c.query("delete from lineas_envase where movimiento_id = any($1)", [ids]);
       await c.query("delete from movimientos where origen_id = $1", [m0.id]);
       await c.query("delete from movimientos where id = $1", [m0.id]);
+      // lápidas: si un equipo con una copia vieja lo vuelve a mandar, no revive
+      const lapidas = [...ids, ...lineas.map((l: Fila) => l.id), ...envases.map((l: Fila) => l.id)];
+      await c.query(
+        "insert into borrados (id, tenant_id, tabla) select x, $1, 'movimientos' from unnest($2::text[]) as x on conflict (id) do nothing",
+        [a.tenant, lapidas],
+      );
 
       const nombreTipo: Record<string, string> = {
         VALE_VENTA: "vale venta", VALE_CREDITO: "vale crédito", ABONO: "abono", INGRESO: "ingreso", EGRESO: "egreso",

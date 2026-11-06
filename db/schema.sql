@@ -220,18 +220,7 @@ from clientes c
 left join movimientos m on m.cliente_id = c.id
 group by c.tenant_id, c.id;
 
-create or replace view v_caja_diaria as
-select tenant_id, fecha,
-       sum(total) filter (where tipo = 'VALE_VENTA')   as vale_venta,
-       sum(total) filter (where tipo = 'VALE_CREDITO') as vale_credito,
-       sum(total) filter (where tipo = 'ABONO')        as abonos,
-       sum(total) filter (where tipo = 'INGRESO')      as ingresos,
-       sum(total) filter (where tipo = 'EGRESO')       as egresos,
-       coalesce(sum(total) filter (where forma_pago = 'EFECTIVO' and tipo <> 'EGRESO'), 0)
-         - coalesce(sum(total) filter (where forma_pago = 'EFECTIVO' and tipo = 'EGRESO'), 0) as efectivo_esperado
-from movimientos
-where anulado_at is null
-group by tenant_id, fecha;
+-- v_caja_diaria se define más abajo (con tarjeta, transferencias y devoluciones de envases)
 
 -- -----------------------------------------------------------------------------
 -- Acceso: clave del portal (para todo el personal) y cuentas de administrador
@@ -358,6 +347,32 @@ alter table movimientos drop constraint if exists movimientos_tenant_id_numero_k
 alter table movimientos add column if not exists numero_manual boolean not null default false;
 create index if not exists movimientos_numero_idx on movimientos (tenant_id, numero);
 
+-- Lo que borró un administrador (para que un equipo con copia vieja no lo reviva)
+create table if not exists borrados (
+  id        text primary key,
+  tenant_id text not null references tenants(id),
+  tabla     text not null,
+  at        timestamptz not null default now()
+);
+
+-- Caja del día para consultar en Neon (igual que el cierre de la app)
+drop view if exists v_caja_diaria;
+create view v_caja_diaria as
+select tenant_id, fecha,
+       coalesce(sum(total) filter (where tipo = 'VALE_VENTA'), 0)                          as vale_venta,
+       coalesce(sum(total) filter (where tipo = 'VALE_CREDITO'), 0)                        as vale_credito,
+       coalesce(sum(total) filter (where tipo = 'ABONO' and origen_id is null), 0)         as abonos,
+       coalesce(sum(total) filter (where tipo = 'ABONO' and origen_id is not null), 0)     as pagado_en_vale,
+       coalesce(sum(total) filter (where tipo = 'INGRESO'), 0)                             as ingresos,
+       coalesce(sum(total) filter (where tipo = 'EGRESO'), 0)                              as egresos,
+       coalesce(sum(total) filter (where forma_pago = 'TRANSFERENCIA' and tipo not in ('EGRESO', 'ENVASE_DEVOLUCION')), 0) as transferencia,
+       coalesce(sum(total) filter (where forma_pago = 'TARJETA' and tipo not in ('EGRESO', 'ENVASE_DEVOLUCION')), 0)       as tarjeta,
+       coalesce(sum(total) filter (where forma_pago = 'EFECTIVO' and tipo not in ('EGRESO', 'ENVASE_DEVOLUCION')), 0)
+         - coalesce(sum(total) filter (where forma_pago = 'EFECTIVO' and tipo in ('EGRESO', 'ENVASE_DEVOLUCION')), 0) as efectivo_esperado
+from movimientos
+where anulado_at is null
+group by tenant_id, fecha;
+
 -- Gastos de bodega: categoría del egreso (compra de envases, gas grúa horquilla…)
 alter table movimientos add column if not exists categoria text;
 
@@ -473,7 +488,7 @@ select c.tenant_id, c.id as cliente_id, coalesce(c.alias, c.nombre) as cliente,
          when m.tipo = 'ENVASE_COBRO' and m.forma_pago = 'CREDITO' then m.total
          when m.tipo = 'ENVASE_DEVOLUCION' and m.forma_pago = 'CREDITO' then -m.total
          else 0 end) filter (where m.anulado_at is null), 0) as saldo,
-       max(m.fecha) filter (where m.tipo = 'ABONO' and m.anulado_at is null) as ultimo_pago
+       max(m.fecha) filter (where m.tipo = 'ABONO' and m.origen_id is null and m.anulado_at is null) as ultimo_pago
 from clientes c
 left join movimientos m on m.cliente_id = c.id
 group by c.tenant_id, c.id;

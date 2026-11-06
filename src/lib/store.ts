@@ -199,6 +199,12 @@ async function enviar() {
       }
       if (db && j.ultimo_numero > db.tenant.ultimo_numero) db = { ...db, tenant: { ...db.tenant, ultimo_numero: j.ultimo_numero } };
       if (db) escribir(KEY_NUBE, db);
+      if (j.ajustados > 0 && !j.rechazados?.length) await refrescar(true);
+      if (j.rechazados?.length) {
+        // la base aceptó todo lo demás; lo rechazado se muestra y se vuelve a lo que hay en la base
+        errorSync = `${j.rechazados.length} cambio(s) no se guardaron: ${j.rechazados[0].error}`;
+        await refrescar(true);
+      }
     } else if (r.status === 422) {
       // la base rechazó el cambio (regla de negocio): se descarta y se vuelve a lo que hay en la base
       cola = cola.slice(lote.length);

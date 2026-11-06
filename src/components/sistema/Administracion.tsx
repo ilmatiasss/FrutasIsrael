@@ -1,7 +1,7 @@
 "use client";
 import { useCallback, useEffect, useMemo, useState, type FormEvent, type ReactNode } from "react";
 import { useData, useSync } from "@/lib/store";
-import { verificar } from "@/lib/verificacion";
+import { verificar, type Chequeo } from "@/lib/verificacion";
 import { ddmmaa, hora } from "@/lib/format";
 import { useAviso } from "../Shell";
 
@@ -192,6 +192,8 @@ function Panel({ estado, recargar }: { estado: Estado; recargar: () => void }) {
       </Tarjeta>
 
       <Verificacion />
+
+      <AuditoriaServidor />
 
       <Tarjeta titulo="Intentos de acceso recientes" nota="Después de 8 intentos fallidos en 15 minutos, la IP o el usuario quedan bloqueados por 15 minutos.">
         <div className="max-h-80 overflow-auto">
@@ -546,6 +548,61 @@ function Personal() {
         </button>
         {error && <p className="w-full text-sm font-medium text-fuji">{error}</p>}
       </form>
+    </Tarjeta>
+  );
+}
+
+/** Auditoría de la base REAL en el servidor (no la copia de este computador) */
+function AuditoriaServidor() {
+  const [estado, setEstado] = useState<null | "cargando" | { chequeos: Chequeo[]; conteo: Record<string, number>; at: string } | { error: string }>(null);
+  const correr = async () => {
+    setEstado("cargando");
+    const r = await fetch("/api/admin/auditoria", { cache: "no-store" }).catch(() => null);
+    if (!r) return setEstado({ error: "Sin conexión" });
+    const j = await r.json().catch(() => ({}));
+    setEstado(r.ok ? j : { error: j.error ?? "No se pudo auditar" });
+  };
+  const color = { ok: "#166534", aviso: "#b45309", error: "#b42318" };
+  const res = estado && estado !== "cargando" && "chequeos" in estado ? estado : null;
+  const errores = res?.chequeos.filter((c) => c.estado === "error").length ?? 0;
+  const avisos = res?.chequeos.filter((c) => c.estado === "aviso").length ?? 0;
+  return (
+    <Tarjeta
+      titulo="Auditoría de la base de datos"
+      nota="Revisa directamente la base en el servidor: coherencia de vales, pagos, caja, sueldos y envases; cruces inesperados; y compara saldos y caja calculados de dos formas distintas. No cambia nada."
+    >
+      {!res && (
+        <button type="button" onClick={correr} disabled={estado === "cargando"} className="btn btn-primario disabled:opacity-50">
+          {estado === "cargando" ? "Auditando…" : "Auditar la base ahora"}
+        </button>
+      )}
+      {estado && estado !== "cargando" && "error" in estado && <p className="mt-2 text-sm font-medium text-fuji">{estado.error}</p>}
+      {res && (
+        <>
+          <p className={`mb-2 rounded-md px-3 py-2 text-sm font-semibold ${errores ? "bg-[#fdeeec] text-fuji" : "bg-[#ecf5ef] text-[#166534]"}`}>
+            {errores ? `${errores} problemas encontrados` : "Base de datos coherente: sin errores"}
+            {avisos ? ` · ${avisos} avisos para revisar` : ""}
+            <span className="block text-xs font-normal text-gris">
+              {res.conteo.movimientos} movimientos · {res.conteo.clientes} clientes · {res.conteo.historial} registros de historial · revisado {hora(res.at)}
+            </span>
+          </p>
+          <ul className="divide-y divide-linea">
+            {[...res.chequeos].sort((x, y) => ({ error: 0, aviso: 1, ok: 2 })[x.estado] - ({ error: 0, aviso: 1, ok: 2 })[y.estado]).map((c) => (
+              <li key={c.titulo} className="flex gap-3 py-2.5">
+                <span className="mt-1.5 size-2 shrink-0 rounded-full" style={{ background: color[c.estado] }} />
+                <span className="min-w-0">
+                  <b className="block text-sm font-semibold">{c.titulo}</b>
+                  <span className="text-sm text-gris">{c.detalle}</span>
+                  {c.items && <span className="block text-xs text-gris">{c.items.join(" · ")}</span>}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button type="button" onClick={correr} className="btn btn-secundario mt-3 py-1.5 text-sm">
+            Auditar de nuevo
+          </button>
+        </>
+      )}
     </Tarjeta>
   );
 }

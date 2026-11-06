@@ -88,3 +88,12 @@ En esta revisión los cruces encontraron dos cosas, ya corregidas:
 
 - **Reportes y Clientes daban montos distintos** de «fiado en la calle». Reportes restaba los saldos a favor; ahora se usa el mismo criterio en todos lados.
 - **Al anular un vale crédito ya pagado**, el cliente quedaba con saldo a favor sin aviso. Ahora se advierte antes de anular.
+
+
+## Coherencia de los datos (auditoría)
+
+- **Cuentas y accesos → Auditoría de la base de datos** revisa la base real en el servidor (no la copia de un computador): vales = suma de líneas, líneas bien multiplicadas, pagos dentro de vales, abonos combinados completos, sueldos vs egresos, anulaciones con motivo, cruces entre locales, borrados que reaparecen, clientes duplicados, códigos repetidos y fechas fuera de rango. Además compara **saldos y caja calculados de dos formas distintas** (vistas SQL vs. la app).
+- Un equipo con una copia vieja solo puede **anular** o corregir el N°: lo contable (tipo, fecha, cliente, forma de pago, total) se mantiene como está en la base.
+- Lo que un administrador borró queda en la tabla `borrados` y **no revive** aunque un equipo lo vuelva a mandar.
+- Si la base rechaza un cambio, **no se pierde el resto** del envío: se reintenta por partes y solo se informa lo rechazado.
+- La base impone las anulaciones en cascada: anular un vale anula lo pagado dentro de él; anular una parte de un abono combinado anula las demás.

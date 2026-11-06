@@ -14,9 +14,9 @@ export interface Chequeo {
   items?: string[];
 }
 
-export function verificar(db: Db): Chequeo[] {
+export function verificar(db: Db, hoyLocal?: string): Chequeo[] {
   const idx = indexar(db);
-  const h = hoy();
+  const h = hoyLocal ?? hoy();
   const out: Chequeo[] = [];
   const max = (xs: string[]) => xs.slice(0, 8);
 
