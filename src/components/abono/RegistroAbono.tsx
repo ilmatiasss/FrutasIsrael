@@ -23,6 +23,36 @@ const PASOS = [
 
 type Forma = "EFECTIVO" | "TRANSFERENCIA" | "TARJETA";
 
+const PARTES_INICIALES: { monto: string; forma: Forma }[] = [
+  { monto: "", forma: "EFECTIVO" },
+  { monto: "", forma: "TRANSFERENCIA" },
+];
+const COMBOS_ABONO: Forma[][] = [
+  ["EFECTIVO", "TRANSFERENCIA"],
+  ["EFECTIVO", "TARJETA"],
+  ["TRANSFERENCIA", "TARJETA"],
+];
+
+/** Reparte el abono entre las formas: la última sin monto toma el resto. */
+function repartirAbono(partes: { monto: string; forma: Forma }[], total: number) {
+  const valores = partes.map((x) => (x.monto.trim() ? parseMonto(x.monto) : null));
+  const vacias = valores.map((v, i) => (v === null ? i : -1)).filter((i) => i >= 0);
+  const auto = vacias.length ? vacias[vacias.length - 1] : -1;
+  const puesto = valores.reduce<number>((a, v) => a + (v ?? 0), 0);
+  const resto = total - puesto;
+  const lista = partes
+    .map((x, i) => ({ forma: x.forma, monto: i === auto ? Math.max(0, resto) : (valores[i] ?? 0) }))
+    .filter((x) => x.monto > 0);
+  const suma = lista.reduce((a, x) => a + x.monto, 0);
+  let error: string | null = null;
+  if (total <= 0) error = "Primero escriba el monto del abono.";
+  else if (valores.some((v, i) => partes[i].monto.trim() && v === null)) error = "Hay un monto mal escrito.";
+  else if (suma > total) error = `Sobran ${clp(suma - total)}: suman más que el abono.`;
+  else if (suma < total) error = `Faltan ${clp(total - suma)} para completar el abono.`;
+  else if (lista.length < 2) error = "Para una sola forma de pago elíjala arriba.";
+  return { lista, auto, resto, error };
+}
+
 export function RegistroAbono() {
   const data = useData()!;
   const estados = useEstados(data);
@@ -36,6 +66,9 @@ export function RegistroAbono() {
   const [glosa, setGlosa] = useState("");
   const [fecha, setFecha] = useState(hoy());
   const [numero, setNumero] = useState<string | null>(null);
+  // abono combinado: efectivo + transferencia, efectivo + tarjeta, transferencia + tarjeta
+  const [combinado, setCombinado] = useState(false);
+  const [partes, setPartes] = useState<{ monto: string; forma: Forma }[]>(PARTES_INICIALES);
   const [ultimoId, setUltimoId] = useState<string | null>(null);
   const [alDia, setAlDia] = useState(0); // cambia para re-animar el timbre
   const [sacude, setSacude] = useState(false);
@@ -66,6 +99,7 @@ export function RegistroAbono() {
   const animado = useCuenta(saldo, 1100);
   const m = parseMonto(monto) ?? 0;
   const nuevoSaldo = saldo - m;
+  const reparto = repartirAbono(partes, m);
 
   // aplicación FIFO en vivo: qué vales quedan pagados con este abono
   const cobertura = useMemo(() => {
@@ -88,17 +122,28 @@ export function RegistroAbono() {
       foco("monto");
       return;
     }
-    const mov = registrarAbono({ cliente_id: est.cliente.id, monto: m, forma, glosa: glosa.trim() || null, fecha, numero: leerNumero(numero) });
+    if (combinado && reparto.error) {
+      setSacude(true);
+      setTimeout(() => setSacude(false), 340);
+      foco("parte-0");
+      return;
+    }
+    const mov = registrarAbono({
+      cliente_id: est.cliente.id, monto: m, forma, glosa: glosa.trim() || null, fecha, numero: leerNumero(numero),
+      pagos: combinado ? reparto.lista : null,
+    });
     setUltimoId(mov.id);
     if (saldo - m <= 0) setAlDia((x) => x + 1);
     avisar({
       titulo: `Abono N°${mov.numero} registrado`,
-      detalle: `${est.cliente.alias ?? est.cliente.nombre} · ${FORMA[forma].label} · ${clp(m)} · queda ${clp(Math.max(0, saldo - m))}`,
+      detalle: `${est.cliente.alias ?? est.cliente.nombre} · ${combinado ? reparto.lista.map((x) => `${FORMA[x.forma].label} ${clp(x.monto)}`).join(" + ") : FORMA[forma].label} · ${clp(m)} · queda ${clp(Math.max(0, saldo - m))}`,
       tono: "tinta",
     });
     setMonto("");
     setGlosa("");
     setForma("EFECTIVO");
+    setCombinado(false);
+    setPartes(PARTES_INICIALES);
     setFecha(hoy());
     setNumero(null);
     foco("cliente");
@@ -113,13 +158,19 @@ export function RegistroAbono() {
   };
   const onForma = (e: KeyboardEvent<HTMLDivElement>) => {
     const k = e.key.toLowerCase();
-    if (k === "e" || k === "t" || k === "r") {
+    if (k === "m") {
       e.preventDefault();
+      setCombinado(true);
+      setTimeout(() => foco("parte-0"), 0);
+    } else if (k === "e" || k === "t" || k === "r") {
+      e.preventDefault();
+      setCombinado(false);
       setForma(k === "e" ? "EFECTIVO" : k === "t" ? "TRANSFERENCIA" : "TARJETA");
     } else if (e.key === "ArrowLeft" || e.key === "ArrowRight") {
       e.preventDefault();
       const orden: Forma[] = ["EFECTIVO", "TRANSFERENCIA", "TARJETA"];
       const d = e.key === "ArrowRight" ? 1 : -1;
+      setCombinado(false);
       setForma((f) => orden[(orden.indexOf(f) + d + 3) % 3]);
     } else if (e.key === "Enter") {
       e.preventDefault();
@@ -249,17 +300,121 @@ export function RegistroAbono() {
               ref={r("forma")}
               tabIndex={0}
               role="radiogroup"
-              aria-label="Forma: E efectivo, T transferencia, R tarjeta"
+              aria-label="Forma: E efectivo, T transferencia, R tarjeta, M combinado"
               onKeyDown={onForma}
               className="mt-5 flex flex-wrap gap-2 rounded-md outline-none focus-visible:ring-2 focus-visible:ring-tinta/40 focus-visible:ring-offset-4"
             >
               {(["EFECTIVO", "TRANSFERENCIA", "TARJETA"] as Forma[]).map((k) => (
-                <button key={k} type="button" tabIndex={-1} role="radio" aria-checked={forma === k} onClick={() => setForma(k)} className="opcion">
+                <button
+                  key={k}
+                  type="button"
+                  tabIndex={-1}
+                  role="radio"
+                  aria-checked={!combinado && forma === k}
+                  onClick={() => {
+                    setCombinado(false);
+                    setForma(k);
+                  }}
+                  className="opcion"
+                >
                   {FORMA[k].label}
                   <span className="tecla hidden md:inline-flex">{FORMA[k].tecla}</span>
                 </button>
               ))}
+              <button
+                type="button"
+                tabIndex={-1}
+                role="radio"
+                aria-checked={combinado}
+                onClick={() => {
+                  setCombinado(true);
+                  setTimeout(() => foco("parte-0"), 0);
+                }}
+                className="opcion"
+              >
+                Combinado
+                <span className="tecla hidden md:inline-flex">M</span>
+              </button>
             </div>
+
+            {combinado && (
+              <div className={`animate-entra mt-3 rounded-md border border-linea bg-carton/40 p-3 ${sacude ? "tiembla" : ""}`}>
+                <div className="flex flex-wrap items-center gap-2">
+                  <span className="text-sm text-gris">Paga con:</span>
+                  {COMBOS_ABONO.map((c) => (
+                    <button
+                      key={c.join("+")}
+                      type="button"
+                      tabIndex={-1}
+                      onClick={() => {
+                        setPartes(c.map((f) => ({ monto: "", forma: f })));
+                        setTimeout(() => foco("parte-0"), 0);
+                      }}
+                      className={`rounded-full border px-2.5 py-1 text-xs font-medium ${
+                        partes.length === c.length && partes.every((x, i) => x.forma === c[i]) ? "border-tinta bg-tinta text-white" : "border-kraft text-gris hover:text-grafito"
+                      }`}
+                    >
+                      {c.map((f) => FORMA[f].label).join(" + ")}
+                    </button>
+                  ))}
+                </div>
+                <div className="mt-3 space-y-2">
+                  {partes.map((x, i) => (
+                    <div key={i} className="flex flex-wrap items-center gap-2">
+                      <input
+                        ref={r(`parte-${i}`)}
+                        value={x.monto}
+                        onChange={(e) => setPartes(partes.map((y, j) => (j === i ? { ...y, monto: e.target.value } : y)))}
+                        onKeyDown={(e) => {
+                          if (e.key === "Enter") {
+                            e.preventDefault();
+                            if (i < partes.length - 1) foco(`parte-${i + 1}`);
+                            else guardar();
+                          }
+                        }}
+                        inputMode="numeric"
+                        placeholder={i === reparto.auto ? `resto ${clp(Math.max(0, reparto.resto))}` : "$"}
+                        aria-label={`Abono en ${FORMA[x.forma].label.toLowerCase()}`}
+                        className="campo w-40 text-right text-lg font-semibold"
+                      />
+                      <select
+                        value={x.forma}
+                        onChange={(e) => setPartes(partes.map((y, j) => (j === i ? { ...y, forma: e.target.value as Forma } : y)))}
+                        className="campo w-40"
+                        aria-label={`Forma de pago ${i + 1}`}
+                      >
+                        {(["EFECTIVO", "TRANSFERENCIA", "TARJETA"] as Forma[]).map((f) => (
+                          <option key={f} value={f}>
+                            {FORMA[f].label}
+                          </option>
+                        ))}
+                      </select>
+                      {partes.length > 2 && (
+                        <button type="button" tabIndex={-1} onClick={() => setPartes(partes.filter((_, j) => j !== i))} className="text-sm text-gris hover:text-fuji">
+                          quitar
+                        </button>
+                      )}
+                    </div>
+                  ))}
+                </div>
+                <div className="mt-2 flex flex-wrap items-center justify-between gap-2 text-sm">
+                  {partes.length < 3 ? (
+                    <button type="button" tabIndex={-1} onClick={() => setPartes([...partes, { monto: "", forma: "TARJETA" }])} className="font-medium text-tinta hover:underline">
+                      + otra forma
+                    </button>
+                  ) : (
+                    <span />
+                  )}
+                  {reparto.error ? (
+                    <b className="text-fuji">{reparto.error}</b>
+                  ) : (
+                    <span className="text-gris">
+                      {reparto.lista.map((y) => `${FORMA[y.forma].label} ${clp(y.monto)}`).join(" + ")} = <b className="text-grafito">{clp(m)}</b>
+                    </span>
+                  )}
+                </div>
+              </div>
+            )}
             <input
               value={glosa}
               onChange={(e) => setGlosa(e.target.value)}

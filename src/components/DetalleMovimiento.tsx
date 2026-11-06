@@ -2,7 +2,7 @@
 import Link from "next/link";
 import { useEffect, useRef, useState } from "react";
 import type { Movimiento } from "@/lib/types";
-import { anular, corregirNumero, useData } from "@/lib/store";
+import { anular, corregirNumero, mismaOperacion, useData } from "@/lib/store";
 import { efectoDeuda, ETIQUETA_TIPO } from "@/lib/calc";
 import { cant, clp, fechaLarga, hora } from "@/lib/format";
 import { FORMA, FormaChip, Modal, Timbre } from "./ui";
@@ -63,7 +63,9 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
   const lineas = data.idx.lineasMov.get(mov.id) ?? [];
   const lineasEnv = data.db.lineas_envase.filter((l) => l.movimiento_id === mov.id);
   const nombreEnvase = (id: string) => data.db.envases.find((e) => e.id === id)?.nombre ?? "Envase";
-  const ligados = data.db.movimientos.filter((m) => m.origen_id === mov.id || m.id === mov.origen_id);
+  const ligados = data.db.movimientos.filter(
+    (m) => m.origen_id === mov.id || m.id === mov.origen_id || (m.id !== mov.id && mov.tipo === "ABONO" && !!mov.glosa?.includes("Abono combinado:") && mismaOperacion(m, mov)),
+  );
   // cruce: cómo queda la cuenta del cliente si se anula este movimiento
   const saldoTras = (() => {
     if (!mov.cliente_id || mov.anulado_at) return null;
@@ -205,7 +207,12 @@ export function DetalleMovimiento({ movId, onCerrar }: { movId: string | null; o
           <p className="mt-3 text-sm text-gris">
             {ligados.map((l) => (
               <span key={l.id} className="mr-3">
-                ↳ {l.tipo === "ABONO" ? `Pagado en el vale (${FORMA[l.forma_pago]?.label.toLowerCase() ?? l.forma_pago})` : "Vale de origen"} N°{l.numero} · {clp(l.total)}
+                ↳ {l.origen_id === mov.id
+                  ? `Pagado en el vale (${FORMA[l.forma_pago]?.label.toLowerCase() ?? l.forma_pago})`
+                  : l.id === mov.origen_id
+                    ? "Vale de origen"
+                    : `Otra parte del abono (${FORMA[l.forma_pago]?.label.toLowerCase() ?? l.forma_pago})`}{" "}
+                N°{l.numero} · {clp(l.total)}
                 {l.anulado_at && " (anulado)"}
               </span>
             ))}

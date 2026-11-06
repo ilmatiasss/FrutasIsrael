@@ -677,19 +677,27 @@ export function guardarEnvase(p: { id?: string; nombre: string; precio: number; 
 
 export function registrarAbono(p: {
   cliente_id: string; monto: number; forma: Exclude<FormaPago, "CREDITO">; glosa: string | null; fecha: string; numero?: number | null;
+  /** abono combinado (efectivo + transferencia…): una parte por forma, todas con el mismo N° */
+  pagos?: { monto: number; forma: Exclude<FormaPago, "CREDITO"> }[] | null;
 }): Movimiento {
   let creado!: Movimiento;
   set((d) => {
     const { numero, numero_manual } = numeroPara(d, "ABONO", p.numero);
-    const mov = nuevoMov(d, numero, {
-      tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: p.forma, total: p.monto, glosa: p.glosa, numero_manual,
-    });
-    creado = mov;
+    const partes = p.pagos?.length ? p.pagos.filter((x) => x.monto > 0) : [{ monto: p.monto, forma: p.forma }];
+    const combinado = partes.length > 1;
+    const glosa = combinado
+      ? [p.glosa, `Abono combinado: ${partes.map((x) => `${x.forma.toLowerCase()} $${x.monto}`).join(" + ")}`].filter(Boolean).join(" · ")
+      : p.glosa;
+    const movs = partes.map((x) =>
+      nuevoMov(d, numero, { tipo: "ABONO", fecha: p.fecha, cliente_id: p.cliente_id, forma_pago: x.forma, total: x.monto, glosa, numero_manual }),
+    );
+    creado = movs[0];
+    const total = partes.reduce((a, x) => a + x.monto, 0);
     return {
       ...d,
       tenant: { ...d.tenant, ultimo_numero: Math.max(d.tenant.ultimo_numero, numero) },
-      movimientos: [...d.movimientos, mov],
-      eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", mov.id, `Abono N°${numero} · $${p.monto}`)],
+      movimientos: [...d.movimientos, ...movs],
+      eventos: [...d.eventos, evento(d, "CREAR_MOVIMIENTO", creado.id, `Abono N°${numero} · $${total}${combinado ? ` (${partes.map((x) => x.forma.toLowerCase()).join(" + ")})` : ""}`)],
     };
   });
   return creado;
@@ -717,13 +725,22 @@ export function registrarCaja(p: {
   return creado;
 }
 
+const esParteCombinada = (m: Movimiento) => m.tipo === "ABONO" && !m.origen_id && !!m.glosa?.includes("Abono combinado:");
+/** Partes de un mismo abono combinado: mismo N°, cliente, fecha y detalle. */
+export const mismaOperacion = (a: Movimiento, b: Movimiento) =>
+  a.tipo === b.tipo && a.numero === b.numero && a.cliente_id === b.cliente_id && a.fecha === b.fecha && a.glosa === b.glosa;
+
 /** Anula (no borra). Si es un vale con abono en el mismo vale, anula ambos. */
 export function anular(id: string, motivo: string) {
   set((d) => {
     const at = new Date().toISOString();
     const objetivo = d.movimientos.find((m) => m.id === id);
     if (!objetivo || objetivo.anulado_at) return d;
-    const ids = new Set([id, ...d.movimientos.filter((m) => m.origen_id === id && !m.anulado_at).map((m) => m.id)]);
+    // un abono combinado son varias partes con el mismo N°: se anulan todas juntas
+    const hermanos = esParteCombinada(objetivo)
+      ? d.movimientos.filter((m) => m.id !== id && !m.anulado_at && mismaOperacion(m, objetivo)).map((m) => m.id)
+      : [];
+    const ids = new Set([id, ...hermanos, ...d.movimientos.filter((m) => m.origen_id === id && !m.anulado_at).map((m) => m.id)]);
     return {
       ...d,
       movimientos: d.movimientos.map((m) =>

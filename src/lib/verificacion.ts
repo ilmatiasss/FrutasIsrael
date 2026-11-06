@@ -23,11 +23,14 @@ export function verificar(db: Db): Chequeo[] {
   // 1. numeración: cada talonario por separado; repetir o usar 0 se permite (solo se avisa)
   const repetidos: string[] = [];
   for (const s of ["VALE", "ABONO", "ENVASE", "CAJA"] as Serie[]) {
-    const vistos = new Set<number>();
+    // las partes de un abono combinado comparten N° a propósito: cuentan como una sola
+    const vistos = new Map<number, string>();
     for (const m of db.movimientos) {
       if (serieDe(m.tipo) !== s || m.numero <= 0 || (m.tipo === "ABONO" && m.origen_id)) continue;
-      if (vistos.has(m.numero)) repetidos.push(`${NOMBRE_SERIE[s]} N°${m.numero}`);
-      vistos.add(m.numero);
+      const op = `${m.cliente_id}|${m.fecha}|${m.glosa ?? ""}`;
+      const previo = vistos.get(m.numero);
+      if (previo !== undefined && !(m.glosa?.includes("Abono combinado:") && previo === op)) repetidos.push(`${NOMBRE_SERIE[s]} N°${m.numero}`);
+      if (previo === undefined) vistos.set(m.numero, op);
     }
   }
   out.push(

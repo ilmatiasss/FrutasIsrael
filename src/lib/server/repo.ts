@@ -128,9 +128,21 @@ export async function aplicarCambios(tenant: string, cambios: Cambio[], t: Cambi
         for (const x of r.rows) marcar(String(x.serie), Number(x.numero));
         // los manuales del mismo lote también ocupan su N°
         for (const m of nuevos) if (m.numero_manual && Number(m.numero) > 0 && !(m.tipo === "ABONO" && m.origen_id)) marcar(serie(String(m.tipo)), Number(m.numero));
+        // movimientos del mismo lote con el mismo N° automático son partes de una misma
+        // operación (abono combinado): si hay que renumerar, se renumeran juntos
+        const asignado = new Map<string, number>();
         for (const m of automaticos.sort((a, b) => Number(a.numero) - Number(b.numero))) {
           const s = serie(String(m.tipo));
           let n = Number(m.numero);
+          const clave = `${s}:${n}`;
+          if (asignado.has(clave)) {
+            const nuevo = asignado.get(clave)!;
+            if (nuevo !== n) {
+              m.numero = nuevo;
+              renumerados.push({ id: String(m.id), numero: nuevo });
+            }
+            continue;
+          }
           if (usados.get(s)?.has(n)) {
             const viejo = n;
             n = (mayor.get(s) ?? 0) + 1;
@@ -139,6 +151,7 @@ export async function aplicarCambios(tenant: string, cambios: Cambio[], t: Cambi
             // lo pagado en el mismo vale sigue al vale
             for (const x of nuevos) if (x.origen_id === m.id && Number(x.numero) === viejo) x.numero = n;
           }
+          asignado.set(clave, n);
           marcar(s, n);
           ultimo = Math.max(ultimo, n);
         }
